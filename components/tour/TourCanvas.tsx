@@ -16,10 +16,12 @@ import {
   sectionIds,
   tourAnchors,
   tourState,
+  hangarPositions,
   type Vec3,
 } from '@/lib/tour';
 import { makeInteriors, disposeInterior } from './room-models';
 import type { TourContent } from '@/lib/content';
+import { TourLighting } from './TourLighting';
 type Props = {
   onReady: () => void;
   onHover: (id: string) => void;
@@ -251,36 +253,50 @@ function HangarEntrances({ onHangar }: Pick<Props, 'onHangar'>) {
   });
   return (
     <group ref={root}>
-      {[-1.35, -0.45, 0.45, 1.35].map((x, i) => (
+      {hangarPositions.map((position, i) => (
         <group
           key={i}
-          position={[x, -0.6, Math.sqrt(9 - x * x) + 0.08]}
+          position={position}
+          rotation={[0, Math.asin(position[0] / 3), 0]}
+          scale={[0.26, 0.2, 0.3]}
           onClick={() => onHangar(i)}
         >
           <mesh>
             <boxGeometry args={[0.72, 0.45, 0.13]} />
-            <meshStandardMaterial color="#060913" />
+            <meshStandardMaterial color="#04060b" roughness={0.8} />
           </mesh>
           <mesh position={[0, 0, 0.073]}>
             <planeGeometry args={[0.65, 0.37]} />
             <meshBasicMaterial
               color="#af88ff"
               transparent
-              opacity={0.32}
+              opacity={0.09}
               side={T.DoubleSide}
               depthWrite={false}
             />
           </mesh>
           {[-0.36, 0.36].map((v, j) => (
             <mesh key={j} position={[v, 0, 0.085]}>
-              <boxGeometry args={[0.023, 0.46, 0.02]} />
+              <boxGeometry args={[0.009, 0.46, 0.02]} />
               <meshBasicMaterial color="#c6a0ff" toneMapped={false} />
             </mesh>
           ))}
           {[-0.23, 0.23].map((v, j) => (
             <mesh key={j} position={[0, v, 0.085]}>
-              <boxGeometry args={[0.72, 0.021, 0.02]} />
+              <boxGeometry args={[0.72, 0.009, 0.02]} />
               <meshBasicMaterial color="#b488ff" toneMapped={false} />
+            </mesh>
+          ))}
+          {[-0.23, -0.08, 0.08, 0.23].map((x) => (
+            <mesh key={x} position={[x, 0.14, 0.083]}>
+              <boxGeometry args={[0.06, 0.018, 0.01]} />
+              <meshBasicMaterial color="#d8e4f3" />
+            </mesh>
+          ))}
+          {[-0.13, 0.13].map((x) => (
+            <mesh key={x} position={[x, -0.14, 0.083]}>
+              <boxGeometry args={[0.1, 0.025, 0.01]} />
+              <meshStandardMaterial color="#434c5b" />
             </mesh>
           ))}
         </group>
@@ -578,6 +594,7 @@ function ContextEvents() {
 export default function TourCanvas(props: Props) {
   return (
     <Canvas
+      shadows={{ type: T.PCFShadowMap }}
       dpr={[1, 1.4]}
       camera={{ position: [6, 3.1, 9], fov: 44, near: 0.015, far: 180 }}
       gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
@@ -587,10 +604,7 @@ export default function TourCanvas(props: Props) {
       }}
     >
       <ContextEvents />
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[4, 8, 9]} intensity={2.3} color="#d5d7ee" />
-      <directionalLight position={[-7, 3, -1]} intensity={1.5} color="#ad85ff" />
-      <pointLight position={[0, -12, 2]} intensity={8} color="#9d68ff" />
+      <TourLighting />
       <Suspense fallback={null}>
         <World {...props} />
       </Suspense>

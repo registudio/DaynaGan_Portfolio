@@ -25,3 +25,7 @@ The blueprint retains source line geometry, rotates about X and pauses when sele
 Pop-ups follow projected model anchors and stay within the viewport. Keyboard focus and touch taps expose the same records as hover. The reading dialog contains server-rendered Markdown and remains available if WebGL fails. Reduced motion disables automatic rotation, camera interpolation and flying bolts.
 
 `public/models/tour/manifest.json` records sizes and retained node names. Legacy assets under `public/models/station/` are not used by the tour.
+
+Interior surfaces use locally generated roughness and bump maps, beveled geometry and a generated reflection environment. A single shadow-casting practical light follows the active room; its shadow map is reduced on mobile. Materials, textures and reflection targets are disposed when their scene unmounts.
+
+The four interactive hangars are small openings aligned with the equatorial trench at Y = -0.025. Their positions and pop-up anchors share `hangarPositions` in `lib/tour.ts`; keep these together when changing the close trench camera.

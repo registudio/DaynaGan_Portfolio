@@ -1282,14 +1282,138 @@ html:has(.tour-root) {
   top: var(--popup-y, 35%);
   right: auto;
   bottom: auto;
-  width: 310px;
-  max-height: min(470px, calc(100svh - 190px));
+  width: 230px;
+  max-height: min(290px, calc(100svh - 190px));
   z-index: 15;
-  padding: 23px;
-  background: linear-gradient(135deg, #141120f5, #090c16f5);
-  border: 1px solid #b48fe575;
-  border-radius: 3px;
-  box-shadow: 0 18px 65px #0009;
+  padding: 10px 12px;
+  background: linear-gradient(100deg, #08091252, #08091212);
+  border: 0;
+  border-left: 1px solid #b48fe538;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  text-shadow:
+    0 1px 3px #000,
+    0 0 7px #000b;
+  scrollbar-color: #bfa3da50 transparent;
+}
+.tour-root .model-popup:before {
+  display: none;
+}
+.model-popup h2 {
+  font-size: 15px;
+  line-height: 1.35;
+  margin: 7px 0;
+  font-weight: 500;
+}
+.model-popup p {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 7px 0;
+  color: #d3cfde;
+}
+.model-popup .tiny-label {
+  font-size: 7px;
+  letter-spacing: 0.08em;
+}
+.model-popup .panel-hint {
+  display: none;
+}
+.model-popup .tour-tags {
+  gap: 4px 8px;
+  margin: 8px 0;
+}
+.model-popup .tour-tags > span {
+  border: 0;
+  padding: 0;
+  font-size: 8px;
+}
+.model-popup .tour-tags > span:not(:last-child):after {
+  content: ' ·';
+  color: #9d91ad;
+}
+.model-popup .tour-primary {
+  border: 0;
+  border-bottom: 1px solid #bda1dd55;
+  background: none;
+  padding: 5px 0;
+  font-size: 10px;
+  box-shadow: none;
+}
+.model-popup .tour-text-button {
+  font-size: 10px;
+  margin: 5px 0;
+  padding: 3px 0;
+}
+.model-popup .report-highlight {
+  padding: 8px 0 0;
+  margin: 9px 0;
+  border-bottom: 0;
+  border-top-color: #b9a6d329;
+}
+.model-popup .report-highlight p {
+  font-size: 11px;
+}
+.model-popup .report-tabs button,
+.model-popup .beam-status button {
+  border: 0;
+  border-bottom: 1px solid #a48abb44;
+  background: none;
+  padding: 4px;
+  min-height: 26px;
+  min-width: 24px;
+  font-size: 8px;
+}
+.model-popup .beam-status {
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  margin: 8px 0;
+}
+.model-popup .awaiting-label {
+  font-size: 7px;
+  margin: 9px 0;
+  padding: 2px 7px;
+  border-left-width: 1px;
+}
+.model-popup .defense-records {
+  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+}
+.model-popup .defense-records > button {
+  width: auto;
+  border: 0;
+  padding: 3px 0;
+  font-size: 9px;
+  background: none;
+}
+.model-popup .defense-records > button > small {
+  display: none;
+}
+.model-popup .defense-records > button > span {
+  font-size: 11px;
+}
+.model-popup .live-repos {
+  margin: 8px 0;
+}
+.model-popup .live-repos a {
+  padding: 7px 0;
+}
+.model-popup .live-repos strong {
+  font-size: 11px;
+}
+.model-popup .comlink-list {
+  margin: 6px 0;
+}
+.model-popup .comlink-list a {
+  padding: 7px 0;
+}
+.model-popup .log-link {
+  padding: 8px 0;
+}
+.model-popup .log-link strong {
+  font-size: 13px;
 }
 .tour-root .model-popup[hidden] {
   display: none;
@@ -1298,14 +1422,14 @@ html:has(.tour-root) {
   position: sticky;
   float: right;
   top: 0;
-  margin: -13px -12px 0 10px;
+  margin: -5px -6px 0 5px;
   z-index: 2;
   width: 30px;
   height: 30px;
   border: 0;
-  background: #21182d;
+  background: transparent;
   color: #dcc4ff;
-  font-size: 22px;
+  font-size: 17px;
   cursor: pointer;
 }
 .popup-tether {
@@ -1321,7 +1445,7 @@ html:has(.tour-root) {
   fill: none;
   stroke: #cda4ff;
   stroke-width: 1;
-  stroke-opacity: 0.65;
+  stroke-opacity: 0.3;
 }
 .tour-root .chapter-title {
   top: 110px;
@@ -1350,13 +1474,28 @@ html:has(.tour-root) {
   padding: 0;
 }
 .model-popup .academy-records ul {
+  font-size: 10px;
+  line-height: 1.65;
+  margin-top: 6px;
+}
+.model-popup .academy-records {
+  margin-top: 7px;
+}
+.model-popup .academy-records strong {
   font-size: 12px;
+  margin: 4px 0;
+}
+.model-popup .academy-records small {
+  font-size: 10px;
 }
 .model-popup .tour-primary {
-  margin-top: 15px;
+  margin-top: 7px;
 }
 .tour-root .spatial-hotspot > span {
   max-width: 170px;
+  background: #08091240;
+  text-shadow: 0 1px 3px #000;
+  border-left-color: #bb98eb40;
 }
 .chapter-4 .spatial-hotspot:not(.is-selected):not(:hover):not(:focus-visible) > span {
   display: none;
@@ -1370,9 +1509,23 @@ html:has(.tour-root) {
     font-size: 22px;
   }
   .tour-root .model-popup {
-    width: calc(100vw - 74px);
-    max-height: 38svh;
-    padding: 19px;
+    width: min(240px, calc(100vw - 80px));
+    max-height: 32svh;
+    padding: 10px 12px;
+  }
+  .tour-root .model-popup h2 {
+    font-size: 15px;
+    margin: 7px 0;
+  }
+  .tour-root .model-popup p {
+    font-size: 11px;
+  }
+  .model-popup .beam-status {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .model-popup .beam-status button,
+  .model-popup .report-tabs button {
+    min-height: 34px;
   }
   .tour-root .spatial-hotspot {
     width: 38px;

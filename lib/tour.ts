@@ -45,6 +45,11 @@ export const roomOrigins: Record<number, Vec3> = {
   6: [54, -14, 0],
   7: [72, -14, 0],
 };
+export const hangarPositions: Vec3[] = [-0.9, -0.3, 0.3, 0.9].map((x) => [
+  x,
+  -0.025,
+  Math.sqrt(9 - x * x) + 0.012,
+]);
 export const dishCenter: Vec3 = [1.052, 1.285, 2.34];
 export const dishNormal: Vec3 = [0.35, 0.43, 0.832];
 export const beamFocus: Vec3 = [1.682, 2.059, 3.838];
@@ -83,9 +88,9 @@ export function tourAnchors(stage: number, hangar: number): Anchor[] {
       position: localPoint(2, [x, 0.65, -0.8]),
     }));
   if (stage === 3 && hangar < 0)
-    return [-1.35, -0.45, 0.45, 1.35].map((x, i) => ({
+    return hangarPositions.map((position, i) => ({
       id: `hangar-${i}`,
-      position: [x, -0.6, Math.sqrt(9 - x * x) + 0.03] as Vec3,
+      position,
     }));
   if (stage === 3)
     return Array.from({ length: 7 }, (_, i) => ({
@@ -139,9 +144,9 @@ export function chapterPose(stage: number, local: number, mobile = false, hangar
     };
   if (stage === 3)
     return {
-      position: [1.4 + Math.sin(local * 1.3) * 0.5, 0, 7.5 + extra],
-      target: [0, -0.45, 1.5],
-      fov: 52,
+      position: [0.28 + Math.sin(local * 1.3) * 0.15, 0.06, 4.4 + (mobile ? 1.2 : 0)],
+      target: [0, -0.025, 2.96],
+      fov: 54,
     };
   if (stage === 4)
     return { position: [5 + extra, 4.5, 8.6 + extra], target: [0.9, 1, 1.9], fov: 47 };
