@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import type { GitHubFeed } from '@/lib/github';
+import { asset } from '@/lib/urls';
 
 type Pin = {
   live: boolean;
@@ -92,9 +93,9 @@ function Calendar({ feed }: { feed: GitHubFeed }) {
       <div className="gh-legend">
         <span>
           {feed.activitySource === 'events'
-            ? 'Recent public events only. Add GITHUB_TOKEN for the full contribution calendar.'
+            ? 'Recent public events only. A GitHub token at build time shows the full calendar.'
             : feed.activitySource === 'none'
-              ? 'Live activity reconnects on the next refresh.'
+              ? 'Activity updates on the next daily rebuild.'
               : 'Public and private contribution counts.'}
         </span>
         <span className="gh-scale" aria-hidden="true">
@@ -139,7 +140,7 @@ export function GitHubDashboard({
           description: p.summary,
           language: p.technologies[0] ?? 'Project',
           live: false,
-          href: p.github ?? `/projects/${p.slug}`,
+          href: p.github ?? asset(`/projects/${p.slug}/`),
         }));
 
   const pinCard = (p: Pin) => (
@@ -183,8 +184,8 @@ export function GitHubDashboard({
       </div>
       {!online && (
         <p className="gh-banner">
-          Live GitHub data is offline right now — showing portfolio projects instead. It reconnects
-          on the next refresh.
+          GitHub data couldn't be loaded when this page was built — showing portfolio projects
+          instead. It updates on the next daily rebuild.
         </p>
       )}
       <div className="gh-body">
@@ -217,11 +218,44 @@ export function GitHubDashboard({
             </p>
           )}
           <p className="gh-location">⌖ {location}</p>
-          {feed.languages.length > 0 && (
-            <div className="tags">
-              {feed.languages.slice(0, 8).map((l) => (
-                <span key={l}>{l}</span>
-              ))}
+          {feed.profile && (
+            <dl className="gh-stats">
+              <div>
+                <dt>Repos</dt>
+                <dd>{feed.profile.public_repos}</dd>
+              </div>
+              <div>
+                <dt>Stars</dt>
+                <dd>{feed.totalStars}</dd>
+              </div>
+              <div>
+                <dt>Followers</dt>
+                <dd>{feed.profile.followers}</dd>
+              </div>
+            </dl>
+          )}
+          {feed.languageStats.length > 0 && (
+            <div className="gh-languages">
+              <h4 className="gh-subhead">Languages</h4>
+              <span className="gh-language-bar" aria-hidden="true">
+                {feed.languageStats.map((l) => (
+                  <i
+                    key={l.name}
+                    style={{
+                      width: `${l.share * 100}%`,
+                      background: LANGUAGE_COLOURS[l.name] ?? '#a78bfa',
+                    }}
+                  />
+                ))}
+              </span>
+              <ul>
+                {feed.languageStats.slice(0, 6).map((l) => (
+                  <li key={l.name}>
+                    <i style={{ background: LANGUAGE_COLOURS[l.name] ?? '#a78bfa' }} />
+                    {l.name} <span>{Math.round(l.share * 100)}%</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </aside>
@@ -245,12 +279,12 @@ export function GitHubDashboard({
           </div>
           {tab === 'overview' ? (
             <>
-              <h4 className="gh-subhead">{online ? 'Popular repositories' : 'Pinned'}</h4>
+              <h4 className="gh-subhead">{online ? 'Pinned repositories' : 'Pinned'}</h4>
               <div className="gh-pins">{pins.slice(0, 6).map(pinCard)}</div>
               <Calendar feed={feed} />
               {feed.events.length > 0 && (
                 <div className="gh-activity">
-                  <h4 className="gh-subhead">Recent activity</h4>
+                  <h4 className="gh-subhead">Recent commits & activity</h4>
                   <ol>
                     {feed.events.map((e) => (
                       <li key={e.id}>
@@ -286,7 +320,7 @@ export function GitHubDashboard({
       </div>
       <p className="gh-footnote">
         {online ? 'Snapshot' : 'Last attempt'} {feed.fetchedAt.slice(0, 16).replace('T', ' ')} UTC ·
-        refreshes hourly
+        rebuilt daily
       </p>
     </div>
   );

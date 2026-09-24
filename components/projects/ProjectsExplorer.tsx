@@ -39,7 +39,7 @@ function CompareSide({ side, variant }: { side: Side; variant: 'before' | 'after
     );
   return (
     <div className={`compare-placeholder compare-placeholder-${variant}`}>
-      <span>Photo coming soon</span>
+      <span>{variant === 'before' ? 'CAD / render coming soon' : 'Photo coming soon'}</span>
     </div>
   );
 }
@@ -86,6 +86,7 @@ export function ProjectsExplorer({ projects }: { projects: ProjectCard[] }) {
 
   const choose = (i: number) => {
     setIndex(i);
+    if (!projects[i].compare) setView('model');
     setSelected(null);
     setHovered(null);
     setExplode(0);
@@ -126,14 +127,16 @@ export function ProjectsExplorer({ projects }: { projects: ProjectCard[] }) {
             <h3>{project.title}</h3>
             <p className="stage-summary">{project.summary}</p>
           </div>
-          <div className="view-switch" role="group" aria-label="View">
-            <button aria-pressed={view === 'model'} onClick={() => setView('model')}>
-              Exploded view
-            </button>
-            <button aria-pressed={view === 'compare'} onClick={() => setView('compare')}>
-              Before / after
-            </button>
-          </div>
+          {project.compare && (
+            <div className="view-switch" role="group" aria-label="View">
+              <button aria-pressed={view === 'model'} onClick={() => setView('model')}>
+                Exploded view
+              </button>
+              <button aria-pressed={view === 'compare'} onClick={() => setView('compare')}>
+                CAD / real build
+              </button>
+            </div>
+          )}
         </div>
 
         {view === 'model' ? (

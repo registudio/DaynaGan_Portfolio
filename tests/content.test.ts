@@ -6,7 +6,6 @@ import {
   getSections,
   getExperience,
   getProjects,
-  getPosts,
   getProfile,
   projectSchema,
 } from '../lib/content.ts';
@@ -53,11 +52,21 @@ test('all six projects publish in order with explodable parts', () => {
   assert.equal(projects.find((p) => p.slug === 'drone')?.status, 'in-progress');
 });
 
-test('draft projects and blog posts are never published', () => {
+test('experience runs newest first and hardware-only projects have CAD comparisons', () => {
+  assert.deepEqual(
+    getExperience().map((j) => j.slug),
+    ['ecovolt', 'dso', 'astar', 'otsaw'],
+  );
+  const projects = getProjects();
+  for (const slug of ['rosa-ros2', 'isaac-nav2', 'dreamer-smaclite'])
+    assert.equal(projects.find((p) => p.slug === slug)?.compare, undefined, slug);
+  for (const slug of ['air-quality-sensor', 'robot-claw', 'drone'])
+    assert.ok(projects.find((p) => p.slug === slug)?.compare, slug);
+});
+
+test('draft projects are never published', () => {
   assert.ok(getProjects().every((p) => !p.draft));
-  assert.ok(getPosts().every((p) => !p.draft));
   assert.ok(!getProjects().some((p) => p.slug === 'first-project'));
-  assert.ok(!getPosts().some((p) => p.slug === 'first-field-note'));
 });
 
 test('invalid project content fails validation', () => {

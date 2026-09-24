@@ -11,20 +11,33 @@ import { ExperienceTrack } from '@/components/sections/Experience';
 import { Skills } from '@/components/sections/Skills';
 import { GitHubDashboard } from '@/components/sections/GitHubDashboard';
 import { Contact } from '@/components/sections/Contact';
+import { CursorConstellation } from '@/components/playground/CursorConstellation';
 import { ProjectsExplorer } from '@/components/projects/ProjectsExplorer';
-
-export const revalidate = 3600;
 
 export default async function Home() {
   const site = getSite();
   const profile = getProfile();
   const sections = Object.fromEntries(getSections().map((s) => [s.id, s]));
-  const projects = getProjects().map(({ body: _body, ...p }) => p);
+  // Asset paths get the GitHub Pages base path so they resolve under /<repo>/.
+  const projects = getProjects().map(({ body: _body, ...p }) => ({
+    ...p,
+    model: p.model ? asset(p.model) : p.model,
+    compare: p.compare && {
+      ...p.compare,
+      before: {
+        ...p.compare.before,
+        image: p.compare.before.image && asset(p.compare.before.image),
+      },
+      after: { ...p.compare.after, image: p.compare.after.image && asset(p.compare.after.image) },
+    },
+  }));
   const jobs = getExperience().map((j) => ({
     slug: j.slug,
     title: j.title,
     role: j.role,
     period: j.period,
+    mark: j.mark,
+    logo: j.logo ? asset(j.logo) : undefined,
     technologies: j.technologies,
     summary: j.body.trim().split('\n\n')[0],
     details: j.body
@@ -60,21 +73,24 @@ export default async function Home() {
       <FloatingNav items={site.navigation} resume={resume} />
       <ScrollEffects />
       <main>
-        <Hero site={site} />
-        <About section={sections.about} profile={profile} site={site} />
+        <Hero
+          site={site}
+          models={projects.map((p) => ({ slug: p.slug, title: p.title, parts: p.parts }))}
+        />
+        <About section={sections.about} profile={profile} />
 
-        <section id="education" className="section education">
+        <section id="education" className="section band education">
           <span className="section-glow glow-right" data-parallax="-0.25" aria-hidden="true" />
           <SectionHeader section={sections.education} />
           <EducationTimeline items={profile.education} />
         </section>
 
-        <section id="experience" className="section experience">
+        <section id="experience" className="section band experience">
           <SectionHeader section={sections.experience} />
           <ExperienceTrack jobs={jobs} />
         </section>
 
-        <section id="projects" className="section projects">
+        <section id="projects" className="section band projects">
           <span className="section-glow glow-left" data-parallax="-0.3" aria-hidden="true" />
           <SectionHeader section={sections.projects}>
             <p className="section-intro">{sections.projects.body.trim()}</p>
@@ -82,13 +98,13 @@ export default async function Home() {
           <ProjectsExplorer projects={projects} />
         </section>
 
-        <section id="skills" className="section skills">
+        <section id="skills" className="section band skills">
           <span className="section-glow glow-right" data-parallax="-0.2" aria-hidden="true" />
           <SectionHeader section={sections.skills} />
           <Skills profile={profile} />
         </section>
 
-        <section id="github" className="section github">
+        <section id="github" className="section band github">
           <SectionHeader section={sections.github} />
           <GitHubDashboard
             feed={feed}
@@ -106,8 +122,8 @@ export default async function Home() {
           />
         </section>
 
-        <section id="contact" className="section contact">
-          <span className="section-glow glow-center" data-parallax="-0.2" aria-hidden="true" />
+        <section id="contact" className="section band contact">
+          <CursorConstellation className="contact-canvas" />
           <p className="eyebrow" data-reveal>
             {sections.contact.eyebrow}
           </p>

@@ -4,6 +4,10 @@ stats:
   - { value: 4, decimals: 0, suffix: '', label: Engineering internships }
   - { value: 100, decimals: 0, suffix: '+', label: Nav2 simulation runs evaluated }
   - { value: 80, decimals: 0, suffix: '+', label: Volunteers led at RoboCup SG }
+currently:
+  - { label: Studying, value: Computer Engineering at NUS }
+  - { label: Working, value: Hardware engineering at Ecovolt Technologies }
+  - { label: Building, value: A drone — wrapping up now }
 education:
   - id: sst
     title: School of Science and Technology
@@ -25,7 +29,7 @@ education:
     details: ['University Engineering Scholarship Recipient']
 skills:
   - { title: Programming, items: [Python, C++, Java, Verilog] }
-  - { title: Robotics & simulation, items: [ROS 2, NVIDIA Isaac Sim, Nav2, LangChain, Reinforcement learning] }
+  - { title: Robotics & simulation, items: [ROS 2, NVIDIA Isaac Sim, Nav2] }
   - { title: Hardware & prototyping, items: [CAD, Autodesk Inventor, Arduino, ESP32, STM32, Soldering, Hands-on Assembly, 3D Printing] }
 awards:
   - { title: Valedictorian, detail: Singapore Polytechnic, period: '2025' }

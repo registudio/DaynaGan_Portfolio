@@ -91,17 +91,16 @@ export const projectSchema = baseEntry.extend({
 });
 export type Project = z.infer<typeof projectSchema> & { body: string };
 export type Part = z.infer<typeof partSchema>;
-export const blogSchema = baseEntry.extend({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  tags: z.array(z.string()).default([]),
-  cover: z.string().nullish(),
-});
 const experienceSchema = z.object({
   slug: z.string(),
   title: z.string(),
   role: z.string(),
   period: z.string(),
   order: z.number(),
+  /** Short text mark shown until a real logo exists. */
+  mark: z.string().optional(),
+  /** Optional logo under /public, e.g. /logos/ecovolt.svg. */
+  logo: z.string().optional(),
   technologies: z.array(z.string()),
 });
 function read<T extends z.ZodType>(file: string, schema: T): z.infer<T> & { body: string } {
@@ -130,16 +129,13 @@ export const getProjects = () =>
   uniqueSlugs(collection('projects', projectSchema))
     .filter((p) => !p.draft)
     .sort((a, b) => a.order - b.order);
-export const getPosts = () =>
-  uniqueSlugs(collection('blog', blogSchema))
-    .filter((p) => !p.draft)
-    .sort((a, b) => b.date.localeCompare(a.date));
 export type Site = ReturnType<typeof getSite>;
 export type NavigationItem = z.infer<typeof navigationSchema>;
 const profileSchema = z.object({
   stats: z.array(
     z.object({ value: z.number(), decimals: z.number(), suffix: z.string(), label: z.string() }),
   ),
+  currently: z.array(z.object({ label: z.string(), value: z.string() })),
   education: z.array(
     z.object({
       id: z.string(),

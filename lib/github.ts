@@ -61,6 +61,9 @@ export type GitHubFeed = {
   repos: z.infer<typeof repoSchema>[];
   events: z.infer<typeof eventSchema>[];
   languages: string[];
+  /** Share of public, non-fork repositories per primary language, largest first. */
+  languageStats: { name: string; share: number }[];
+  totalStars: number;
   /** Daily counts, oldest first. */
   activity: { date: string; count: number }[];
   /** `calendar` = full contribution calendar (needs GITHUB_TOKEN); `events` = recent public events only. */
@@ -78,6 +81,8 @@ export async function getGitHubFeed(): Promise<GitHubFeed> {
     repos: [],
     events: [],
     languages: [],
+    languageStats: [],
+    totalStars: 0,
     activity: [],
     activitySource: 'none',
     totalContributions: null,
@@ -93,7 +98,7 @@ export async function getGitHubFeed(): Promise<GitHubFeed> {
     const request = async (endpoint: string) => {
       const res = await fetch(
         `https://api.github.com/users/${encodeURIComponent(githubUsername)}${endpoint}`,
-        { headers, signal: AbortSignal.timeout(8000), next: { revalidate: 3600 } },
+        { headers, signal: AbortSignal.timeout(8000) },
       );
       if (!res.ok) throw new Error(`GitHub returned ${res.status}`);
       return res.json();
@@ -120,7 +125,6 @@ export async function getGitHubFeed(): Promise<GitHubFeed> {
             variables: { login: githubUsername },
           }),
           signal: AbortSignal.timeout(8000),
-          next: { revalidate: 3600 },
         });
         if (!res.ok) throw new Error(`GitHub GraphQL returned ${res.status}`);
         const calendar = calendarSchema.parse(await res.json()).data.user.contributionsCollection
@@ -143,13 +147,27 @@ export async function getGitHubFeed(): Promise<GitHubFeed> {
         return { date, count: events.filter((e) => e.created_at.startsWith(date)).length };
       });
     }
+    const owned = allRepos.filter((r) => !r.fork);
+    const counts = new Map<string, number>();
+    for (const r of owned)
+      if (r.language) counts.set(r.language, (counts.get(r.language) ?? 0) + 1);
+    const counted = [...counts.values()].reduce((a, b) => a + b, 0) || 1;
     return {
       status: 'online',
       fetchedAt: fallback.fetchedAt,
       profile,
-      repos: allRepos.filter((r) => !r.fork).slice(0, 6),
+      repos: [...owned]
+        .sort(
+          (a, b) =>
+            b.stargazers_count - a.stargazers_count || b.updated_at.localeCompare(a.updated_at),
+        )
+        .slice(0, 6),
       events: events.slice(0, 8),
       languages: [...new Set(allRepos.map((r) => r.language).filter((l): l is string => !!l))],
+      languageStats: [...counts]
+        .map(([name, n]) => ({ name, share: n / counted }))
+        .sort((a, b) => b.share - a.share),
+      totalStars: owned.reduce((sum, r) => sum + r.stargazers_count, 0),
       activity,
       activitySource,
       totalContributions,

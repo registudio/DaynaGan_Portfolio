@@ -7,19 +7,6 @@ status: complete
 summary: A LangChain-based ROSA agent that turns plain-English instructions into ROS 2 commands for robots simulated in NVIDIA Isaac Sim.
 technologies: [ROS 2, LangChain, ROSA, NVIDIA Isaac Sim, Python]
 accent: '#b794f6'
-compare:
-  caption: Illustrative example of the interface change.
-  before:
-    label: Before
-    code: |
-      $ ros2 topic pub --once /cmd_vel \
-          geometry_msgs/msg/Twist \
-          "{linear: {x: 0.5}, angular: {z: 0.0}}"
-  after:
-    label: After
-    code: |
-      > Drive forward half a metre,
-        then tell me what the lidar sees.
 parts:
   - id: brain
     label: ROSA agent core

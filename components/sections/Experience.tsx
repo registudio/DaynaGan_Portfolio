@@ -7,6 +7,8 @@ export type Job = {
   title: string;
   role: string;
   period: string;
+  mark?: string;
+  logo?: string;
   technologies: string[];
   summary: string;
   details: string[];
@@ -79,7 +81,16 @@ export function ExperienceTrack({ jobs }: { jobs: Job[] }) {
               <span className="job-index" aria-hidden="true">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <p className="job-period">{job.period}</p>
+              <div className="job-head">
+                {job.logo ? (
+                  <img className="job-logo" src={job.logo} alt={`${job.title} logo`} />
+                ) : (
+                  <span className="job-logo job-mark" aria-hidden="true">
+                    {job.mark ?? job.title.slice(0, 2)}
+                  </span>
+                )}
+                <p className="job-period">{job.period}</p>
+              </div>
               <h3>{job.title}</h3>
               <p className="job-role">{job.role}</p>
               <p className="job-summary">{job.summary}</p>

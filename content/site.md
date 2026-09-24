@@ -13,12 +13,12 @@ email: daynagsr@gmail.com
 resume: /resume/DaynaGan_Resume.pdf
 location: Singapore
 heroEyebrow: Computer Engineering · NUS
-heroKicker: Let your ideas
-heroTitle: Take shape.
+heroKicker: Hi, I'm
+heroTitle: Dayna Gan.
 heroSubtitle: >-
-  I'm Dayna — I build where software meets the physical world. Robots,
-  sensors, simulations and the firmware that holds them together.
-heroHint: Move your cursor across the canvas
+  I build where software meets the physical world — robots, sensors,
+  simulations and the firmware that holds them together.
+heroHint: Move your cursor — the blueprints are the projects below
 navigation:
   - { id: hero, label: Home, number: '00' }
   - { id: about, label: About, number: '01' }

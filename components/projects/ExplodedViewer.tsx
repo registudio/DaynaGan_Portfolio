@@ -16,6 +16,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Part } from '@/lib/content';
+import { partGeometry, partInstances, toRadians as deg } from './geometry';
 
 type Vec3 = [number, number, number];
 type Anchors = MutableRefObject<Map<string, THREE.Object3D>>;
@@ -30,8 +31,6 @@ export type ViewerProps = {
   labels: MutableRefObject<Map<string, HTMLElement>>;
 };
 
-const deg = (v?: Vec3) => (v ? (v.map((d) => (d * Math.PI) / 180) as Vec3) : undefined);
-
 const PRESETS: Record<Part['material'], THREE.MeshPhysicalMaterialParameters> = {
   violet: { color: '#7c4ddb', metalness: 0.35, roughness: 0.32, clearcoat: 0.8 },
   lilac: { color: '#c9b8f5', metalness: 0.15, roughness: 0.4, clearcoat: 0.5 },
@@ -41,21 +40,9 @@ const PRESETS: Record<Part['material'], THREE.MeshPhysicalMaterialParameters> = 
 };
 
 function Geometry({ part }: { part: Part }) {
-  const [a = 0.4, b = a, c = a] = part.size;
-  switch (part.shape) {
-    case 'cylinder':
-      return <cylinderGeometry args={[a, b, c, 40]} />;
-    case 'sphere':
-      return <sphereGeometry args={[a, 48, 32]} />;
-    case 'torus':
-      return <torusGeometry args={[a, b === a ? 0.04 : b, 24, 120]} />;
-    case 'cone':
-      return <coneGeometry args={[a, b === a ? a * 2 : b, 40]} />;
-    case 'capsule':
-      return <capsuleGeometry args={[a, b === a ? a * 2 : b, 8, 24]} />;
-    default:
-      return <boxGeometry args={[a, b, c]} />;
-  }
+  const geometry = useMemo(() => partGeometry(part), [part]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <primitive object={geometry} attach="geometry" />;
 }
 
 function AssemblyLine({
@@ -113,13 +100,7 @@ function ProceduralPart({
   onHover: ViewerProps['onHover'];
   onSelect: ViewerProps['onSelect'];
 }) {
-  const instances = useMemo(
-    () => [
-      { position: part.position, rotation: part.rotation, explode: part.explode },
-      ...part.copies,
-    ],
-    [part],
-  );
+  const instances = useMemo(() => partInstances(part), [part]);
   const groups = useRef<(THREE.Group | null)[]>([]);
   const materials = useRef<(THREE.MeshPhysicalMaterial | null)[]>([]);
   const base = PRESETS[part.material];
