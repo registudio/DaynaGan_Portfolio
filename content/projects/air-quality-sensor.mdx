@@ -1,0 +1,58 @@
+---
+title: Air quality sensor
+slug: air-quality-sensor
+order: 4
+status: complete
+summary: A compact environmental sensing node — full case study coming soon.
+technologies: [Embedded firmware, Sensors, PCB]
+accent: '#a78bfa'
+compare:
+  before:
+    label: Prototype
+  after:
+    label: Final build
+parts:
+  - id: lid
+    label: Enclosure lid
+    shape: box
+    size: [1.2, 0.12, 0.9]
+    position: [0, 0.42, 0]
+    explode: [0, 0.9, 0]
+    material: lilac
+    summary: Top shell of the enclosure.
+  - id: sensor
+    label: Air quality sensor
+    shape: box
+    size: [0.42, 0.22, 0.42]
+    position: [-0.25, 0.22, 0]
+    explode: [-0.35, 0.55, 0]
+    material: violet
+    summary: The sensing element that samples the surrounding air.
+  - id: mcu
+    label: Microcontroller
+    shape: box
+    size: [0.32, 0.06, 0.24]
+    position: [0.3, 0.12, 0]
+    explode: [0.45, 0.35, 0]
+    material: chrome
+    summary: Reads the sensor and runs the firmware.
+  - id: pcb
+    label: PCB
+    shape: box
+    size: [1.05, 0.04, 0.78]
+    position: [0, 0.06, 0]
+    explode: [0, 0.1, 0]
+    material: glow
+    summary: Carries power and signals between the components.
+  - id: base
+    label: Enclosure base
+    shape: box
+    size: [1.2, 0.36, 0.9]
+    position: [0, -0.16, 0]
+    explode: [0, -0.5, 0]
+    material: graphite
+    summary: Bottom shell with vents so air can reach the sensor.
+---
+## Overview
+
+Case study coming soon.

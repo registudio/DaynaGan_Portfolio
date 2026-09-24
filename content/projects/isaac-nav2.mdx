@@ -1,0 +1,76 @@
+---
+title: Isaac Sim × Nav2
+slug: isaac-nav2
+order: 2
+year: 2024
+status: complete
+summary: Warehouse crowd simulations in NVIDIA Isaac Sim, used to stress-test Nav2 path planning and collision avoidance around moving people.
+technologies: [NVIDIA Isaac Sim, ROS 2, Nav2, Omni.Anim.People]
+accent: '#9f7aea'
+compare:
+  before:
+    label: Static warehouse
+    stat: '0'
+    note: moving obstacles
+  after:
+    label: Crowd simulation
+    stat: '100+'
+    note: simulation runs evaluated
+parts:
+  - id: planner
+    label: Nav2 planner
+    shape: torus
+    size: [0.5, 0.03]
+    position: [0, 0.75, 0]
+    rotation: [90, 0, 0]
+    explode: [0, 1.1, 0]
+    material: glow
+    summary: Global and local planners that choose a path and avoid collisions.
+    did: Conducted more than 100 simulation runs to evaluate Nav2 path planning and collision avoidance under dynamic human movement.
+  - id: robot
+    label: Mobile robot
+    shape: capsule
+    size: [0.28, 0.4]
+    position: [0, 0.2, 0]
+    explode: [0, 0.35, 0]
+    material: violet
+    summary: The navigating robot, driven by Nav2 through ROS 2.
+  - id: people
+    label: Simulated people
+    shape: capsule
+    size: [0.12, 0.45]
+    position: [0.9, 0.15, 0.5]
+    explode: [0.7, 0.2, 0.6]
+    material: lilac
+    copies:
+      - { position: [-0.8, 0.15, 0.7], explode: [-0.6, 0.2, 0.7] }
+      - { position: [0.6, 0.15, -0.8], explode: [0.5, 0.2, -0.7] }
+    summary: Animated pedestrians that make the environment dynamic.
+    did: Built realistic warehouse crowd simulations using Omni.Anim.People.
+  - id: shelves
+    label: Warehouse racking
+    shape: box
+    size: [0.3, 1.1, 1.6]
+    position: [-1.3, 0.35, -0.2]
+    explode: [-0.8, 0, 0]
+    material: graphite
+    copies:
+      - { position: [1.3, 0.35, -0.2], explode: [0.8, 0, 0] }
+    summary: Static warehouse geometry that shapes the navigation corridors.
+  - id: floor
+    label: Environment
+    shape: box
+    size: [3.2, 0.06, 2.4]
+    position: [0, -0.25, 0]
+    explode: [0, -0.6, 0]
+    material: graphite
+    summary: The Isaac Sim warehouse scene used for every test run.
+---
+## Overview
+
+Part of my robotics internship at A*STAR I²R: can a robot navigate a busy warehouse safely when people keep walking into its path?
+
+## What I did
+
+- Built realistic warehouse crowd simulations using Omni.Anim.People.
+- Conducted more than 100 simulation runs to evaluate Nav2 path planning and collision avoidance under dynamic human movement.

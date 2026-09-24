@@ -1,10 +1,9 @@
 ---
 id: contact
-module: Tractor Beam & Comlink Array
-order: 8
-eyebrow: 08 / CONTACT ME
-title: Contact me
-kicker: TRACTOR BEAM & COMLINK ARRAY
+order: 7
+eyebrow: 07 / Contact
+title: Let's build something.
+kicker: Robotics, embedded systems, or whatever comes next
 tags: []
 ---
 Great systems start with a conversation. Let's talk robotics, embedded systems, or what we could build next.

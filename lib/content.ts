@@ -7,7 +7,6 @@ const root = path.join(process.cwd(), 'content');
 export const navigationSchema = z.object({
   id: z.string(),
   label: z.string(),
-  caption: z.string(),
   number: z.string(),
 });
 const siteSchema = z.object({
@@ -20,20 +19,16 @@ const siteSchema = z.object({
   linkedin: z.url(),
   email: z.email(),
   resume: z.string(),
-  station: z.string(),
-  stationName: z.string(),
   location: z.string(),
-  heroTitle: z.string(),
-  heroTitleLines: z.array(z.string()),
-  heroTitleAccent: z.string(),
-  heroSubtitle: z.string(),
-  heroDescription: z.string(),
   heroEyebrow: z.string(),
+  heroKicker: z.string(),
+  heroTitle: z.string(),
+  heroSubtitle: z.string(),
+  heroHint: z.string(),
   navigation: z.array(navigationSchema),
 });
 const sectionSchema = z.object({
   id: z.string(),
-  module: z.string(),
   order: z.number(),
   eyebrow: z.string(),
   title: z.string(),
@@ -47,15 +42,55 @@ const baseEntry = z.object({
   featured: z.boolean().default(false),
   draft: z.boolean().default(false),
 });
+const vec3 = z.tuple([z.number(), z.number(), z.number()]);
+const partCopySchema = z.object({
+  position: vec3,
+  rotation: vec3.optional(),
+  explode: vec3.default([0, 0, 0]),
+});
+export const partSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  /** Name of the matching node when the project supplies a GLB `model`. */
+  node: z.string().optional(),
+  shape: z.enum(['box', 'cylinder', 'sphere', 'torus', 'cone', 'capsule']).default('box'),
+  size: z.array(z.number()).min(1).max(3).default([0.4, 0.4, 0.4]),
+  position: vec3.default([0, 0, 0]),
+  /** Degrees. */
+  rotation: vec3.optional(),
+  /** Offset applied when the model is fully exploded. */
+  explode: vec3.default([0, 0, 0]),
+  material: z.enum(['violet', 'lilac', 'chrome', 'graphite', 'glow']).default('violet'),
+  copies: z.array(partCopySchema).default([]),
+  summary: z.string(),
+  did: z.string().optional(),
+  learned: z.string().optional(),
+});
+const compareSideSchema = z.object({
+  label: z.string(),
+  image: z.string().optional(),
+  code: z.string().optional(),
+  stat: z.string().optional(),
+  note: z.string().optional(),
+});
 export const projectSchema = baseEntry.extend({
+  order: z.number().default(99),
   year: z.number().optional(),
-  status: z.string().default('complete'),
+  status: z.enum(['complete', 'in-progress']).default('complete'),
   technologies: z.array(z.string()).default([]),
   github: z.url().nullish(),
   demo: z.url().nullish(),
+  /** Optional GLB under /public. Parts with a `node` name explode that node. */
   model: z.string().nullish(),
   thumbnail: z.string().nullish(),
+  accent: z.string().default('#b794f6'),
+  compare: z
+    .object({ caption: z.string().optional(), before: compareSideSchema, after: compareSideSchema })
+    .optional(),
+  parts: z.array(partSchema).default([]),
 });
+export type Project = z.infer<typeof projectSchema> & { body: string };
+export type Part = z.infer<typeof partSchema>;
 export const blogSchema = baseEntry.extend({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   tags: z.array(z.string()).default([]),
@@ -94,22 +129,17 @@ export const getExperience = () =>
 export const getProjects = () =>
   uniqueSlugs(collection('projects', projectSchema))
     .filter((p) => !p.draft)
-    .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+    .sort((a, b) => a.order - b.order);
 export const getPosts = () =>
   uniqueSlugs(collection('blog', blogSchema))
     .filter((p) => !p.draft)
     .sort((a, b) => b.date.localeCompare(a.date));
 export type Site = ReturnType<typeof getSite>;
 export type NavigationItem = z.infer<typeof navigationSchema>;
-const tourSchema = z.object({
-  title: z.string(),
-  intro: z.string(),
-  blueprintNote: z.string(),
-  mobileNote: z.string(),
-  ghostNote: z.string(),
-  projectNote: z.string(),
-  combatNote: z.string(),
-  areas: z.array(z.string()),
+const profileSchema = z.object({
+  stats: z.array(
+    z.object({ value: z.number(), decimals: z.number(), suffix: z.string(), label: z.string() }),
+  ),
   education: z.array(
     z.object({
       id: z.string(),
@@ -121,7 +151,11 @@ const tourSchema = z.object({
     }),
   ),
   skills: z.array(z.object({ title: z.string(), items: z.array(z.string()) })),
-  awards: z.array(z.object({ title: z.string(), period: z.string() })),
+  awards: z.array(z.object({ title: z.string(), detail: z.string(), period: z.string() })),
+  community: z.array(
+    z.object({ role: z.string(), org: z.string(), period: z.string(), detail: z.string() }),
+  ),
 });
-export const getTour = () => read('tour.md', tourSchema);
-export type TourContent = ReturnType<typeof getTour>;
+export const getProfile = () => read('profile.md', profileSchema);
+export type Profile = ReturnType<typeof getProfile>;
+export type Experience = ReturnType<typeof getExperience>[number];

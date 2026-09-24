@@ -1,0 +1,70 @@
+---
+title: Drone
+slug: drone
+order: 6
+year: 2026
+status: in-progress
+summary: A drone build that is wrapping up now — photos and write-up landing soon.
+technologies: [Flight control, Embedded systems]
+accent: '#e9d5ff'
+compare:
+  before:
+    label: Build
+  after:
+    label: Flight
+parts:
+  - id: props
+    label: Propellers
+    shape: cylinder
+    size: [0.32, 0.32, 0.015]
+    position: [0.62, 0.22, 0.62]
+    explode: [0.35, 0.7, 0.35]
+    material: lilac
+    copies:
+      - { position: [-0.62, 0.22, 0.62], explode: [-0.35, 0.7, 0.35] }
+      - { position: [0.62, 0.22, -0.62], explode: [0.35, 0.7, -0.35] }
+      - { position: [-0.62, 0.22, -0.62], explode: [-0.35, 0.7, -0.35] }
+    summary: Four rotors that generate lift.
+  - id: motors
+    label: Motors
+    shape: cylinder
+    size: [0.09, 0.09, 0.14]
+    position: [0.62, 0.12, 0.62]
+    explode: [0.35, 0.35, 0.35]
+    material: chrome
+    copies:
+      - { position: [-0.62, 0.12, 0.62], explode: [-0.35, 0.35, 0.35] }
+      - { position: [0.62, 0.12, -0.62], explode: [0.35, 0.35, -0.35] }
+      - { position: [-0.62, 0.12, -0.62], explode: [-0.35, 0.35, -0.35] }
+    summary: Brushless motors that spin each propeller.
+  - id: fc
+    label: Flight controller
+    shape: box
+    size: [0.36, 0.06, 0.36]
+    position: [0, 0.14, 0]
+    explode: [0, 0.75, 0]
+    material: glow
+    summary: Keeps the drone stable and turns stick inputs into motor commands.
+  - id: frame
+    label: Frame
+    shape: box
+    size: [1.8, 0.05, 0.12]
+    position: [0, 0.05, 0]
+    rotation: [0, 45, 0]
+    explode: [0, 0, 0]
+    material: graphite
+    copies:
+      - { position: [0, 0.05, 0], rotation: [0, -45, 0], explode: [0, 0, 0] }
+    summary: The X-frame that holds everything together.
+  - id: battery
+    label: Battery
+    shape: box
+    size: [0.5, 0.16, 0.26]
+    position: [0, -0.08, 0]
+    explode: [0, -0.6, 0]
+    material: violet
+    summary: Powers the motors and electronics.
+---
+## Overview
+
+This project is wrapping up. Photos, flight footage and the full write-up will be added here.

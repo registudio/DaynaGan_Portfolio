@@ -28,11 +28,11 @@ export default async function BlogPage({ params }: { params: Promise<{ slug: str
   if (!p) notFound();
   return (
     <main className="article-page">
-      <Link className="text-link" href="/#blog">
-        ← Back to archives
+      <Link className="text-link" href="/">
+        ← Back home
       </Link>
       <p className="eyebrow">
-        ENGINEERING LOG / <time dateTime={p.date}>{p.date}</time>
+        Notes / <time dateTime={p.date}>{p.date}</time>
       </p>
       <h1>{p.title}</h1>
       <p className="article-summary">{p.summary}</p>
@@ -44,8 +44,8 @@ export default async function BlogPage({ params }: { params: Promise<{ slug: str
       <article className="prose article-body">
         <Markdown body={p.body} />
       </article>
-      <Link className="text-link" href="/#blog">
-        ← All field notes
+      <Link className="text-link" href="/">
+        ← Back home
       </Link>
     </main>
   );

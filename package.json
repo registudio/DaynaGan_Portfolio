@@ -1,5 +1,5 @@
 {
-  "name": "dayna-engineering-station",
+  "name": "dayna-portfolio",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -8,11 +8,10 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "model": "node scripts/prepare-tour-models.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "test:routes": "node scripts/smoke-test.mjs",
     "format": "prettier --write app components lib scripts tests next.config.ts",
-    "models:prepare": "node scripts/prepare-tour-models.mjs"
+    "og": "node scripts/build-og.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.0",

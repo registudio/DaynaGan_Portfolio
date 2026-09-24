@@ -1,19 +1,39 @@
-import { getSite, getSections, getExperience, getProjects, getPosts, getTour } from '@/lib/content';
+import { getSite, getSections, getExperience, getProjects, getProfile } from '@/lib/content';
 import { getGitHubFeed } from '@/lib/github';
-import { Markdown } from '@/components/Markdown';
-import { GitHubFeed } from '@/components/GitHubFeed';
-import { TourExperience } from '@/components/tour/TourExperience';
 import { siteUrl, asset } from '@/lib/urls';
-import Link from 'next/link';
+import { FloatingNav } from '@/components/site/FloatingNav';
+import { ScrollEffects } from '@/components/site/ScrollEffects';
+import { Hero } from '@/components/sections/Hero';
+import { About } from '@/components/sections/About';
+import { SectionHeader } from '@/components/sections/SectionHeader';
+import { EducationTimeline } from '@/components/sections/Education';
+import { ExperienceTrack } from '@/components/sections/Experience';
+import { Skills } from '@/components/sections/Skills';
+import { GitHubDashboard } from '@/components/sections/GitHubDashboard';
+import { Contact } from '@/components/sections/Contact';
+import { ProjectsExplorer } from '@/components/projects/ProjectsExplorer';
+
 export const revalidate = 3600;
+
 export default async function Home() {
-  const site = getSite(),
-    sections = getSections(),
-    experience = getExperience(),
-    projects = getProjects(),
-    posts = getPosts(),
-    tour = getTour();
+  const site = getSite();
+  const profile = getProfile();
+  const sections = Object.fromEntries(getSections().map((s) => [s.id, s]));
+  const projects = getProjects().map(({ body: _body, ...p }) => p);
+  const jobs = getExperience().map((j) => ({
+    slug: j.slug,
+    title: j.title,
+    role: j.role,
+    period: j.period,
+    technologies: j.technologies,
+    summary: j.body.trim().split('\n\n')[0],
+    details: j.body
+      .split('\n')
+      .filter((l) => l.startsWith('- '))
+      .map((l) => l.slice(2)),
+  }));
   const feed = await getGitHubFeed();
+  const resume = asset(site.resume);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Person',
@@ -22,101 +42,91 @@ export default async function Home() {
     sameAs: [site.github, site.linkedin],
     description: site.description,
   };
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
-      <TourExperience
-        site={site}
-        tour={tour}
-        sections={sections}
-        jobs={experience.map((j) => ({
-          ...j,
-          summary: j.body.trim().split('\n\n')[0],
-          details: j.body
-            .split('\n')
-            .filter((l) => l.startsWith('- '))
-            .map((l) => l.slice(2)),
-        }))}
-        projects={projects}
-        posts={posts}
-        feed={feed}
-        githubPanel={<GitHubFeed key="telemetry" feed={feed} profile={site.github} />}
-        readingPanel={
-          <div key="reading-content" className="reading-content">
-            {sections.map((s) => (
-              <section key={s.id}>
-                <h2>{s.title}</h2>
-                <Markdown body={s.body} />
-                {s.id === 'experience' &&
-                  experience.map((j) => (
-                    <article key={j.slug}>
-                      <h3>{j.title}</h3>
-                      <p>
-                        {j.role} · {j.period}
-                      </p>
-                      <Markdown body={j.body} />
-                    </article>
-                  ))}
-                {s.id === 'education' && (
-                  <p>School of Science and Technology · Elective: Computing+</p>
-                )}
-                {s.id === 'skills' && (
-                  <>
-                    {tour.skills.map((s) => (
-                      <p key={s.title}>
-                        <strong>{s.title}</strong>: {s.items.join(', ')}
-                      </p>
-                    ))}
-                    {tour.awards.map((a) => (
-                      <p key={a.title}>
-                        {a.title} · {a.period}
-                      </p>
-                    ))}
-                  </>
-                )}
-                {s.id === 'github' && <GitHubFeed feed={feed} profile={site.github} />}
-                {s.id === 'contact' && (
-                  <div className="reading-contact">
-                    <p>
-                      <a href={`mailto:${site.email}`}>{site.email} ↗</a>
-                    </p>
-                    <p>
-                      <a href={site.linkedin} target="_blank" rel="noreferrer">
-                        LinkedIn ↗
-                      </a>
-                    </p>
-                    <p>
-                      <a href={site.github} target="_blank" rel="noreferrer">
-                        GitHub ↗
-                      </a>
-                    </p>
-                    <p>
-                      <a href={asset(site.resume)} target="_blank" rel="noreferrer">
-                        Download résumé ↗
-                      </a>
-                    </p>
-                  </div>
-                )}
-                {s.id === 'projects' &&
-                  projects.map((p) => (
-                    <p key={p.slug}>
-                      <Link href={`/projects/${p.slug}`}>{p.title} ↗</Link> — {p.summary}
-                    </p>
-                  ))}
-                {s.id === 'blog' &&
-                  posts.map((p) => (
-                    <p key={p.slug}>
-                      <Link href={`/blog/${p.slug}`}>{p.title} ↗</Link> — {p.summary}
-                    </p>
-                  ))}
-              </section>
-            ))}
-          </div>
-        }
-      />
+      <a className="skip-link" href="#about">
+        Skip to content
+      </a>
+      <div className="backdrop" aria-hidden="true">
+        <span className="aurora aurora-a" />
+        <span className="aurora aurora-b" />
+        <span className="grain" />
+      </div>
+      <FloatingNav items={site.navigation} resume={resume} />
+      <ScrollEffects />
+      <main>
+        <Hero site={site} />
+        <About section={sections.about} profile={profile} site={site} />
+
+        <section id="education" className="section education">
+          <span className="section-glow glow-right" data-parallax="-0.25" aria-hidden="true" />
+          <SectionHeader section={sections.education} />
+          <EducationTimeline items={profile.education} />
+        </section>
+
+        <section id="experience" className="section experience">
+          <SectionHeader section={sections.experience} />
+          <ExperienceTrack jobs={jobs} />
+        </section>
+
+        <section id="projects" className="section projects">
+          <span className="section-glow glow-left" data-parallax="-0.3" aria-hidden="true" />
+          <SectionHeader section={sections.projects}>
+            <p className="section-intro">{sections.projects.body.trim()}</p>
+          </SectionHeader>
+          <ProjectsExplorer projects={projects} />
+        </section>
+
+        <section id="skills" className="section skills">
+          <span className="section-glow glow-right" data-parallax="-0.2" aria-hidden="true" />
+          <SectionHeader section={sections.skills} />
+          <Skills profile={profile} />
+        </section>
+
+        <section id="github" className="section github">
+          <SectionHeader section={sections.github} />
+          <GitHubDashboard
+            feed={feed}
+            profileUrl={site.github}
+            username={site.githubUsername}
+            displayName={site.displayName}
+            location={site.location}
+            projects={projects.map((p) => ({
+              slug: p.slug,
+              title: p.title,
+              summary: p.summary,
+              technologies: p.technologies,
+              github: p.github,
+            }))}
+          />
+        </section>
+
+        <section id="contact" className="section contact">
+          <span className="section-glow glow-center" data-parallax="-0.2" aria-hidden="true" />
+          <p className="eyebrow" data-reveal>
+            {sections.contact.eyebrow}
+          </p>
+          <Contact
+            title={sections.contact.title}
+            intro={sections.contact.body.trim()}
+            email={site.email}
+            linkedin={site.linkedin}
+            github={site.github}
+            resume={resume}
+          />
+        </section>
+      </main>
+      <footer className="footer">
+        <span>
+          © {new Date().getFullYear()} {site.name}
+        </span>
+        <span>Built with Next.js, Three.js & a lot of purple.</span>
+      </footer>
     </>
   );
 }

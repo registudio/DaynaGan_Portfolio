@@ -41,16 +41,12 @@ try {
   ]) {
     const res = await fetch(`${base}${path}`);
     const body = await res.text();
-    assert.ok(res.status === 404 || body.includes('Outside the blueprint.'), path);
+    assert.ok(res.status === 404 || body.includes('Nothing to see here.'), path);
     assert.ok(!body.includes('This is an unpublished authoring template'), path);
     console.log(`PASS draft/missing route ${path}`);
   }
   for (const path of [
     '/resume/DaynaGan_Resume.pdf',
-    '/models/tour/blueprint.glb',
-    '/models/tour/station.glb',
-    '/models/tour/station-mobile.glb',
-    '/models/tour/cockpit.glb',
     '/images/og.png',
     '/robots.txt',
     '/sitemap.xml',
