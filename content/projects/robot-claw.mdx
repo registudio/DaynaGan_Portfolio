@@ -1,0 +1,70 @@
+---
+title: Remote-controlled robot claw
+slug: robot-claw
+order: 5
+status: complete
+summary: A remotely operated gripper — full case study coming soon.
+technologies: [Servos, Microcontrollers, CAD, 3D Printing]
+accent: '#d6bcfa'
+compare:
+  before:
+    label: CAD / render
+  after:
+    label: Real build
+parts:
+  - id: fingers
+    label: Gripper fingers
+    shape: box
+    size: [0.1, 0.55, 0.16]
+    position: [0.18, 1.0, 0]
+    rotation: [0, 0, -12]
+    explode: [0.45, 0.6, 0]
+    material: lilac
+    copies:
+      - { position: [-0.18, 1.0, 0], rotation: [0, 0, 12], explode: [-0.45, 0.6, 0] }
+    summary: The jaws that open and close around an object.
+  - id: wrist
+    label: Wrist servo
+    shape: box
+    size: [0.34, 0.2, 0.22]
+    position: [0, 0.68, 0]
+    explode: [0, 0.55, 0]
+    material: violet
+    summary: Drives the gripper open and closed.
+  - id: arm
+    label: Arm link
+    shape: box
+    size: [0.14, 0.8, 0.14]
+    position: [0, 0.18, 0]
+    explode: [0, 0.2, 0]
+    material: chrome
+    summary: Structural link between the base and the gripper.
+  - id: joint
+    label: Base joint
+    shape: cylinder
+    size: [0.18, 0.18, 0.2]
+    rotation: [90, 0, 0]
+    position: [0, -0.24, 0]
+    explode: [0, -0.1, 0.5]
+    material: glow
+    summary: Rotating joint that lifts the arm.
+  - id: base
+    label: Base & receiver
+    shape: cylinder
+    size: [0.5, 0.55, 0.2]
+    position: [0, -0.45, 0]
+    explode: [0, -0.6, 0]
+    material: graphite
+    summary: Houses the electronics that receive commands from the remote.
+  - id: remote
+    label: Remote controller
+    shape: box
+    size: [0.5, 0.1, 0.3]
+    position: [0.95, -0.45, 0.35]
+    explode: [0.6, -0.2, 0.4]
+    material: violet
+    summary: The handheld input that drives the claw.
+---
+## Overview
+
+Case study coming soon.

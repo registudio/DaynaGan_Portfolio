@@ -29,10 +29,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   return (
     <main className="article-page">
       <Link className="text-link" href="/#projects">
-        ← Back to project bay
+        ← Back to projects
       </Link>
       <p className="eyebrow">
-        PROJECT BAY / {p.year} / {p.status}
+        Projects / {p.year ?? 'Ongoing'} / {p.status === 'in-progress' ? 'In progress' : 'Complete'}
       </p>
       <h1>{p.title}</h1>
       <p className="article-summary">{p.summary}</p>

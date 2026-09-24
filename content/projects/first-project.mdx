@@ -1,22 +1,40 @@
 ---
+# Authoring template — copy this file to add a project, then set draft: false.
 title: Your next project goes here
 slug: first-project
+order: 7
 year: 2026
-summary: "TODO: Add Dayna's real personal or academic project details."
+summary: 'TODO: One sentence on what the project is.'
 featured: false
 draft: true
-status: TODO
+status: in-progress # complete | in-progress
 technologies: []
+accent: '#b794f6'
+# model: /models/projects/first-project.glb   # optional GLB; parts with `node` move that node
+compare:
+  caption: Optional caption under the slider.
+  before: { label: Before, image: /images/projects/first-project-before.jpg }
+  after: { label: After, image: /images/projects/first-project-after.jpg }
+  # Each side can instead use `code: |` for a code snippet, or `stat` + `note` for a big number.
+parts:
+  - id: example
+    label: Example part
+    node: ExampleNode # only used when `model` is set
+    shape: box # box | cylinder | sphere | torus | cone | capsule (procedural fallback)
+    size: [0.6, 0.3, 0.4]
+    position: [0, 0, 0]
+    rotation: [0, 0, 0] # degrees
+    explode: [0, 0.8, 0] # offset when fully exploded
+    material: violet # violet | lilac | chrome | graphite | glow
+    summary: What this component is.
+    did: What I built or decided here.
+    learned: What I learnt from it.
 ---
-## TODO — Project details
-
-This is an authoring template, not a completed project. Replace the title, summary and sections with verified information, then set `draft: false` to publish.
-
-## Problem
+## Overview
 
 TODO: Describe the problem and your role.
 
-## Approach
+## What I did
 
 TODO: Describe the design, technologies and tradeoffs.
 

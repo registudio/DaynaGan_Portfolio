@@ -1,10 +1,9 @@
 ---
 id: projects
-module: Superlaser
 order: 4
-eyebrow: 04 / PROJECTS
-title: Projects
-kicker: SUPERLASER
+eyebrow: 04 / Projects
+title: Take it apart.
+kicker: Every build, exploded
 tags: []
 ---
-Eight generators are reserved for personal and academic project case studies. Real project details will appear here when they are ready to share.
+Each project is a model you can pull apart. Explode it, then hover a component to see what I built and what I learnt there.

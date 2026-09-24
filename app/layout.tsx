@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         url: 'images/og.png',
         width: 1200,
         height: 630,
-        alt: 'Dayna Gan — D-01 Engineering Station',
+        alt: 'Dayna Gan — portfolio',
       },
     ],
   },

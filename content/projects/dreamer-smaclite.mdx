@@ -1,0 +1,78 @@
+---
+title: Dreamer × SMAClite
+slug: dreamer-smaclite
+order: 3
+year: 2026
+status: complete
+summary: Integrating R2-Dreamer, a model-based reinforcement learning agent, into the SMAClite multi-agent environment for mission planning.
+technologies: [Python, Reinforcement learning, R2-Dreamer, SMAClite]
+accent: '#c084fc'
+parts:
+  - id: world-model
+    label: World model
+    shape: sphere
+    size: [0.42]
+    position: [0, 0.2, 0]
+    explode: [0, 0.3, 0]
+    material: glow
+    summary: A learned model of the environment that the agent "dreams" inside to plan ahead.
+    did: Integrated R2-Dreamer into the SMAClite R2-2100 environment.
+  - id: encoder
+    label: Observation encoder
+    shape: box
+    size: [0.5, 0.5, 0.12]
+    position: [-0.85, 0.2, 0]
+    explode: [-0.8, 0, 0]
+    material: violet
+    summary: Compresses what each agent can see into a latent state.
+    did: Designed and tested observability experiments.
+  - id: actor
+    label: Actor
+    shape: cone
+    size: [0.24, 0.5]
+    position: [0.8, 0.45, 0]
+    rotation: [0, 0, -90]
+    explode: [0.8, 0.4, 0]
+    material: lilac
+    summary: The policy that chooses actions for each unit.
+    did: Designed and tested actor-critic and reward-shaping experiments.
+  - id: critic
+    label: Critic
+    shape: cylinder
+    size: [0.2, 0.2, 0.36]
+    position: [0.8, -0.05, 0]
+    explode: [0.8, -0.4, 0]
+    material: chrome
+    summary: Estimates the value of each state so the actor can improve.
+    learned: Identified scenario-dependent policy and value generalisation as the main performance bottleneck.
+  - id: replay
+    label: Adaptive sampler
+    shape: torus
+    size: [0.62, 0.03]
+    position: [0, 0.2, 0]
+    explode: [0, -0.7, 0]
+    material: chrome
+    summary: Chooses which scenarios the agent trains on next.
+    did: Designed and tested adaptive-sampling experiments.
+  - id: units
+    label: SMAClite units
+    shape: box
+    size: [0.16, 0.16, 0.16]
+    position: [-0.3, -0.6, 0.4]
+    explode: [-0.3, -0.5, 0.6]
+    material: lilac
+    copies:
+      - { position: [0, -0.6, 0.5], explode: [0, -0.5, 0.7] }
+      - { position: [0.3, -0.6, 0.4], explode: [0.3, -0.5, 0.6] }
+    summary: The multi-agent team controlled by the policy.
+    did: Achieved 53.11% macro win rate on the blind-IID split and 59.25% on the blind-compositional split.
+---
+## Overview
+
+A three-month research project at DSO National Laboratories in model-based reinforcement learning for multi-agent mission planning.
+
+## Results
+
+- Improved validation macro win rate from near zero to a best checkpoint of 55.6%.
+- Achieved 53.11% macro win rate on the blind-IID split and 59.25% on the blind-compositional split.
+- Identified scenario-dependent policy and value generalisation as the main performance bottleneck.

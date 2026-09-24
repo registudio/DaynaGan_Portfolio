@@ -1,10 +1,9 @@
 ---
 id: github
-module: The Overbridge
 order: 6
-eyebrow: 06 / GITHUB
-title: GitHub
-kicker: THE OVERBRIDGE
+eyebrow: 06 / GitHub
+title: Commit history.
+kicker: What I'm building right now
 tags: []
 ---
 A window into what I'm building, exploring and updating on GitHub.
