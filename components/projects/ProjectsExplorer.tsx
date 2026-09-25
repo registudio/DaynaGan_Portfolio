@@ -182,7 +182,10 @@ export function ProjectsExplorer({ projects }: { projects: ProjectCard[] }) {
                   </button>
                 ))}
               </div>
-              <p className="viewer-hint">Drag to rotate · hover a part</p>
+              <p className="viewer-hint">
+                Drag to rotate · <span className="hint-hover">hover</span>
+                <span className="hint-touch">tap</span> a part
+              </p>
             </div>
 
             <aside className="parts">

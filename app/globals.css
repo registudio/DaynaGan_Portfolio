@@ -39,6 +39,7 @@
   box-sizing: border-box;
 }
 html {
+  overflow-x: clip;
   scroll-behavior: smooth;
   scroll-padding-top: 96px;
   -webkit-text-size-adjust: 100%;
@@ -51,6 +52,9 @@ body {
   font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+main {
   overflow-x: clip;
 }
 img {
@@ -181,7 +185,8 @@ html[data-section='contact'] .aurora-a {
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: calc(100vw - 32px);
+  width: max-content;
+  max-width: calc(100vw - 24px);
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -214,7 +219,11 @@ html[data-section='contact'] .aurora-a {
   text-decoration: none;
 }
 .nav-pill nav {
+  flex: 1 1 auto;
   min-width: 0;
+}
+.nav-links {
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
 }
 .nav-links {
   position: relative;
@@ -1092,7 +1101,7 @@ html[data-section='contact'] .aurora-a {
   background: rgba(232, 121, 249, 0.14);
   color: var(--orchid);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 .project-tab-next {
@@ -1205,7 +1214,7 @@ html[data-section='contact'] .aurora-a {
   bottom: 12px;
   margin: 0;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--faint);
   pointer-events: none;
 }
@@ -1221,7 +1230,7 @@ html[data-section='contact'] .aurora-a {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: -11px 0 0 -11px;
+  margin: -13px 0 0 -13px;
   padding: 0;
   border: 0;
   background: none;
@@ -1232,13 +1241,13 @@ html[data-section='contact'] .aurora-a {
 .callout span {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
   background: rgba(18, 14, 31, 0.85);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--lilac);
   transition:
     background 0.25s,
@@ -1287,7 +1296,7 @@ html[data-section='contact'] .aurora-a {
   justify-content: space-between;
   margin-bottom: 10px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
@@ -1699,6 +1708,11 @@ input[type='range'] {
   text-align: center;
 }
 .gh-chrome a {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   text-decoration: none;
   color: var(--lilac);
 }
@@ -2281,19 +2295,30 @@ input[type='range'] {
   display: flex;
   gap: 8px;
 }
+.hero-dots {
+  gap: 0;
+}
 .hero-dots button {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 28px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.hero-dots button::before {
+  content: '';
   width: 8px;
   height: 8px;
-  padding: 0;
-  border: 0;
   border-radius: 999px;
   background: var(--faint);
-  cursor: pointer;
   transition:
     width 0.4s var(--ease),
     background 0.3s;
 }
-.hero-dots button[aria-pressed='true'] {
+.hero-dots button[aria-pressed='true']::before {
   width: 24px;
   background: var(--lilac);
 }
@@ -2466,4 +2491,23 @@ input[type='range'] {
 }
 .job-card h3 {
   margin-top: 18px;
+}
+
+/* Bigger touch target for range sliders */
+@media (pointer: coarse) {
+  input[type='range'] {
+    height: 32px;
+  }
+}
+
+.hint-touch {
+  display: none;
+}
+@media (hover: none) {
+  .hint-hover {
+    display: none;
+  }
+  .hint-touch {
+    display: inline;
+  }
 }
