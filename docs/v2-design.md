@@ -196,7 +196,7 @@ Star-map holo table (mission select) · Dayna's bunk + Xiao Hu's cat bed (bio li
 - Publish the `v1-archive` tag on commit `662dd85` (`git tag v1-archive 662dd85 && git push origin v1-archive`) — the build session couldn't push tags.
 - All work now lives on `main` (per request).
 
-## Improvement round 1 — selected (in progress)
+## Improvement round 1 — selected (done)
 
 Chosen by the owner from the backlog below:
 - **Performance**: 1–5 (all).
@@ -222,6 +222,12 @@ Implementation notes are added to the sections below as each lands.
 - *Xiao Hu* (C / cat button): pounces to stun the nearest bot, otherwise fetches the nearest project part. 10 s cooldown. Achievement: Good Kitty.
 
 **Done — Performance:** static props batched into per-material InstancedMeshes (`game/engine/batch.ts`); character rigs merged per limb/material (~20% fewer draw calls); bots, NPCs and spinners far from the player sleep; dynamic resolution (0.5–1× pixel ratio, tuned every 2 s from a frame-time average); game bundle prefetched during the splash; Latin-only font subsets; level layouts and biome materials cached for the session.
+
+**Done — Design:**
+- *Textures & props:* hand-authored 16×16 tiles (`game/engine/authored.ts`, palette-relative shades so one design fits every biome) for deck plate, grate, PCB, hex, stone, academy tile, server rack and grass; ~17 new props (capacitors, conduits, globe, holoboard, hydraulic press, robot shells, chips/resistors, banners, planters, fans, terminal banks, satellite, radar, holo-station) spread across the biome prop lists.
+- *Avatar:* layered wavy back hair with highlights; per-biome outfits (`BIOME_OUTFIT` in `characters.ts`): station jacket (hub/Core), lab coat (Spires), welder apron + hi-vis + gloves (Forge), explorer vest + headlamp (Caverns), blazer + gold pin (Trophy Hall), cardigan (Commons), hoodie (Mainframe), flight jacket (Comms).
+- *Lighting set pieces* (`game/engine/setpieces.ts`, unlit + additive so they cost no light slots): slanted god-ray shafts in the Spires, a churning molten-solder sea with heat bubbles below the Forge, data waterfalls with glow pools off the Caverns' front edges.
+- *Transitions:* star map zooms into the chosen island with a biome-coloured flash (~0.6 s) → Dayna and Xiao Hu stretch into a teleport light column (beam-out) → on arrival they beam back in with a spark burst. All skipped with Reduced motion.
 
 ## Improvement backlog (suggested)
 

@@ -18,7 +18,24 @@ export type PropKind =
   | 'trophy-case'
   | 'antenna'
   | 'crystal'
-  | 'cable';
+  | 'cable'
+  | 'capacitor'
+  | 'conduit'
+  | 'globe'
+  | 'holoboard'
+  | 'press'
+  | 'robot-shell'
+  | 'chip'
+  | 'resistor'
+  | 'banner'
+  | 'cup'
+  | 'planter'
+  | 'tent'
+  | 'fan'
+  | 'terminal-bank'
+  | 'satellite'
+  | 'radar'
+  | 'holo-station';
 
 export type Particles = 'embers' | 'motes' | 'sparks' | 'stars' | 'pollen' | 'data' | 'snow' | null;
 
@@ -65,7 +82,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#a78bfa', glow: true },
     cliff: '#262a33',
     rail: '#a78bfa',
-    props: ['crate', 'pipe', 'desk', 'rack'],
+    props: ['crate', 'pipe', 'desk', 'holo-station', 'plant'],
     particles: 'stars',
   }),
   'core-reactor': B({
@@ -84,7 +101,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#e879f9', glow: true },
     cliff: '#140a1c',
     rail: '#e879f9',
-    props: ['coil', 'pipe', 'cable', 'crate'],
+    props: ['coil', 'pipe', 'cable', 'capacitor', 'conduit'],
     particles: 'sparks',
   }),
   'academy-spires': B({
@@ -103,7 +120,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#60a5fa', glow: true },
     cliff: '#3a4768',
     rail: '#93c5fd',
-    props: ['books', 'lamp', 'desk', 'plant'],
+    props: ['books', 'lamp', 'desk', 'globe', 'holoboard'],
     particles: 'motes',
     climb: 1.5,
   }),
@@ -123,7 +140,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#f97316', glow: true },
     cliff: '#1a0c07',
     rail: '#f59e0b',
-    props: ['arm', 'conveyor', 'crate', 'pipe'],
+    props: ['arm', 'conveyor', 'press', 'robot-shell', 'crate'],
     particles: 'embers',
   }),
   'circuit-caverns': B({
@@ -142,7 +159,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#22d3ee', glow: true },
     cliff: '#081218',
     rail: '#22d3ee',
-    props: ['crystal', 'cable', 'crate', 'rack'],
+    props: ['crystal', 'cable', 'chip', 'resistor', 'crate'],
     particles: 'data',
   }),
   'trophy-hall': B({
@@ -161,7 +178,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#fbbf24', glow: true },
     cliff: '#140e06',
     rail: '#fbbf24',
-    props: ['trophy-case', 'lamp', 'plant', 'bench'],
+    props: ['trophy-case', 'lamp', 'banner', 'cup', 'bench'],
     particles: 'motes',
   }),
   'colony-commons': B({
@@ -180,7 +197,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#34d399', glow: true },
     cliff: '#2a3a2e',
     rail: '#34d399',
-    props: ['tree', 'plant', 'bench', 'lamp'],
+    props: ['tree', 'planter', 'bench', 'tent', 'lamp'],
     particles: 'pollen',
   }),
   mainframe: B({
@@ -199,7 +216,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#4ade80', glow: true },
     cliff: '#06100a',
     rail: '#4ade80',
-    props: ['rack', 'cable', 'rack', 'desk'],
+    props: ['rack', 'cable', 'fan', 'terminal-bank', 'rack'],
     particles: 'data',
   }),
   'comms-array': B({
@@ -218,7 +235,7 @@ export const BIOMES: Record<string, Biome> = {
     wallTop: { pattern: 'metal', color: '#a78bfa', glow: true },
     cliff: '#1b1828',
     rail: '#c4b5fd',
-    props: ['antenna', 'pipe', 'crate', 'cable'],
+    props: ['antenna', 'satellite', 'radar', 'crate', 'cable'],
     particles: 'stars',
   }),
   backroom: B({

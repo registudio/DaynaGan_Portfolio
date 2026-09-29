@@ -38,13 +38,23 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
   const locked = focus === 'contact' && !unlocked;
   const c = chips(portfolio, hud.save, focus);
   const biome = biomeFor(level?.meta.biome, level?.meta.light);
+  const [zoom, setZoom] = useState<string | null>(null);
+  // Zoom the map into the chosen island, then deploy.
+  const deploy = (id: string) => {
+    if (zoom) return;
+    if (hud.settings.reducedMotion) return game.travel(id);
+    setZoom(id);
+    setTimeout(() => game.travel(id), 620);
+  };
+  const zp = zoom ? iso(...POS[zoom]) : null;
 
   return (
     <div className="g-starmap">
       <div className="g-eyebrow">Station Hub · Star map</div>
       <h2>Choose a deployment</h2>
       <div className="g-map-wrap">
-        <svg viewBox="-340 -230 680 470" className="g-map" role="list" aria-label="Missions">
+        <svg viewBox="-340 -230 680 470" className={`g-map${zoom ? ' zooming' : ''}`} role="list" aria-label="Missions">
+          <g className="g-map-zoom" style={zp ? { transform: `scale(3.2) translate(${-zp.x}px, ${-zp.y}px)` } : undefined}>
           {/* Starfield */}
           {Array.from({ length: 70 }, (_, i) => (
             <rect key={i} x={((i * 97) % 680) - 340} y={((i * 53) % 470) - 230} width={i % 7 ? 1.5 : 2.5} height={i % 7 ? 1.5 : 2.5} fill={i % 5 ? '#6d5aa8' : '#fff'} opacity={0.7} />
@@ -99,6 +109,8 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
           <g transform={`translate(${iso(0, 0).x} ${iso(0, 0).y})`} opacity={0}>
             <circle r={4} fill="#fff" />
           </g>
+          </g>
+          <rect className="g-map-flash" x={-340} y={-230} width={680} height={470} fill={zoom ? biomeFor(portfolio.levels.find((l) => l.id === zoom)?.meta.biome).light : '#fff'} />
         </svg>
         <aside className="g-map-info" style={{ ['--accent' as string]: biome.light }}>
           <div className="g-eyebrow">{level?.meta.eyebrow}</div>
@@ -116,12 +128,12 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
               <p className="g-warn">
                 Locked — clear {need} missions to power the Comms Core ({clearedCount(portfolio, hud.save)}/{need}).
               </p>
-              <button className="g-btn" onClick={() => game.travel('contact')}>
+              <button className="g-btn" onClick={() => deploy('contact')}>
                 Skip ahead anyway ▸
               </button>
             </>
           ) : (
-            <button className="g-btn primary" onClick={() => game.travel(focus)} autoFocus>
+            <button className="g-btn primary" onClick={() => deploy(focus)} autoFocus>
               ▶ DEPLOY
             </button>
           )}

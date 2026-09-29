@@ -95,6 +95,140 @@ export function buildProp(kind: PropKind, biome: Biome): THREE.Group {
       box(0.14, 0.1, 0.9, dark, 0.2, 0.05, 0, g);
       box(0.06, 0.06, 0.06, glow(accent, 3), 0.2, 0.12, 0.3, g);
       break;
+    case 'capacitor':
+      for (const [x, z] of [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]]) {
+        box(0.3, 1.0, 0.3, mat('#3b2a47', { pattern: 'metal' }), x, 0.5, z, g);
+        box(0.32, 0.08, 0.32, glow(accent, 2), x, 1.02, z, g);
+      }
+      box(0.9, 0.12, 0.9, dark, 0, 0.06, 0, g);
+      break;
+    case 'conduit': {
+      box(0.24, 0.24, 0.95, metal, 0, 0.5, 0, g);
+      box(0.3, 0.3, 0.12, dark, 0, 0.5, -0.3, g);
+      box(0.3, 0.3, 0.12, dark, 0, 0.5, 0.3, g);
+      const pulse = box(0.1, 0.1, 0.96, glow(accent, 3), 0, 0.64, 0, g);
+      pulse.userData.hover = true;
+      box(0.1, 0.5, 0.1, dark, 0, 0.25, 0, g);
+      break;
+    }
+    case 'globe': {
+      box(0.12, 0.8, 0.12, dark, 0, 0.4, 0, g);
+      box(0.5, 0.06, 0.5, metal, 0, 0.04, 0, g);
+      const orb = group(g, 0, 1.15, 0);
+      box(0.5, 0.5, 0.5, mat('#1d4ed8', { emissive: '#1d4ed8', intensity: 0.8 }), 0, 0, 0, orb);
+      box(0.3, 0.2, 0.52, mat('#16a34a'), 0.08, 0.06, 0, orb);
+      box(0.52, 0.12, 0.2, mat('#16a34a'), 0, -0.12, 0.1, orb);
+      orb.userData.spin = 0.6;
+      break;
+    }
+    case 'holoboard':
+      box(0.1, 1.2, 0.1, dark, -0.4, 0.6, 0, g);
+      box(0.1, 1.2, 0.1, dark, 0.4, 0.6, 0, g);
+      box(0.9, 0.6, 0.04, mat(accent, { emissive: accent, intensity: 0.9, transparent: 0.5 }), 0, 1.0, 0, g);
+      box(0.6, 0.04, 0.05, glow('#ffffff', 2), -0.05, 1.15, 0.01, g);
+      box(0.4, 0.04, 0.05, glow('#ffffff', 1.5), -0.15, 1.0, 0.01, g);
+      box(0.5, 0.04, 0.05, glow('#ffffff', 1.5), -0.1, 0.85, 0.01, g);
+      break;
+    case 'press': {
+      box(0.9, 0.3, 0.9, mat('#3b3b40', { pattern: 'panel' }), 0, 0.15, 0, g);
+      box(0.12, 1.6, 0.12, metal, -0.38, 0.8, -0.38, g);
+      box(0.12, 1.6, 0.12, metal, 0.38, 0.8, -0.38, g);
+      box(0.12, 1.6, 0.12, metal, -0.38, 0.8, 0.38, g);
+      box(0.12, 1.6, 0.12, metal, 0.38, 0.8, 0.38, g);
+      box(0.95, 0.15, 0.95, dark, 0, 1.6, 0, g);
+      const ram = box(0.6, 0.3, 0.6, mat('#f59e0b', { pattern: 'metal' }), 0, 1.1, 0, g);
+      ram.userData.hover = true;
+      box(0.5, 0.06, 0.5, glow('#fb923c', 3), 0, 0.33, 0, g);
+      break;
+    }
+    case 'robot-shell':
+      box(0.7, 0.2, 0.7, dark, 0, 0.1, 0, g);
+      box(0.1, 1.4, 0.1, metal, 0, 0.8, -0.3, g);
+      box(0.5, 0.55, 0.35, mat('#8a93a6', { pattern: 'panel' }), 0, 0.95, 0, g);
+      box(0.36, 0.3, 0.3, mat('#6b7280', { pattern: 'panel' }), 0, 1.4, 0, g);
+      box(0.24, 0.06, 0.02, glow(accent, 2), 0, 1.42, 0.16, g);
+      box(0.14, 0.4, 0.14, mat('#6b7280'), 0.34, 0.9, 0, g);
+      box(0.06, 0.06, 0.3, glow('#fde68a', 2.5), -0.3, 0.9, 0.1, g);
+      break;
+    case 'chip':
+      box(0.9, 0.18, 0.9, mat('#111827', { pattern: 'noise' }), 0, 0.09, 0, g);
+      for (let i = -3; i <= 3; i++) {
+        box(0.06, 0.04, 0.16, mat('#d1d5db', { metal: 0.8 }), i * 0.12, 0.04, 0.52, g);
+        box(0.06, 0.04, 0.16, mat('#d1d5db', { metal: 0.8 }), i * 0.12, 0.04, -0.52, g);
+      }
+      box(0.3, 0.02, 0.3, glow(accent, 1.4), 0, 0.19, 0, g);
+      box(0.08, 0.02, 0.08, mat('#e5e7eb'), -0.34, 0.19, -0.34, g);
+      break;
+    case 'resistor':
+      box(0.08, 0.08, 1.0, mat('#d1d5db', { metal: 0.8 }), 0, 0.3, 0, g);
+      box(0.3, 0.3, 0.55, mat('#d6b48a'), 0, 0.3, 0, g);
+      for (const [z, c] of [[-0.18, '#dc2626'], [-0.06, '#7c3aed'], [0.06, '#f59e0b'], [0.18, '#fbbf24']] as const) box(0.32, 0.32, 0.05, mat(c), 0, 0.3, z, g);
+      box(0.08, 0.3, 0.08, dark, 0, 0.1, 0.45, g);
+      box(0.08, 0.3, 0.08, dark, 0, 0.1, -0.45, g);
+      break;
+    case 'banner':
+      box(0.08, 2.0, 0.08, mat('#fbbf24', { metal: 0.6 }), 0, 1.0, 0, g);
+      box(0.6, 0.06, 0.06, mat('#fbbf24', { metal: 0.6 }), 0.28, 1.95, 0, g);
+      box(0.5, 1.0, 0.03, mat('#6d28d9'), 0.3, 1.4, 0, g);
+      box(0.2, 0.2, 0.04, glow('#fbbf24', 2), 0.3, 1.5, 0.01, g);
+      break;
+    case 'cup':
+      box(0.7, 0.6, 0.7, mat('#4a3b2a', { pattern: 'panel' }), 0, 0.3, 0, g);
+      box(0.3, 0.1, 0.3, mat('#fbbf24', { metal: 0.8, rough: 0.2 }), 0, 0.65, 0, g);
+      box(0.12, 0.2, 0.12, mat('#fbbf24', { metal: 0.8, rough: 0.2 }), 0, 0.8, 0, g);
+      box(0.4, 0.35, 0.4, glow('#fbbf24', 1.6), 0, 1.05, 0, g);
+      box(0.08, 0.2, 0.08, mat('#fbbf24', { metal: 0.8 }), -0.26, 1.08, 0, g);
+      box(0.08, 0.2, 0.08, mat('#fbbf24', { metal: 0.8 }), 0.26, 1.08, 0, g);
+      break;
+    case 'planter':
+      box(0.9, 0.4, 0.9, mat('#9fb7ad', { pattern: 'panel' }), 0, 0.2, 0, g);
+      box(0.8, 0.1, 0.8, mat('#5b4332'), 0, 0.42, 0, g);
+      for (let i = 0; i < 5; i++) box(0.14, 0.3 + (i % 3) * 0.12, 0.14, mat('#4fae5f', { pattern: 'grass' }), -0.3 + i * 0.15, 0.6, (i % 2) * 0.2 - 0.1, g);
+      box(0.08, 0.08, 0.08, glow('#f472b6', 2), 0.1, 0.9, 0.1, g);
+      break;
+    case 'tent':
+      box(0.9, 0.08, 0.9, mat('#b9a98a'), 0, 0.04, 0, g);
+      box(0.8, 0.7, 0.8, mat('#e5e7eb', { transparent: 0.35 }), 0, 0.45, 0, g);
+      box(0.9, 0.08, 0.9, mat('#34d399', { emissive: '#34d399', intensity: 0.6 }), 0, 0.85, 0, g);
+      break;
+    case 'fan': {
+      box(0.9, 0.9, 0.3, mat('#1d2b22', { pattern: 'panel' }), 0, 0.45, 0, g);
+      const blades = group(g, 0, 0.45, 0.18);
+      box(0.7, 0.12, 0.04, mat('#4b5563'), 0, 0, 0, blades);
+      box(0.12, 0.7, 0.04, mat('#4b5563'), 0, 0, 0, blades);
+      blades.userData.dynamic = true;
+      blades.userData.roll = 8;
+      box(0.12, 0.12, 0.06, glow(accent, 2), 0, 0.45, 0.21, g);
+      break;
+    }
+    case 'terminal-bank':
+      box(0.95, 0.9, 0.5, mat('#15201a', { pattern: 'server', accent }), 0, 0.45, 0, g);
+      box(0.8, 0.4, 0.04, glow(accent, 1.2), 0, 0.72, 0.26, g);
+      box(0.9, 0.08, 0.3, dark, 0, 0.92, 0.1, g);
+      break;
+    case 'satellite': {
+      box(0.5, 0.4, 0.5, metal, 0, 0.2, 0, g);
+      const head = group(g, 0, 0.9, 0);
+      box(0.12, 0.5, 0.12, dark, 0, -0.25, 0, head);
+      box(0.9, 0.06, 0.9, mat('#d6d3e6', { pattern: 'panel', metal: 0.5 }), 0, 0.1, 0, head).rotation.x = -0.6;
+      box(0.08, 0.08, 0.08, glow('#c4b5fd', 3), 0, 0.3, 0.2, head);
+      head.userData.spin = 0.3;
+      break;
+    }
+    case 'radar': {
+      box(0.6, 0.5, 0.6, mat('#3d3a52', { pattern: 'panel' }), 0, 0.25, 0, g);
+      box(0.5, 0.04, 0.5, glow('#4ade80', 0.6), 0, 0.52, 0, g);
+      const sweep = box(0.24, 0.05, 0.03, glow('#4ade80', 3), 0.12, 0.55, 0, g);
+      sweep.userData.spin = 3;
+      break;
+    }
+    case 'holo-station': {
+      box(0.7, 0.6, 0.7, mat('#3a3f50', { pattern: 'panel' }), 0, 0.3, 0, g);
+      const holo = box(0.4, 0.4, 0.4, mat('#a78bfa', { emissive: '#a78bfa', intensity: 1.4, transparent: 0.5 }), 0, 1.0, 0, g);
+      holo.userData.spin = 1;
+      holo.userData.hover = true;
+      break;
+    }
   }
   return g;
 }

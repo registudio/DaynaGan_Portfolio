@@ -22,6 +22,7 @@ export type Pattern =
 const cache = new Map<string, THREE.CanvasTexture>();
 
 import { rng } from './rng.ts';
+import { AUTHORED } from './authored.ts';
 export { rng };
 
 const clamp = (v: number) => Math.max(0, Math.min(255, v));
@@ -40,6 +41,19 @@ function draw(pattern: Pattern, base: string, accent: string, ctx: CanvasRenderi
     ctx.fillStyle = color;
     ctx.fillRect(x, y, 1, 1);
   };
+  // Hand-authored tiles (see authored.ts) take priority at 16×16.
+  const art = n === 16 ? AUTHORED[pattern] : undefined;
+  if (art) {
+    const SHADE: Record<string, number> = { '#': -55, '-': -26, '.': 0, '+': 20, '*': 42 };
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) {
+        const ch = art[y]?.[x] ?? '.';
+        if (ch === 'a') px(x, y, accent);
+        else if (ch === 'A') px(x, y, shade(accent, 70));
+        else px(x, y, shade(base, (SHADE[ch] ?? 0) + (r() - 0.5) * 10));
+      }
+    return;
+  }
   // Base noise on every pattern.
   for (let y = 0; y < n; y++)
     for (let x = 0; x < n; x++) px(x, y, shade(base, (r() - 0.5) * 18));
@@ -171,7 +185,7 @@ export function glowTexture(pattern: Pattern, accent: string, size = 16) {
   const img = t.getImageData(0, 0, size, size);
   for (let i = 0; i < img.data.length; i += 4) {
     const lum = img.data[i] + img.data[i + 1] + img.data[i + 2];
-    if (lum < 120) img.data[i] = img.data[i + 1] = img.data[i + 2] = 0;
+    if (lum < 200) img.data[i] = img.data[i + 1] = img.data[i + 2] = 0;
   }
   ctx.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(canvas);

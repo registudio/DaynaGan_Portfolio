@@ -9,7 +9,7 @@ import { computeSkills, partKey, roomKey } from '../../lib/skills.ts';
 import { buildProjectModel, type ProjectModel } from '../models/projects.ts';
 import { Audio } from './audio.ts';
 import { biomeFor, type Biome } from './biomes.ts';
-import { buildCat, buildDayna, buildEnemy, buildNpc, type EnemyType, type Rig } from './characters.ts';
+import { BIOME_OUTFIT, buildCat, buildDayna, buildEnemy, buildNpc, type EnemyType, type Rig } from './characters.ts';
 import { Input } from './input.ts';
 import { buildLevel, setProjectIds, type LevelMap, type Spawn } from './layout.ts';
 import {
@@ -52,6 +52,7 @@ import {
 import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
 import { rng } from './rng.ts';
+import { buildSetPiece, type SetPiece } from './setpieces.ts';
 import { loadSave, loadSettings, persist, Store, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { glow } from './voxels.ts';
 import { Ambient, Bursts, LightPool, World, type LightSource } from './world.ts';
@@ -368,7 +369,7 @@ export class Game {
     this.last = now;
     this.adaptResolution(raw, dt);
     const st = this.store.get();
-    const paused = !!(st.panel || st.menu || st.loading);
+    const paused = !!(st.panel || st.menu || st.loading || this.beaming);
     const actions = this.input.consume();
     if (this.input.device !== this.store.get().device) this.store.set({ device: this.input.device });
     if (actions.has('pause')) this.togglePause();
@@ -449,9 +450,59 @@ export class Game {
   }
 
   travel(id: string) {
+    if (this.beaming) return;
     this.store.set({ panel: null, menu: null });
     this.audio.sfx('teleport');
-    this.loadScene(id);
+    if (!this.world || !this.player || this.settings.reducedMotion) {
+      this.loadScene(id);
+      return;
+    }
+    // Beam out: Dayna (and Xiao Hu) stretch into a column of light, then the scene swaps.
+    this.beaming = true;
+    this.beam(false, () => {
+      this.beaming = false;
+      this.loadScene(id);
+    });
+  }
+
+  private beaming = false;
+
+  /** Teleport light column. `arriving` grows the rigs back in; otherwise they shrink away. */
+  private beam(arriving: boolean, done?: () => void) {
+    if (!this.player) return done?.();
+    const color = this.biome?.light ?? '#a78bfa';
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 14, 12, 1, true), mat);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 14, 8, 1, true), mat.clone());
+    col.add(core);
+    col.position.copy(this.player.pos).add(new THREE.Vector3(0, 7, 0));
+    this.level.add(col);
+    const rigs = [this.player.rig.root, this.cat?.rig.root].filter(Boolean) as THREE.Object3D[];
+    const dur = arriving ? 650 : 560;
+    const t0 = performance.now();
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - t0) / dur);
+      // Column flares up then fades; rigs squash to a sliver (or unsquash on arrival).
+      const flare = Math.sin(k * Math.PI);
+      mat.opacity = 0.75 * flare;
+      (core.material as THREE.MeshBasicMaterial).opacity = Math.min(1, 1.3 * flare);
+      col.scale.set(1 + 0.3 * flare, 1, 1 + 0.3 * flare);
+      const g = arriving ? Math.max(0, (k - 0.25) / 0.75) : 1 - k;
+      const e = g * g * (3 - 2 * g);
+      for (const r of rigs) r.scale.set(Math.max(0.001, e), Math.max(0.001, 1 + (1 - e) * 1.4), Math.max(0.001, e));
+      if (k < 1) requestAnimationFrame(tick);
+      else {
+        for (const r of rigs) r.scale.setScalar(arriving ? 1 : 0.001);
+        this.level.remove(col);
+        col.geometry.dispose();
+        core.geometry.dispose();
+        mat.dispose();
+        (core.material as THREE.Material).dispose();
+        done?.();
+      }
+    };
+    requestAnimationFrame(tick);
+    if (arriving) this.bursts.spawn(this.player.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), color, 18);
   }
 
   private loadScene(id: string, first = false) {
@@ -463,7 +514,10 @@ export class Game {
       } catch (e) {
         console.error(e);
       }
-      setTimeout(() => this.store.set({ loading: null }), first ? 350 : 500);
+      setTimeout(() => {
+        this.store.set({ loading: null });
+        if (!first && !this.settings.reducedMotion) this.beam(true);
+      }, first ? 350 : 500);
       this.afterEnter(id);
     }, 60);
   }
@@ -483,6 +537,8 @@ export class Game {
     this.buddy = null;
     this.blueprints.forEach((m) => m.dispose());
     this.blueprints.clear();
+    this.setPiece?.dispose();
+    this.setPiece = null;
     this.level.clear();
     this.world?.dispose();
     this.world = null;
@@ -494,6 +550,7 @@ export class Game {
     if (this.lights) this.lights.sources = [];
   }
 
+  private setPiece: SetPiece | null = null;
   private levelCache = new Map<string, LevelMap>();
 
   /** Level layouts are deterministic; build once per session and hand out copies (secrets mutate cells). */
@@ -550,7 +607,7 @@ export class Game {
     // Player + cat
     const spawnH = this.world.heightAt(this.map.spawn.x, this.map.spawn.z);
     const pos = new THREE.Vector3(this.map.spawn.x, spawnH, this.map.spawn.z);
-    const rig = buildDayna();
+    const rig = buildDayna(BIOME_OUTFIT[this.biome.id] ?? 'jacket');
     this.level.add(rig.root);
     const maxHp = this.maxHp();
     this.player = {
@@ -585,6 +642,8 @@ export class Game {
 
     this.ambient = new Ambient(b.particles, b.light, { x: 0, z: 0, w: this.map.w, d: this.map.d }, this.quality === 'high' ? 260 : 120);
     if (b.particles) this.scene.add(this.ambient.points);
+    this.setPiece = buildSetPiece(b.id, this.map, this.quality);
+    if (this.setPiece) this.level.add(this.setPiece.group);
     this.minimapBase = this.renderMinimapBase();
     this.audio.playMusic(b.id);
     this.store.set({
@@ -654,7 +713,7 @@ export class Game {
     this.level.add(obj);
     if (batch) this.staticRoots.push(obj);
     obj.traverse((o) => {
-      if (o.userData.spin || o.userData.hover || o.userData.blink) this.spinners.push(o);
+      if (o.userData.spin || o.userData.hover || o.userData.blink || o.userData.roll) this.spinners.push(o);
       const l = o.userData.light;
       if (l) {
         const wp = new THREE.Vector3();
@@ -1365,6 +1424,7 @@ export class Game {
       const wp = (o.userData.wp ??= o.getWorldPosition(new THREE.Vector3())) as THREE.Vector3;
       if (Math.abs(wp.x - pp.x) + Math.abs(wp.z - pp.z) > 30) continue;
       if (o.userData.spin) o.rotation.y += o.userData.spin * dt;
+      if (o.userData.roll) o.rotation.z += o.userData.roll * dt;
       if (o.userData.hover) o.position.y = (o.userData.baseY ??= o.position.y) + Math.sin(this.time * 2 + o.id) * 0.08;
       const npc = o.userData.npc as Rig | undefined;
       npc?.animate(this.time, 0, dt);
@@ -1382,6 +1442,7 @@ export class Game {
     }
     this.bursts.update(dt, (x, z) => this.world?.heightAt(x, z) ?? 0);
     this.ambient?.update(dt);
+    this.setPiece?.update(this.time, dt);
     if (this.dish && this.beamT > 0) this.beamT -= dt;
     if (this.scannerT > 0) this.scannerT -= dt;
   }

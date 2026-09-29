@@ -18,17 +18,46 @@ export type Rig = {
 const SKIN = '#e8bd98';
 const HAIR = '#1a1311';
 
-export function buildDayna(): Rig {
+export type Outfit = 'jacket' | 'labcoat' | 'welder' | 'explorer' | 'blazer' | 'cardigan' | 'hoodie' | 'flight';
+
+type OutfitSpec = { main: string; trim: string; top: string; trousers: string; hands?: string; lens?: string; extra?: Outfit };
+const DAYNA_OUTFITS: Record<Outfit, OutfitSpec> = {
+  jacket: { main: '#6d28d9', trim: '#4c1d95', top: '#141218', trousers: '#e6dcc8' },
+  labcoat: { main: '#f1f5f9', trim: '#cbd5e1', top: '#141218', trousers: '#1f2937', extra: 'labcoat' },
+  welder: { main: '#6d28d9', trim: '#f97316', top: '#141218', trousers: '#374151', hands: '#5a4330', lens: '#f59e0b', extra: 'welder' },
+  explorer: { main: '#0f766e', trim: '#134e4a', top: '#141218', trousers: '#44403c', extra: 'explorer' },
+  blazer: { main: '#18181b', trim: '#3f3f46', top: '#f5f5f4', trousers: '#18181b', extra: 'blazer' },
+  cardigan: { main: '#86a789', trim: '#5f7a61', top: '#f5f5f4', trousers: '#e6dcc8' },
+  hoodie: { main: '#14532d', trim: '#166534', top: '#0b0f0c', trousers: '#1f2937', extra: 'hoodie' },
+  flight: { main: '#4b5563', trim: '#a78bfa', top: '#141218', trousers: '#e6dcc8', extra: 'flight' },
+};
+
+/** Outfit Dayna wears in each biome. */
+export const BIOME_OUTFIT: Record<string, Outfit> = {
+  'orbital-station': 'jacket',
+  'core-reactor': 'jacket',
+  'academy-spires': 'labcoat',
+  'robot-forge': 'welder',
+  'circuit-caverns': 'explorer',
+  'trophy-hall': 'blazer',
+  'colony-commons': 'cardigan',
+  mainframe: 'hoodie',
+  'comms-array': 'flight',
+};
+
+export function buildDayna(outfit: Outfit = 'jacket'): Rig {
+  const o = DAYNA_OUTFITS[outfit];
   const root = new THREE.Group();
   const body = group(root);
   blobShadow(0.42, root);
-  const jacket = mat('#6d28d9', { rough: 0.7 });
-  const jacketDark = mat('#4c1d95');
-  const top = mat('#141218');
-  const trousers = mat('#e6dcc8');
+  const jacket = mat(o.main, { rough: 0.7 });
+  const jacketDark = mat(o.trim);
+  const top = mat(o.top);
+  const trousers = mat(o.trousers);
   const shoe = mat('#1d1b22');
   const skin = mat(SKIN, { rough: 0.9 });
   const hair = mat(HAIR, { rough: 0.95 });
+  const hairHi = mat('#2a1d18', { rough: 0.9 });
   const belt = mat('#5a4330');
 
   // Legs pivot at the hip.
@@ -38,7 +67,6 @@ export function buildDayna(): Rig {
     box(0.2, 0.44, 0.22, trousers, 0, -0.22, 0, leg);
     box(0.21, 0.1, 0.26, shoe, 0, -0.47, 0.02, leg);
   }
-  // Torso: purple utility jacket open over a black top.
   const torso = group(body, 0, 0.52, 0);
   box(0.48, 0.5, 0.26, jacket, 0, 0.25, 0, torso);
   box(0.18, 0.44, 0.02, top, 0, 0.24, 0.135, torso);
@@ -48,14 +76,47 @@ export function buildDayna(): Rig {
   box(0.5, 0.07, 0.28, belt, 0, 0.03, 0, torso); // tool belt
   box(0.09, 0.12, 0.08, belt, 0.2, -0.02, 0.1, torso);
   box(0.03, 0.1, 0.03, mat('#9ca3af', { metal: 0.8, rough: 0.3 }), 0.2, 0.07, 0.12, torso); // screwdriver
-  box(0.3, 0.2, 0.12, mat('#3f3a4a'), 0, 0.3, -0.18, torso); // small backpack
+  if (o.extra !== 'hoodie' && o.extra !== 'blazer') box(0.3, 0.2, 0.12, mat('#3f3a4a'), 0, 0.3, -0.18, torso); // small backpack
+
+  // Per-biome outfit extras.
+  switch (o.extra) {
+    case 'labcoat':
+      box(0.5, 0.3, 0.27, jacket, 0, -0.12, 0, torso); // coat skirt past the hips
+      box(0.05, 0.6, 0.03, jacketDark, -0.12, 0.05, 0.14, torso);
+      box(0.05, 0.6, 0.03, jacketDark, 0.12, 0.05, 0.14, torso);
+      box(0.1, 0.06, 0.02, mat('#60a5fa'), -0.17, 0.4, 0.14, torso); // pen in the pocket
+      break;
+    case 'welder':
+      box(0.34, 0.62, 0.03, mat('#7c4a2d', { rough: 1 }), 0, 0.12, 0.15, torso); // leather apron
+      box(0.49, 0.04, 0.27, glow('#f97316', 1.2), 0, 0.42, 0, torso); // hi-vis band
+      break;
+    case 'explorer':
+      box(0.5, 0.3, 0.28, mat('#115e59', { pattern: 'panel' }), 0, 0.3, 0, torso); // utility vest
+      box(0.18, 0.44, 0.02, top, 0, 0.24, 0.145, torso);
+      box(0.08, 0.1, 0.04, mat('#134e4a'), -0.16, 0.2, 0.15, torso);
+      box(0.08, 0.1, 0.04, mat('#134e4a'), 0.16, 0.2, 0.15, torso);
+      break;
+    case 'blazer':
+      box(0.16, 0.04, 0.02, glow('#fbbf24', 1.4), 0.14, 0.4, 0.14, torso); // gold pin
+      break;
+    case 'hoodie':
+      box(0.36, 0.14, 0.14, jacketDark, 0, 0.5, -0.12, torso); // hood
+      box(0.2, 0.12, 0.03, jacketDark, 0, 0.12, 0.14, torso); // pocket
+      box(0.02, 0.14, 0.02, mat('#e5e7eb'), -0.05, 0.36, 0.15, torso); // drawstrings
+      box(0.02, 0.14, 0.02, mat('#e5e7eb'), 0.05, 0.36, 0.15, torso);
+      break;
+    case 'flight':
+      box(0.5, 0.08, 0.28, mat('#a78bfa', { emissive: '#7c3aed', intensity: 0.5 }), 0, 0.5, 0, torso); // collar
+      box(0.1, 0.1, 0.02, glow('#c4b5fd', 1.6), -0.15, 0.36, 0.14, torso); // patch
+      break;
+  }
 
   // Arms pivot at the shoulder.
   const armL = group(body, -0.32, 0.98, 0);
   const armR = group(body, 0.32, 0.98, 0);
   for (const arm of [armL, armR]) {
     box(0.16, 0.36, 0.18, jacket, 0, -0.16, 0, arm);
-    box(0.14, 0.12, 0.16, skin, 0, -0.4, 0, arm);
+    box(0.14, 0.12, 0.16, o.hands ? mat(o.hands) : skin, 0, -0.4, 0, arm);
   }
   // Glowing gauntlet on the right hand (solder beam emitter).
   const gauntlet = box(0.18, 0.16, 0.2, glow('#a855f7', 1.8), 0, -0.36, 0, armR);
@@ -77,17 +138,28 @@ export function buildDayna(): Rig {
   box(0.48, 0.1, 0.48, hair, 0, 0.45, 0, head);
   box(0.07, 0.44, 0.46, hair, -0.245, 0.2, -0.01, head);
   box(0.07, 0.44, 0.46, hair, 0.245, 0.2, -0.01, head);
-  box(0.5, 0.76, 0.1, hair, 0, 0.02, -0.25, head);
-  box(0.42, 0.2, 0.08, hair, 0, -0.34, -0.22, head); // wavy ends
+  // Back hair in three wavy columns with staggered ends.
+  box(0.5, 0.7, 0.1, hair, 0, 0.05, -0.25, head);
+  box(0.17, 0.2, 0.1, hair, -0.16, -0.36, -0.24, head);
+  box(0.17, 0.26, 0.1, hair, 0, -0.39, -0.25, head);
+  box(0.17, 0.18, 0.1, hair, 0.16, -0.35, -0.24, head);
+  box(0.14, 0.12, 0.04, hairHi, -0.12, -0.2, -0.3, head); // wave highlights
+  box(0.14, 0.12, 0.04, hairHi, 0.1, 0.05, -0.3, head);
+  box(0.14, 0.1, 0.04, hairHi, -0.05, 0.3, -0.3, head);
   box(0.1, 0.34, 0.05, hair, -0.19, 0.18, 0.21, head); // curtain strands
   box(0.1, 0.34, 0.05, hair, 0.19, 0.18, 0.21, head);
   box(0.12, 0.1, 0.05, hair, -0.13, 0.4, 0.21, head);
   box(0.12, 0.1, 0.05, hair, 0.13, 0.4, 0.21, head);
   box(0.12, 0.2, 0.08, hair, -0.26, -0.12, 0.05, head); // waves over the shoulders
   box(0.12, 0.2, 0.08, hair, 0.26, -0.12, 0.05, head);
+  box(0.1, 0.14, 0.08, hair, -0.29, -0.3, 0.02, head);
+  box(0.1, 0.14, 0.08, hair, 0.29, -0.3, 0.02, head);
+  box(0.03, 0.2, 0.03, hairHi, -0.25, 0.1, 0.2, head);
+  box(0.03, 0.2, 0.03, hairHi, 0.25, 0.1, 0.2, head);
   // Goggles pushed up on the forehead.
   box(0.5, 0.05, 0.5, mat('#26222e'), 0, 0.5, 0, head);
-  const lens = mat('#5eead4', { metal: 0.7, rough: 0.2, emissive: '#0e7490', intensity: 0.35 });
+  const lens = mat(o.lens ?? '#5eead4', { metal: 0.7, rough: 0.2, emissive: o.lens ?? '#0e7490', intensity: 0.35 });
+  if (o.extra === 'explorer') box(0.08, 0.06, 0.04, glow('#e0f2fe', 3), 0, 0.53, 0.25, head); // headlamp
   box(0.11, 0.07, 0.04, lens, -0.1, 0.53, 0.24, head);
   box(0.11, 0.07, 0.04, lens, 0.1, 0.53, 0.24, head);
 

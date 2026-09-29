@@ -7,7 +7,7 @@ import { UNIT_BOX } from './voxels.ts';
  * from dozens of small boxes; batching turns hundreds of draw calls into a few.
  * Anything animated (flagged in userData) is left untouched.
  */
-const DYNAMIC_FLAGS = ['spin', 'hover', 'blink', 'interactRing', 'core', 'emitter', 'npc', 'dynamic', 'orbit', 'rotor', 'beam'];
+const DYNAMIC_FLAGS = ['spin', 'roll', 'hover', 'blink', 'interactRing', 'core', 'emitter', 'npc', 'dynamic', 'orbit', 'rotor', 'beam'];
 
 const isDynamic = (o: THREE.Object3D) => DYNAMIC_FLAGS.some((f) => o.userData[f]);
 
