@@ -541,8 +541,23 @@ function buildTrophies(b: Builder, level: Level, rooms: RoomRect[], secret: Room
     }
   }
   const scx = secret.x + secret.w / 2;
-  b.spawns.push({ kind: 'backroom', x: scx, z: secret.z + secret.d / 2 });
-  b.claim(scx, secret.z + secret.d / 2, 1);
+  b.spawns.push({ kind: 'backroom', x: scx, z: secret.z + 1.5 });
+  b.claim(scx, secret.z + 1.5, 1);
+  // Lab-notebook terminals and Xiao Hu's bed.
+  const content = level.rooms.find((r) => r.id === 'backroom');
+  const spots = b.spots(secret, 2.6).filter((s) => Math.abs(s.x - scx) > 1.8 || s.z > secret.z + 2);
+  content?.parts
+    .filter((p) => !p.todo || p.body)
+    .filter((p) => p.id !== 'cat-corner')
+    .forEach((part, k) => {
+      const s = spots[k];
+      if (!s) return;
+      b.spawns.push({ kind: 'terminal', x: s.x, z: s.z, roomId: 'backroom', partId: part.id });
+      b.claim(s.x, s.z, 1);
+    });
+  const bed = { x: secret.x + secret.w - 2.5, z: secret.z + secret.d - 2.5 };
+  b.spawns.push({ kind: 'hub', what: 'catbed', x: bed.x, z: bed.z });
+  b.claim(bed.x, bed.z, 1);
 }
 
 /** Set by the game before building the Trophy Hall (project ids in content order). */

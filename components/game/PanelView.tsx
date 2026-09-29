@@ -38,6 +38,19 @@ export default function PanelView({ game, hud, panel }: { game: Game; hud: Hud; 
         <button className="g-close" onClick={close} aria-label="Close">
           ✕
         </button>
+        {hud.tour && (
+          <div className="g-panel-tour">
+            <span>
+              Tour {hud.tour.step}/{hud.tour.total}
+            </span>
+            <button onClick={() => game.tourTogglePause()}>{hud.tour.label.endsWith('paused') ? '▶ Resume' : '❚❚ Hold'}</button>
+            {hud.tour.step < hud.tour.total ? (
+              <button onClick={() => game.tourNext(1)}>Next ▶▶</button>
+            ) : (
+              <button onClick={() => game.stopTour()}>Finish tour ✓</button>
+            )}
+          </div>
+        )}
         {panel.kind === 'content' && <ContentPanel game={game} panel={panel} />}
         {panel.kind === 'starmap' && <StarMap game={game} hud={hud} />}
         {panel.kind === 'skills' && (

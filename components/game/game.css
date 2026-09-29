@@ -1309,3 +1309,52 @@ div.g-sub {
   color: var(--g-ink-2);
   text-shadow: 0 2px 0 #000;
 }
+
+/* Tour mode */
+.g-tourbar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgb(10 8 20 / 0.9);
+  border: 2px solid var(--g-accent);
+  max-width: calc(100vw - 24px);
+  pointer-events: auto;
+}
+.g-tour-step {
+  color: var(--g-gold);
+  white-space: nowrap;
+}
+.g-tour-label {
+  color: var(--g-ink-2);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 34vw;
+}
+.g-tourbar button,
+.g-panel-tour button {
+  font-family: var(--pixel);
+  background: #231c3d;
+  color: #fff;
+  border: 1px solid var(--g-line);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.g-tourbar .exit {
+  background: #4c1d95;
+}
+.g-panel-tour {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: -6px 0 8px;
+  padding-right: 40px;
+  color: var(--g-gold);
+  font-size: 14px;
+}

@@ -924,6 +924,12 @@ footer.pro-foot {
   background: #1f1a2e;
   box-shadow: inset -4px -4px 0 #0d0a16, inset 4px 4px 0 #3d3654, 0 6px 0 #05030a;
 }
+.pixel-btn.tour {
+  font-size: 18px;
+  padding: 10px 16px;
+  flex-direction: column;
+  gap: 2px;
+}
 .pixel-btn small {
   font-size: 13px;
   opacity: 0.75;

@@ -722,9 +722,34 @@ Every skill Dayna has picked up, and exactly where each level came from.
 ## Backroom
 id: backroom
 hidden: true
+
+You found the Backroom — the station's behind-the-scenes lab, and Xiao Hu's favourite nap spot. Nothing here is on the résumé.
+
+### Lab notebook · Entry 1 — Two modes, one file
+id: notebook-1
+
+Every word in this portfolio lives in a single Markdown file. The Professional page and this whole game are generated from it, so one edit updates both.
+
+### Lab notebook · Entry 2 — Built from blocks
+id: notebook-2
+
+There are no image files for the world: every block, texture, robot and project model is generated in code, voxel by voxel. The music and sound effects are synthesised on the fly too.
+
+### Lab notebook · Entry 3 — Skills as a game mechanic
+id: notebook-3
+
+Skill levels come from real experience: scanning a school or internship levels up what was learnt there, and a project can only be assembled once those skills are high enough — just like the real builds.
+
+### Xiao Hu's corner
+id: cat-corner
+
+A warm bed, a purple LED tag and absolutely no bugs allowed (the software kind). Xiao Hu naps here whenever you visit.
+
+### Photo wall
+id: photo-wall
 status: todo
 
-TODO: Secret content — revealed when every project model is on the shelves.
+TODO: Add photos (e.g. of Xiao Hu and builds) to public/images/backroom/ and list them here.
 
 # Leadership & Community
 id: leadership

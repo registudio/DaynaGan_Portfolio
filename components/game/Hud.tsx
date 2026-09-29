@@ -97,8 +97,29 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
         </button>
       )}
 
+      {hud.tour && (
+        <div className="g-tourbar" role="group" aria-label="Tour controls">
+          <span className="g-tour-step">
+            TOUR {hud.tour.step}/{hud.tour.total}
+          </span>
+          <span className="g-tour-label">{hud.tour.label}</span>
+          <button onClick={() => game.tourNext(-1)} aria-label="Previous stop">
+            ◀
+          </button>
+          <button onClick={() => game.tourTogglePause()} aria-label="Pause or resume tour">
+            {hud.tour.label.endsWith('paused') ? '▶' : '❚❚'}
+          </button>
+          <button onClick={() => game.tourNext(1)} aria-label="Next stop">
+            ▶▶
+          </button>
+          <button className="exit" onClick={() => game.stopTour()}>
+            Exit tour
+          </button>
+        </div>
+      )}
+
       {/* Hotbar */}
-      <div className="g-hotbar">
+      <div className="g-hotbar" hidden={!!hud.tour}>
         <div className="g-slot" title="Wrench (melee)">
           <span className="g-ico"><PixelIcon name="wrench" /></span>
           <kbd>{hud.touch ? '' : 'LMB'}</kbd>

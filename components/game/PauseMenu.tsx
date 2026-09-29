@@ -49,6 +49,9 @@ export default function PauseMenu({ game, hud }: { game: Game; hud: Hud }) {
                 ✉ Skip to Comms
               </button>
             )}
+            <button className="g-btn" onClick={() => game.startTour()}>
+              ⏱ Quick tour
+            </button>
             <button className="g-btn" onClick={() => game.exit('pro')}>
               ☰ Professional mode
             </button>

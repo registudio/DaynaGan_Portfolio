@@ -220,6 +220,8 @@ export class Game {
   private blueprints = new Map<string, ProjectModel>();
   private cooldowns: Record<string, number> = {};
   private scannerT = 0;
+  /** Xiao Hu's bed in the Backroom (she naps there while you explore it). */
+  private catBed: THREE.Vector3 | null = null;
   private combo = 0;
   private comboT = 0;
   private hitStop = 0;
@@ -382,6 +384,7 @@ export class Game {
     } else if (this.world) {
       // Keep idle animations alive behind panels.
       this.player.rig.animate(this.time, 0, dt * 0.3);
+      if (!st.loading) this.tourReading(dt);
     }
     this.lights?.update(this.player?.pos ?? this.camTarget, dt, this.time);
     this.render(dt);
@@ -472,6 +475,7 @@ export class Game {
     this.spinners = [];
     this.staticRoots = [];
     this.puzzle = null;
+    this.catBed = null;
     this.relayObjs.clear();
     this.dish = null;
     this.buddy = null;
@@ -527,7 +531,14 @@ export class Game {
     // Room lights in the biome's dominant colour.
     for (const room of this.map.rooms) {
       if (room.i === hidden) continue;
-      this.addLight(new THREE.Vector3(room.x + room.w / 2, room.h + 3.2, room.z + room.d / 2), b.light, 7, Math.max(room.w, room.d) * 1.1);
+      const backroom = room.kind === 'secret';
+      this.addLight(
+        new THREE.Vector3(room.x + room.w / 2, room.h + 3.2, room.z + room.d / 2),
+        backroom ? '#fef08a' : b.light,
+        7,
+        Math.max(room.w, room.d) * 1.1,
+        backroom ? 0.7 : 0,
+      );
     }
 
     for (const s of this.map.spawns) this.spawn(s, hidden);
@@ -587,6 +598,10 @@ export class Game {
 
   private afterEnter(id: string) {
     const name = this.portfolio.site.companion.name;
+    if (this.tour) {
+      this.tourArrived();
+      return;
+    }
     if (id === 'hub') {
       if (!this.save.tutorial) {
         this.say(`Mrrp? …Oh! Hi, I'm ${name}, Dayna's cat.`, 4200);
@@ -1031,9 +1046,33 @@ export class Game {
         });
         break;
       }
-      case 'catbed':
-        this.place(buildCatBed(), s.x, s.z);
+      case 'catbed': {
+        const obj = this.place(buildCatBed(), s.x, s.z);
+        if (this.sceneId === 'trophies') {
+          this.catBed = new THREE.Vector3(s.x, 0.2, s.z);
+          const room = this.portfolio.levels.find((l) => l.id === 'trophies')?.rooms.find((r) => r.id === 'backroom');
+          const part = room?.parts.find((p) => p.id === 'cat-corner');
+          if (room && part)
+            this.inter({
+              id: partKey('trophies', 'backroom', part.id),
+              kind: 'terminal',
+              x: s.x,
+              z: s.z + 0.9,
+              radius: 1.3,
+              verb: 'Read',
+              label: part.title,
+              sub: 'Shh… napping',
+              object: obj,
+              accent: '#fef08a',
+              done: () => this.save.scanned.includes(partKey('trophies', 'backroom', part.id)),
+              use: () => {
+                this.openPart(room, part.id);
+                this.audio.meow(0.9);
+              },
+            });
+        }
         break;
+      }
       case 'locker': {
         const obj = this.place(buildLocker(), s.x, s.z);
         this.inter({
@@ -1198,10 +1237,11 @@ export class Game {
       return;
     }
 
-    // Movement
-    const mv = this.input.move();
+    // Movement (Tour mode drives the player itself)
+    const tourSpeed = this.tour ? this.tourStep(dt) : 0;
+    const mv = this.tour ? { x: 0, y: 0 } : this.input.move();
     const dir = new THREE.Vector3().addScaledVector(SCREEN_RIGHT, mv.x).addScaledVector(SCREEN_UP, mv.y);
-    const speed = dir.length() * PLAYER_SPEED;
+    const speed = this.tour ? tourSpeed : dir.length() * PLAYER_SPEED;
     if (dir.lengthSq() > 0.001) {
       p.facing = Math.atan2(dir.x, dir.z);
       p.idle = 0;
@@ -1348,6 +1388,31 @@ export class Game {
     const c = this.cat;
     const p = this.player;
     if (this.updateCatAbility(dt)) return;
+    // Backroom: Xiao Hu heads for her bed and naps while you look around.
+    const secret = this.map.rooms.find((r) => r.kind === 'secret');
+    if (this.catBed && secret && this.world!.roomAt(p.pos.x, p.pos.z) === secret.i) {
+      const d = this.catBed.clone().sub(c.pos).setY(0);
+      if (d.length() > 0.15) {
+        d.normalize();
+        this.world!.move(c.pos, d.x * 3.5 * dt, d.z * 3.5 * dt, 0.18);
+        c.facing = Math.atan2(d.x, d.z);
+        c.rig.root.position.copy(c.pos);
+        c.rig.root.rotation.y = c.facing;
+        c.rig.animate(this.time, 3.5, dt);
+        if (c.pos.distanceTo(this.catBed) < 0.3) c.pos.copy(this.catBed);
+      } else if (!c.sleeping) {
+        c.sleeping = true;
+        this.say('*curls up* …zzz', 2200);
+      }
+      if (c.sleeping) {
+        c.rig.root.position.copy(c.pos);
+        c.rig.body.rotation.z = Math.PI / 2.2;
+        c.rig.body.position.y = 0.12;
+        c.rig.animate(this.time, 0, dt * 0.2);
+      }
+      return;
+    }
+    if (c.sleeping && this.catBed) c.sleeping = false;
     if (c.sleeping) {
       c.rig.root.position.copy(c.pos);
       c.rig.body.rotation.z = Math.PI / 2.2; // sprawled on its side, belly out
@@ -1927,6 +1992,214 @@ export class Game {
     grow();
   }
 
+  // ── Tour mode ───────────────────────────────────────────────────────────────
+
+  private tour: {
+    steps: { level: string; target: string; line: string; title: string }[];
+    i: number;
+    phase: 'travel' | 'walk' | 'read';
+    timer: number;
+    path: THREE.Vector3[];
+    paused: boolean;
+  } | null = null;
+
+  private buildTourSteps() {
+    const steps: { level: string; target: string; line: string; title: string }[] = [];
+    const intro: Record<string, string> = {
+      about: 'First stop: the Core Reactor — who Dayna is.',
+      education: 'Up the Academy Spires: SST, then SP, then NUS.',
+      experience: 'The Robot Forge — one hall per internship, oldest first.',
+      projects: 'The Circuit Caverns — every project, taken apart.',
+      trophies: 'The Trophy Hall: awards and the Skill Matrix.',
+      leadership: 'The Colony Commons — leadership and community.',
+      github: 'The Mainframe, wired to Dayna’s GitHub.',
+      contact: 'Last stop: the Comms Array. Say hi!',
+    };
+    for (const id of MISSION_ORDER) {
+      const level = this.portfolio.levels.find((l) => l.id === id);
+      if (!level) continue;
+      let targets: { target: string; title: string }[] = [];
+      if (id === 'projects') targets = level.rooms.map((r) => ({ target: `assembly:${r.id}`, title: r.title }));
+      else if (id === 'trophies')
+        targets = level.rooms.filter((r) => r.id === 'awards' || r.id === 'skill-matrix').map((r) => ({ target: roomKey(id, r.id), title: r.title }));
+      else if (id === 'contact') targets = [{ target: 'transmitter', title: 'Transmission Console' }];
+      else targets = level.rooms.map((r) => ({ target: roomKey(id, r.id), title: r.title }));
+      targets.forEach((t, k) => steps.push({ level: id, ...t, line: k === 0 ? intro[id] : `Next up: ${t.title}.` }));
+    }
+    return steps;
+  }
+
+  startTour() {
+    const steps = this.buildTourSteps();
+    this.tour = { steps, i: 0, phase: 'travel', timer: 0, path: [], paused: false };
+    this.touring = true;
+    this.store.set({ menu: null, panel: null });
+    this.say(`Tour mode! I'll walk you through everything — sit back. Meow.`, 3500, true);
+    this.tourUpdateHud();
+    this.tourBegin();
+  }
+
+  stopTour(message = true) {
+    if (!this.tour) return;
+    this.tour = null;
+    this.touring = false;
+    this.store.set({ tour: null });
+    if (message) this.say('Tour over — explore on your own any time!', 3000, true);
+  }
+
+  tourNext(delta = 1) {
+    const t = this.tour;
+    if (!t) return;
+    t.i = Math.max(0, Math.min(t.steps.length - 1, t.i + delta));
+    if (this.store.get().panel) this.store.set({ panel: null });
+    this.tourBegin();
+  }
+
+  tourTogglePause() {
+    if (!this.tour) return;
+    this.tour.paused = !this.tour.paused;
+    this.tourUpdateHud();
+  }
+
+  private tourUpdateHud() {
+    const t = this.tour;
+    if (!t) return;
+    const s = t.steps[t.i];
+    const level = this.portfolio.levels.find((l) => l.id === s.level);
+    this.store.set({ tour: { step: t.i + 1, total: t.steps.length, label: `${level?.title ?? ''} · ${s.title}${t.paused ? ' · paused' : ''}` } });
+  }
+
+  private tourBegin() {
+    const t = this.tour;
+    if (!t) return;
+    const s = t.steps[t.i];
+    this.tourUpdateHud();
+    if (this.sceneId !== s.level) {
+      t.phase = 'travel';
+      this.travel(s.level);
+      return;
+    }
+    this.tourWalk();
+  }
+
+  /** Called after a scene finishes loading. */
+  private tourArrived() {
+    const t = this.tour;
+    if (!t || this.sceneId !== t.steps[t.i].level) return;
+    this.tourWalk();
+  }
+
+  private tourWalk() {
+    const t = this.tour!;
+    const s = t.steps[t.i];
+    const it = this.inters.find((i) => i.id === s.target);
+    if (!it) {
+      this.tourNext();
+      return;
+    }
+    this.say(s.line, 3200, true);
+    t.path = this.findPath(this.player.pos, it.pos) ?? [];
+    if (!t.path.length) {
+      // Blocked (e.g. a puzzle barrier): beam straight there.
+      this.bursts.spawn(this.player.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#c4b5fd', 16, 3);
+      const spot = this.freeNear(it.pos);
+      this.player.pos.copy(spot);
+      this.cat.pos.copy(spot).add(new THREE.Vector3(0.6, 0, 0.6));
+    }
+    t.phase = 'walk';
+    t.timer = 12;
+  }
+
+  private freeNear(pos: THREE.Vector3) {
+    for (const [dx, dz] of [[0, 1.2], [1.2, 0], [-1.2, 0], [0, -1.2], [1.2, 1.2], [-1.2, 1.2]])
+      if (!this.world!.solid(pos.x + dx, pos.z + dz)) return new THREE.Vector3(pos.x + dx, this.world!.heightAt(pos.x + dx, pos.z + dz), pos.z + dz);
+    return pos.clone();
+  }
+
+  /** BFS over walkable cells; returns waypoints (cell centres) ending next to the goal. */
+  private findPath(from: THREE.Vector3, to: THREE.Vector3): THREE.Vector3[] | null {
+    const w = this.world!;
+    const W = this.map.w;
+    const start = Math.floor(from.z) * W + Math.floor(from.x);
+    const gx = Math.floor(to.x);
+    const gz = Math.floor(to.z);
+    const prev = new Map<number, number>([[start, -1]]);
+    const queue = [start];
+    let found = -1;
+    while (queue.length) {
+      const i = queue.shift()!;
+      const x = i % W;
+      const z = Math.floor(i / W);
+      if (Math.abs(x - gx) <= 1 && Math.abs(z - gz) <= 1) {
+        found = i;
+        break;
+      }
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx;
+        const nz = z + dz;
+        const j = nz * W + nx;
+        if (prev.has(j) || w.solid(nx + 0.5, nz + 0.5)) continue;
+        prev.set(j, i);
+        queue.push(j);
+      }
+    }
+    if (found < 0) return null;
+    const out: THREE.Vector3[] = [];
+    for (let i = found; i !== -1 && i !== start; i = prev.get(i)!) out.unshift(new THREE.Vector3((i % W) + 0.5, 0, Math.floor(i / W) + 0.5));
+    return out;
+  }
+
+  /** Drives the player during the walk phase; returns the movement speed for animation. */
+  private tourStep(dt: number): number {
+    const t = this.tour;
+    if (!t || t.phase !== 'walk' || t.paused) return 0;
+    t.timer -= dt;
+    const p = this.player;
+    const next = t.path[0];
+    if (next) {
+      const d = next.clone().sub(p.pos).setY(0);
+      const len = d.length();
+      if (len < 0.2) t.path.shift();
+      else {
+        d.normalize();
+        const step = Math.min(len, PLAYER_SPEED * 1.15 * dt);
+        this.world!.move(p.pos, d.x * step, d.z * step, 0.3);
+        p.facing = Math.atan2(d.x, d.z);
+      }
+    }
+    if (!t.path.length || t.timer <= 0) {
+      const it = this.inters.find((i) => i.id === t.steps[t.i].target);
+      if (it) {
+        const face = it.pos.clone().sub(p.pos).setY(0);
+        if (face.lengthSq() > 0.01) p.facing = Math.atan2(face.x, face.z);
+        if (it.id === 'transmitter') this.store.set({ panel: { kind: 'contact' } });
+        else it.use();
+      }
+      t.phase = 'read';
+      const panel = this.store.get().panel;
+      const words = panel && panel.kind === 'content' ? panel.html.replace(/<[^>]+>/g, ' ').split(/\s+/).length : 40;
+      t.timer = Math.min(16, Math.max(7, 4 + words / 4));
+      if (t.i === t.steps.length - 1) t.timer = Infinity;
+      return 0;
+    }
+    return PLAYER_SPEED;
+  }
+
+  /** Runs while a panel is open (the game itself is paused). */
+  private tourReading(dt: number) {
+    const t = this.tour;
+    if (!t || t.phase !== 'read') return;
+    if (!this.store.get().panel) {
+      // Visitor closed the panel themselves — move on.
+      if (t.i < t.steps.length - 1) this.tourNext();
+      else this.stopTour();
+      return;
+    }
+    if (t.paused) return;
+    t.timer -= dt;
+    if (t.timer <= 0) this.tourNext();
+  }
+
   // ── Xiao Hu's ability ───────────────────────────────────────────────────────
 
   /** C / cat button: pounce on the nearest bot, or fetch the nearest project part. */
@@ -2374,7 +2647,7 @@ export class Game {
     const secret = this.map.rooms.find((r) => r.kind === 'secret');
     if (secret) {
       for (const s of this.map.spawns) if (this.world!.roomAt(s.x, s.z) === secret.i) this.spawn(s, null);
-      this.addLight(new THREE.Vector3(secret.x + secret.w / 2, 3, secret.z + secret.d / 2), '#fef08a', 6, 12);
+      this.addLight(new THREE.Vector3(secret.x + secret.w / 2, 3, secret.z + secret.d / 2), '#fef08a', 6, 12, 0.7);
     }
     this.minimapBase = this.renderMinimapBase();
     this.say('…Did the wall just move?! Something is behind the shelves!', 4500);

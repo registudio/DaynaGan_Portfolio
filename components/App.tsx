@@ -32,6 +32,7 @@ export default function App({
   const [mode, setModeState] = useState<Mode>('splash');
   const [remembered, setRemembered] = useState<Mode | null>(null);
   const [hasSave, setHasSave] = useState(false);
+  const [tour, setTour] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add('js');
@@ -41,7 +42,10 @@ export default function App({
       setHasSave(!!localStorage.getItem(SAVE_KEY));
     } catch {}
     const hash = location.hash.slice(1);
-    if (hash === 'play') setModeState('game');
+    if (hash === 'play' || hash === 'tour') {
+      setTour(hash === 'tour');
+      setModeState('game');
+    }
     else if (hash && hash !== 'splash') setModeState('pro');
     else if (stored === 'pro') setModeState('pro');
     if (stored === 'pro' || stored === 'game') setRemembered(stored);
@@ -58,7 +62,8 @@ export default function App({
         if (anchor) document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
       });
     } else if (m === 'game') {
-      history.replaceState(null, '', '#play');
+      setTour(anchor === 'tour');
+      history.replaceState(null, '', anchor === 'tour' ? '#tour' : '#play');
     }
   }, []);
 
@@ -78,7 +83,7 @@ export default function App({
         hasSave={hasSave}
         onChoose={setMode}
       />
-      {mode === 'game' && <Game portfolio={portfolio} github={github} onExit={setMode} />}
+      {mode === 'game' && <Game portfolio={portfolio} github={github} onExit={setMode} tour={tour} />}
     </ModeContext.Provider>
   );
 }

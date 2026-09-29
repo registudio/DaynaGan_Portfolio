@@ -208,6 +208,10 @@ Chosen by the owner from the backlog below:
 
 Implementation notes are added to the sections below as each lands.
 
+**Done — Tour mode:** "⏱ Quick tour" on the splash (and in the pause menu, or `#tour`). Xiao Hu narrates while Dayna auto-walks (grid path-finding) to every console, vault, NPC and the Skill Matrix across all missions — 26 stops, each panel open for a timed read (7–16 s by length) — ending at the Transmission Console with the form open. Prev / Hold / Next / Exit controls; bots ignore you; barriers are teleported past.
+
+**Done — Backroom content:** lab-notebook terminals (how the site works), Xiao Hu's corner (she walks to her bed and naps while you're there), flickering yellow light, and a photo-wall placeholder (`TODO` in `portfolio.md` — add images to `public/images/backroom/`).
+
 **Done — Gameplay:**
 - *Mini-bosses* (`BOSSES` in `missions.ts`): Overloaded Core (Reactor), Rogue Assembly Arm (Forge), Bug Queen (Caverns), Merge Conflict (Mainframe), Static Swarm (Comms Array, optional so the contact form is never gated). Each has a telegraphed attack rotation (ring / fan / lunge / summon / blink), a nameplate and a defeat banner; required bosses gate the mission clear except in Peaceful mode. Achievement: Giant Slayer.
 - *Puzzles* (`PUZZLES`): Reactor — charge capacitors in order; Caverns — rotate junctions to match the circuit diagram; Mainframe — set packet-routing switches. Each gates the final room with an energy barrier; the diagnostics console shows the answer; after a few failed tries Xiao Hu offers to chew through the wire. Achievement: Puzzler (no bypass).

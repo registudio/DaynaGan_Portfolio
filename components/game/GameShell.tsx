@@ -16,10 +16,12 @@ export default function GameShell({
   portfolio,
   github,
   onExit,
+  tour = false,
 }: {
   portfolio: Portfolio;
   github: GitHubFeed;
   onExit: (m: Mode, anchor?: string) => void;
+  tour?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
@@ -43,12 +45,14 @@ export default function GameShell({
       });
       g.start();
       setGame(g);
+      if (tour) setTimeout(() => g?.startTour(), 900);
       if (process.env.NODE_ENV !== 'production') (window as unknown as { __game: Game }).__game = g;
     } catch (e) {
       console.error(e);
       setError('Your browser could not start the 3D game (WebGL unavailable).');
     }
     return () => g?.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolio, github]);
 
   if (error)

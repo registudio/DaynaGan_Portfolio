@@ -16,7 +16,7 @@ export default function Splash({
   visible: boolean;
   remembered: Mode | null;
   hasSave: boolean;
-  onChoose: (m: Mode) => void;
+  onChoose: (m: Mode, anchor?: string) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const startRef = useRef<HTMLButtonElement>(null);
@@ -92,6 +92,9 @@ export default function Splash({
           </button>
           <button className="pixel-btn alt" onClick={() => onChoose('pro')}>
             ☰ VIEW PROFILE
+          </button>
+          <button className="pixel-btn alt tour" onClick={() => onChoose('game', 'tour')} title="Xiao Hu walks you through every mission">
+            ⏱ QUICK TOUR <small>~4 min, hands-free</small>
           </button>
         </div>
         <div className="splash-links">
