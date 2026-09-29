@@ -196,7 +196,19 @@ Star-map holo table (mission select) · Dayna's bunk + Xiao Hu's cat bed (bio li
 - Publish the `v1-archive` tag on commit `662dd85` (`git tag v1-archive 662dd85 && git push origin v1-archive`) — the build session couldn't push tags.
 - All work now lives on `main` (per request).
 
-## Improvement backlog (suggested, not built yet)
+## Improvement round 1 — selected (in progress)
+
+Chosen by the owner from the backlog below:
+- **Performance**: 1–5 (all).
+- **Gameplay**: 1–5 (all) — mini-boss per combat mission, themed puzzles, combat feel, difficulty presets, Xiao Hu ability.
+- **Features**: 3 (Tour mode). Item 5 (real CAD models + galleries) later, when assets arrive.
+- **Content**: 4 — Backroom content.
+- **UI/UX & HUD**: 1 (first-run controls overlay) and 2, amended: low-health red screen edge; damage numbers **for mini-bosses only**; **no** small enemy health bars.
+- **Design**: 1–4 (texture/prop pass, avatar likeness + per-biome outfits, lighting set pieces, cinematic transitions).
+
+Implementation notes are added to the sections below as each lands.
+
+## Improvement backlog (suggested)
 
 ### Performance
 1. Batch static props into per-material InstancedMeshes (each prop is currently several meshes → many draw calls).
