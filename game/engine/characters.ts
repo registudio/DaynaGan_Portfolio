@@ -63,8 +63,10 @@ export function buildDayna(): Rig {
   // Head
   const head = group(body, 0, 1.02, 0);
   box(0.44, 0.42, 0.42, skin, 0, 0.21, 0, head);
-  box(0.07, 0.07, 0.02, mat('#221a1a'), -0.1, 0.2, 0.215, head); // eyes
-  box(0.07, 0.07, 0.02, mat('#221a1a'), 0.1, 0.2, 0.215, head);
+  box(0.08, 0.09, 0.02, mat('#1a1212'), -0.1, 0.21, 0.215, head); // eyes
+  box(0.08, 0.09, 0.02, mat('#1a1212'), 0.1, 0.21, 0.215, head);
+  box(0.1, 0.025, 0.02, mat(HAIR), -0.1, 0.28, 0.216, head); // brows
+  box(0.1, 0.025, 0.02, mat(HAIR), 0.1, 0.28, 0.216, head);
   box(0.05, 0.02, 0.02, mat('#f1f5f9'), -0.085, 0.225, 0.222, head); // eye shine
   box(0.05, 0.02, 0.02, mat('#f1f5f9'), 0.115, 0.225, 0.222, head);
   box(0.12, 0.03, 0.02, mat('#c07a6a'), 0, 0.09, 0.215, head); // lips
@@ -84,8 +86,9 @@ export function buildDayna(): Rig {
   box(0.12, 0.2, 0.08, hair, 0.26, -0.12, 0.05, head);
   // Goggles pushed up on the forehead.
   box(0.5, 0.05, 0.5, mat('#26222e'), 0, 0.5, 0, head);
-  box(0.12, 0.08, 0.04, glow('#67e8f9', 1.6), -0.1, 0.52, 0.25, head);
-  box(0.12, 0.08, 0.04, glow('#67e8f9', 1.6), 0.1, 0.52, 0.25, head);
+  const lens = mat('#5eead4', { metal: 0.7, rough: 0.2, emissive: '#0e7490', intensity: 0.35 });
+  box(0.11, 0.07, 0.04, lens, -0.1, 0.53, 0.24, head);
+  box(0.11, 0.07, 0.04, lens, 0.1, 0.53, 0.24, head);
 
   let phase = 0;
   return {
