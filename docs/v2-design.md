@@ -175,10 +175,12 @@ Star-map holo table (mission select) · Dayna's bunk + Xiao Hu's cat bed (bio li
 ## Build plan & status
 1. ✅ Archive v1, single content file, this plan.
 2. ✅ Parser, skills, GitHub feed, contact API, tests.
-3. ⏳ Professional mode + splash + mode switch.
-4. ⏳ Game engine (world, characters, combat, levels, audio).
-5. ⏳ Game UI (HUD, panels, star map, menus, touch).
-6. ⏳ Browser verification, README, deploy notes.
+3. ✅ Professional mode + splash + mode switch.
+4. ✅ Game engine (world, characters, combat, levels, audio).
+5. ✅ Game UI (HUD, panels, star map, menus, touch).
+6. ✅ Browser verification (desktop + phone), README, deploy notes.
+7. ⏳ Deploy to Vercel and set env vars (owner action).
+8. ⏳ Polish pass after first real playtests (balance, feel, copy).
 
 ## Open items / TODO
 - Confirm SST robotics title: President vs Chairperson.
@@ -188,8 +190,11 @@ Star-map holo table (mission select) · Dayna's bunk + Xiao Hu's cat bed (bio li
 - Robot Claw case study; Drone photos/write-up.
 - Certifications (Trophy Hall).
 - Backroom content.
-- Vercel: create project, set env vars, verify a Resend sender domain.
-- Publish the `v1-archive` tag (`git push origin v1-archive`) — the build session couldn't push tags.
+- Vercel: create project, set env vars, verify a Resend sender domain (see README).
+- Real meow recording (optional) → `public/audio/meow.mp3`.
+- Balance tuning after playtests (enemy counts, damage, cooldowns — `game/engine/Game.ts` ENEMY table, `missions.ts` COOLDOWNS).
+- Publish the `v1-archive` tag on commit `662dd85` (`git tag v1-archive 662dd85 && git push origin v1-archive`) — the build session couldn't push tags.
+- All work now lives on `main` (per request).
 
 ## Future update (not built now)
 - Futuristic currency (not emeralds) dropped by bots/crates, spent at the hub vendor on cosmetic skins for Dayna **and cat variants** (orange, British blue, Garfield, striped, white socks…).
