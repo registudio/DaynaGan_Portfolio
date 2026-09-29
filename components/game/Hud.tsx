@@ -93,7 +93,7 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
       {/* Interaction prompt */}
       {hud.prompt && !hud.panel && (
         <button className="g-prompt" onClick={() => game.input.press('interact')}>
-          <kbd>{hud.touch ? 'TAP' : keyName(keys.interact[0])}</kbd> {hud.prompt.verb} · {hud.prompt.label}
+          <kbd>{hud.device === 'touch' ? 'TAP' : hud.device === 'gamepad' ? 'Ⓐ' : keyName(keys.interact[0])}</kbd> {hud.prompt.verb} · {hud.prompt.label}
         </button>
       )}
 

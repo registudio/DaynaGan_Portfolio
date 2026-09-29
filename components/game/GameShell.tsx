@@ -10,6 +10,7 @@ import HudView from './Hud';
 import PanelView from './PanelView';
 import PauseMenu from './PauseMenu';
 import TouchControls from './TouchControls';
+import ControlsOverlay from './ControlsOverlay';
 import './game.css';
 
 export default function GameShell({
@@ -84,6 +85,8 @@ function GameUi({ game }: { game: Game }) {
     <>
       <HudView game={game} hud={hud} />
       {hud.touch && !hud.panel && !hud.menu && <TouchControls game={game} hud={hud} />}
+      {!hud.menu && <ControlsOverlay game={game} hud={hud} />}
+      <div className={`g-lowhp${!hud.dead && hud.hp > 0 && hud.hp / hud.maxHp <= 0.3 ? ' on' : ''}`} aria-hidden />
       {hud.panel && <PanelView game={game} hud={hud} panel={hud.panel} />}
       {hud.menu === 'pause' && !hud.panel && <PauseMenu game={game} hud={hud} />}
       {hud.loading && (

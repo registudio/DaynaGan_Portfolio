@@ -208,6 +208,8 @@ Chosen by the owner from the backlog below:
 
 Implementation notes are added to the sections below as each lands.
 
+**Done — UI/UX & HUD:** first-run controls card matched to the last-used device (keyboard & mouse / gamepad / touch; auto-closes after 20 s, reopen via Pause → Controls), device-aware interaction glyphs, pulsing red screen edge at ≤30% health, floating damage numbers on mini-bosses only (no small enemy health bars; the old Merge Conflict bar was removed), mini-boss nameplate + defeat banner.
+
 **Done — Tour mode:** "⏱ Quick tour" on the splash (and in the pause menu, or `#tour`). Xiao Hu narrates while Dayna auto-walks (grid path-finding) to every console, vault, NPC and the Skill Matrix across all missions — 26 stops, each panel open for a timed read (7–16 s by length) — ending at the Transmission Console with the form open. Prev / Hold / Next / Exit controls; bots ignore you; barriers are teleported past.
 
 **Done — Backroom content:** lab-notebook terminals (how the site works), Xiao Hu's corner (she walks to her bed and naps while you're there), flickering yellow light, and a photo-wall placeholder (`TODO` in `portfolio.md` — add images to `public/images/backroom/`).

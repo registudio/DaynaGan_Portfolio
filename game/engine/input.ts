@@ -16,6 +16,8 @@ export class Input {
   private prevPad = new Set<string>();
   private el: HTMLElement;
   enabled = true;
+  /** Most recently used input device (drives on-screen glyphs). */
+  device: 'keyboard' | 'gamepad' | 'touch' = 'keyboard';
 
   constructor(el: HTMLElement, keys: Record<Action, string[]>) {
     this.el = el;
@@ -54,6 +56,7 @@ export class Input {
     if (!action) return;
     if (action !== 'pause' && !this.enabled) return;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    this.device = 'keyboard';
     if (!this.down.has(e.code)) this.pressed.add(action);
     if (action === 'melee' || action === 'zap') this.attackFromMouse = false;
     this.down.add(e.code);
@@ -87,8 +90,10 @@ export class Input {
   /** Called by the touch UI. */
   press(action: Action) {
     this.pressed.add(action);
+    if (this.stick.x || this.stick.y || matchMedia('(pointer: coarse)').matches) this.device = 'touch';
   }
   hold(action: Action, on: boolean) {
+    this.device = 'touch';
     if (action === 'melee' || action === 'zap') this.attackFromMouse = false;
     if (on) {
       this.pressed.add(action);
@@ -110,6 +115,7 @@ export class Input {
     if (pad) {
       const [ax = 0, ay = 0] = pad.axes;
       if (Math.hypot(ax, ay) > 0.18) {
+        this.device = 'gamepad';
         x += ax;
         y -= ay;
       }
@@ -145,6 +151,7 @@ export class Input {
       for (const [i, action] of map) {
         if (pad.buttons[i]?.pressed) {
           now.add(`${i}`);
+          this.device = 'gamepad';
           if (!this.prevPad.has(`${i}`) && (this.enabled || action === 'pause')) this.pressed.add(action);
         }
       }

@@ -275,6 +275,7 @@ export class Game {
       dead: false,
       boss: null,
       tour: null,
+      device: opts.touch ? 'touch' : 'keyboard',
     });
     this.skillsCache = this.skills();
   }
@@ -369,6 +370,7 @@ export class Game {
     const st = this.store.get();
     const paused = !!(st.panel || st.menu || st.loading);
     const actions = this.input.consume();
+    if (this.input.device !== this.store.get().device) this.store.set({ device: this.input.device });
     if (actions.has('pause')) this.togglePause();
     if (!paused && this.world && this.hitStop > 0) {
       this.hitStop -= dt;

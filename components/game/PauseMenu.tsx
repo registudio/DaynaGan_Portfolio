@@ -7,6 +7,7 @@ import { partPanel, proAnchor, roomPanel } from '@/game/engine/panels';
 import { DEFAULT_KEYS, type Action, type Hud } from '@/game/engine/store';
 import { partKey, roomKey } from '@/lib/skills';
 import SkillTree from './SkillTree';
+import ControlsOverlay from './ControlsOverlay';
 
 const TABS = ['Codex', 'Skills', 'Gear', 'Achievements', 'Settings', 'Controls'] as const;
 type Tab = (typeof TABS)[number];
@@ -256,6 +257,7 @@ function ControlsTab({ game, hud }: { game: Game; hud: Hud }) {
   }, [listening, game, hud.settings.keys]);
   return (
     <div className="g-controls">
+      <ShowCard game={game} hud={hud} />
       <p className="g-sub">Mouse: left click = wrench, right click = solder beam (aims at the cursor). Gamepad: left stick, A interact, X melee, B/RT beam, LB dash, D-pad artifacts, Start pause.</p>
       <table>
         <tbody>
@@ -275,5 +277,17 @@ function ControlsTab({ game, hud }: { game: Game; hud: Hud }) {
         Restore defaults
       </button>
     </div>
+  );
+}
+
+function ShowCard({ game, hud }: { game: Game; hud: Hud }) {
+  const [show, setShow] = useState(false);
+  return (
+    <>
+      <button className="g-btn" onClick={() => setShow(true)}>
+        Show controls card
+      </button>
+      {show && <ControlsOverlay game={game} hud={{ ...hud, panel: null }} force onClose={() => setShow(false)} />}
+    </>
   );
 }

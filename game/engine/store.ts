@@ -193,6 +193,8 @@ export type Hud = {
   dead: boolean;
   /** Active mini-boss nameplate. */
   boss: { name: string; title: string } | null;
+  /** Last-used input device, for control glyphs. */
+  device: 'keyboard' | 'gamepad' | 'touch';
   /** Tour mode status (null when not touring). */
   tour: { step: number; total: number; label: string } | null;
 };
