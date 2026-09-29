@@ -47,6 +47,7 @@ import {
   contributionTile,
 } from './props.ts';
 import { heatLevel } from './heat.ts';
+import { batchStatic } from './batch.ts';
 import { loadSave, loadSettings, persist, Store, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { glow } from './voxels.ts';
 import { Ambient, Bursts, LightPool, World, type LightSource } from './world.ts';
@@ -138,6 +139,10 @@ export class Game {
   private last = 0;
   private time = 0;
   private quality: 'low' | 'high' = 'high';
+  private basePixelRatio = 1;
+  private resScale = 1;
+  private frameEma = 16;
+  private resT = 3;
 
   private sceneId = 'hub';
   private map!: LevelMap;
@@ -168,6 +173,9 @@ export class Game {
   private inters: Inter[] = [];
   private hearts: { mesh: THREE.Object3D; pos: THREE.Vector3 }[] = [];
   private spinners: THREE.Object3D[] = [];
+  private staticRoots: THREE.Object3D[] = [];
+  /** Last frame's renderer stats (dev: __game.stats). */
+  stats = { calls: 0, triangles: 0, fps: 60, scale: 1 };
   private blueprints = new Map<string, ProjectModel>();
   private cooldowns: Record<string, number> = {};
   private scannerT = 0;
@@ -229,10 +237,12 @@ export class Game {
     const autoLow = touch || (navigator.hardwareConcurrency ?? 8) <= 4 || Math.min(innerWidth, innerHeight) < 600;
     this.quality = this.settings.quality === 'auto' ? (autoLow ? 'low' : 'high') : this.settings.quality;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.quality === 'high' ? 1.5 : 1));
+    this.basePixelRatio = Math.min(devicePixelRatio, this.quality === 'high' ? 1.5 : 1);
+    this.renderer.setPixelRatio(this.basePixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
     this.renderer.shadowMap.enabled = this.quality === 'high';
+    this.renderer.info.autoReset = false;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -303,8 +313,10 @@ export class Game {
 
   private loop = (now: number) => {
     this.raf = requestAnimationFrame(this.loop);
-    const dt = Math.min(0.05, (now - this.last) / 1000);
+    const raw = now - this.last;
+    const dt = Math.min(0.05, raw / 1000);
     this.last = now;
+    this.adaptResolution(raw, dt);
     const st = this.store.get();
     const paused = !!(st.panel || st.menu || st.loading);
     const actions = this.input.consume();
@@ -326,6 +338,25 @@ export class Game {
     }
   };
 
+  /** Dynamic resolution: trade pixels for frame rate when frames run long, recover when they don't. */
+  private adaptResolution(frameMs: number, dt: number) {
+    if (document.hidden || frameMs > 250) return;
+    this.frameEma += (frameMs - this.frameEma) * 0.05;
+    this.stats.fps = Math.round(1000 / this.frameEma);
+    this.resT -= dt;
+    if (this.resT > 0) return;
+    this.resT = 2;
+    let next = this.resScale;
+    if (this.frameEma > 22 && this.resScale > 0.5) next = Math.max(0.5, this.resScale * 0.85);
+    else if (this.frameEma < 14.5 && this.resScale < 1) next = Math.min(1, this.resScale * 1.1);
+    if (next === this.resScale) return;
+    this.resScale = next;
+    this.stats.scale = Math.round(next * 100) / 100;
+    this.renderer.setPixelRatio(this.basePixelRatio * next);
+    this.composer.setPixelRatio(this.basePixelRatio * next);
+    this.resize();
+  }
+
   private render(dt: number) {
     if (!this.world) return;
     const target = this.player.pos.clone();
@@ -338,7 +369,10 @@ export class Game {
     this.camera.lookAt(this.camTarget);
     this.sun.position.copy(this.camTarget).add(new THREE.Vector3(-8, 20, 6));
     this.sun.target.position.copy(this.camTarget);
+    this.renderer.info.reset();
     this.composer.render();
+    this.stats.calls = this.renderer.info.render.calls;
+    this.stats.triangles = this.renderer.info.render.triangles;
     this.updateOverlays();
   }
 
@@ -381,6 +415,7 @@ export class Game {
     this.projectiles = [];
     this.hearts = [];
     this.spinners = [];
+    this.staticRoots = [];
     this.relayObjs.clear();
     this.dish = null;
     this.buddy = null;
@@ -397,6 +432,19 @@ export class Game {
     if (this.lights) this.lights.sources = [];
   }
 
+  private levelCache = new Map<string, LevelMap>();
+
+  /** Level layouts are deterministic; build once per session and hand out copies (secrets mutate cells). */
+  private cachedLevel(id: string): LevelMap {
+    const key = `${id}|${this.settings.peaceful}`;
+    let map = this.levelCache.get(key);
+    if (!map) {
+      map = buildLevel(this.portfolio, id, { peaceful: this.settings.peaceful, github: this.github });
+      this.levelCache.set(key, map);
+    }
+    return structuredClone(map);
+  }
+
   private buildScene(id: string) {
     this.clearScene();
     this.bubbleQueue = [];
@@ -405,7 +453,7 @@ export class Game {
     const level = this.portfolio.levels.find((l) => l.id === id);
     this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : biomeFor(level?.meta.biome, level?.meta.light);
     const b = this.biome;
-    this.map = buildLevel(this.portfolio, id, { peaceful: this.settings.peaceful, github: this.github });
+    this.map = this.cachedLevel(id);
     const secret = this.map.rooms.find((r) => r.kind === 'secret');
     const hidden = secret && !this.save.backroom ? secret.i : null;
     this.world = new World(this.map, b, hidden);
@@ -426,6 +474,8 @@ export class Game {
     }
 
     for (const s of this.map.spawns) this.spawn(s, hidden);
+    batchStatic(this.staticRoots, this.level);
+    this.staticRoots = [];
 
     // Player + cat
     const spawnH = this.world.heightAt(this.map.spawn.x, this.map.spawn.z);
@@ -523,11 +573,12 @@ export class Game {
     return src;
   }
 
-  private place(obj: THREE.Object3D, x: number, z: number, rot = 0) {
+  private place(obj: THREE.Object3D, x: number, z: number, rot = 0, batch = true) {
     const h = this.world!.heightAt(x, z);
     obj.position.set(x, h, z);
     obj.rotation.y = rot;
     this.level.add(obj);
+    if (batch) this.staticRoots.push(obj);
     obj.traverse((o) => {
       if (o.userData.spin || o.userData.hover || o.userData.blink) this.spinners.push(o);
       const l = o.userData.light;
@@ -1000,7 +1051,7 @@ export class Game {
     if (!room || !part) return;
     const key = partKey('projects', projectId, partId);
     const color = room.meta.status === 'in-progress' ? '#fbbf24' : '#22d3ee';
-    const obj = this.place(buildPartPickup(color), x, z);
+    const obj = this.place(buildPartPickup(color), x, z, 0, false);
     const it = this.inter({
       id: key,
       kind: 'part',
@@ -1197,7 +1248,10 @@ export class Game {
   }
 
   private updateWorldBits(dt: number) {
+    const pp = this.player.pos;
     for (const o of this.spinners) {
+      const wp = (o.userData.wp ??= o.getWorldPosition(new THREE.Vector3())) as THREE.Vector3;
+      if (Math.abs(wp.x - pp.x) + Math.abs(wp.z - pp.z) > 30) continue;
       if (o.userData.spin) o.rotation.y += o.userData.spin * dt;
       if (o.userData.hover) o.position.y = (o.userData.baseY ??= o.position.y) + Math.sin(this.time * 2 + o.id) * 0.08;
       const npc = o.userData.npc as Rig | undefined;
@@ -1436,6 +1490,9 @@ export class Game {
     const world = this.world!;
     const playerRoom = world.roomAt(p.pos.x, p.pos.z);
     for (const e of [...this.enemies]) {
+      // Room-local simulation: bots far from the player (and not in their room) sleep.
+      const far = e.pos.distanceToSquared(p.pos) > 22 * 22 && e.room !== playerRoom;
+      if (far) continue;
       e.cd -= dt;
       e.flash = Math.max(0, e.flash - dt);
       e.rig.root.scale.setScalar(e.flash > 0 ? 1.15 : 1);

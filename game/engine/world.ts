@@ -30,13 +30,44 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshStandardMaterial {
   return m;
 }
 
+type WorldMaterials = Record<'floor' | 'alt' | 'path' | 'wall' | 'wallDark' | 'top' | 'trim' | 'cliff' | 'cliffDeep' | 'rail' | 'windowMat', THREE.Material>;
+const materialCache = new Map<string, WorldMaterials>();
+
+/** Per-biome world materials, built once per session and reused on every visit. */
+function worldMaterials(b: Biome): WorldMaterials {
+  const key = `${b.id}|${b.light}`;
+  const hit = materialCache.get(key);
+  if (hit) return hit;
+  const m: WorldMaterials = {
+    floor: surfaceMaterial(b.floor),
+    alt: surfaceMaterial(b.floorAlt),
+    path: surfaceMaterial(b.path ?? b.floorAlt),
+    wall: surfaceMaterial(b.wall),
+    wallDark: surfaceMaterial(b.wall, 0.75),
+    top: surfaceMaterial({ pattern: 'metal', color: b.wall.color }, 0.6),
+    trim: new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.wallTop.color), emissiveIntensity: 1.3 }),
+    cliff: new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1 }),
+    cliffDeep: new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1, color: '#777777' }),
+    rail: new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.rail), emissiveIntensity: 1.1 }),
+    windowMat: new THREE.MeshStandardMaterial({
+      color: '#0b1020',
+      emissive: new THREE.Color('#1e3a8a'),
+      emissiveIntensity: 0.9,
+      emissiveMap: glowTexture('stone', '#93c5fd'),
+      roughness: 0.2,
+      metalness: 0.6,
+    }),
+  };
+  materialCache.set(key, m);
+  return m;
+}
+
 export class World {
   group = new THREE.Group();
   map: LevelMap;
   biome: Biome;
   hiddenRoom: number | null;
   private meshes: THREE.InstancedMesh[] = [];
-  private materials: THREE.Material[] = [];
   private unit = new THREE.BoxGeometry(1, 1, 1);
 
   constructor(map: LevelMap, biome: Biome, hiddenRoom: number | null = null) {
@@ -59,28 +90,7 @@ export class World {
 
   build() {
     this.clear();
-    const b = this.biome;
-    const floor = surfaceMaterial(b.floor);
-    const alt = surfaceMaterial(b.floorAlt);
-    const path = surfaceMaterial(b.path ?? b.floorAlt);
-    const wall = surfaceMaterial(b.wall);
-    const wallDark = surfaceMaterial(b.wall, 0.75);
-    const top = surfaceMaterial({ pattern: 'metal', color: b.wall.color }, 0.6);
-    const trim = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.wallTop.color), emissiveIntensity: 1.3 });
-    this.materials.push(trim);
-    const cliff = new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1 });
-    const cliffDeep = new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1, color: '#777777' });
-    const rail = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.rail), emissiveIntensity: 1.1 });
-    const windowMat = new THREE.MeshStandardMaterial({
-      color: '#0b1020',
-      emissive: new THREE.Color('#1e3a8a'),
-      emissiveIntensity: 0.9,
-      emissiveMap: glowTexture('stone', '#93c5fd'),
-      roughness: 0.2,
-      metalness: 0.6,
-    });
-    this.materials.push(floor, alt, path, wall, wallDark, top, cliff, cliffDeep, rail, windowMat);
-
+    const { floor, alt, path, wall, wallDark, top, trim, cliff, cliffDeep, rail, windowMat } = worldMaterials(this.biome);
     const batches = new Map<THREE.Material, Batch>();
     const add = (material: THREE.Material, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1) => {
       let batch = batches.get(material);
@@ -138,8 +148,6 @@ export class World {
   clear() {
     for (const m of this.meshes) this.group.remove(m);
     this.meshes = [];
-    this.materials.forEach((m) => m.dispose());
-    this.materials = [];
   }
 
   dispose() {

@@ -25,6 +25,15 @@ export default function Splash({
     if (visible) startRef.current?.focus({ preventScroll: true });
   }, [visible]);
 
+  // Prefetch the game bundle (Three.js + engine) while the visitor decides.
+  useEffect(() => {
+    if (!visible) return;
+    const idle = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const run = () => void import('./game/GameShell').catch(() => {});
+    if (idle) idle(run);
+    else setTimeout(run, 1200);
+  }, [visible]);
+
   // Pixel starfield drifting towards the viewer.
   useEffect(() => {
     if (!visible) return;

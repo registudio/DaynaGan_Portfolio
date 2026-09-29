@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { blobShadow, box, glow, group, mat } from './voxels.ts';
+import { mergeRig } from './batch.ts';
 
 /**
  * Voxel characters. All face +z by default; animate via the returned rig.
@@ -90,6 +91,7 @@ export function buildDayna(): Rig {
   box(0.11, 0.07, 0.04, lens, -0.1, 0.53, 0.24, head);
   box(0.11, 0.07, 0.04, lens, 0.1, 0.53, 0.24, head);
 
+  mergeRig(root);
   let phase = 0;
   return {
     root,
@@ -163,6 +165,7 @@ export function buildCat(): Rig {
     seg = g;
   }
 
+  mergeRig(root);
   let phase = 0;
   return {
     root,
@@ -302,6 +305,7 @@ export function buildEnemy(type: EnemyType): Rig {
       break;
     }
   }
+  mergeRig(root);
   return {
     root,
     body,
@@ -359,6 +363,7 @@ export function buildNpc(seed: number): Rig {
   box(0.06, 0.06, 0.02, mat('#1f1a1a'), -0.1, 0.2, 0.21, head);
   box(0.06, 0.06, 0.02, mat('#1f1a1a'), 0.1, 0.2, 0.21, head);
   box(0.1, 0.03, 0.02, mat('#b0645a'), 0, 0.1, 0.21, head);
+  mergeRig(root);
   return {
     root,
     body,

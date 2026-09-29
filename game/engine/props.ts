@@ -230,6 +230,7 @@ export function buildDish() {
   const emitter = box(0.26, 0.26, 0.26, glow('#c4b5fd', 3), 0, 1.45, 0, head);
   emitter.userData.emitter = true;
   head.rotation.x = -0.9;
+  head.userData.dynamic = true;
   g.userData.head = head;
   return g;
 }

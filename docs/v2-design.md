@@ -208,6 +208,8 @@ Chosen by the owner from the backlog below:
 
 Implementation notes are added to the sections below as each lands.
 
+**Done — Performance:** static props batched into per-material InstancedMeshes (`game/engine/batch.ts`); character rigs merged per limb/material (~20% fewer draw calls); bots, NPCs and spinners far from the player sleep; dynamic resolution (0.5–1× pixel ratio, tuned every 2 s from a frame-time average); game bundle prefetched during the splash; Latin-only font subsets; level layouts and biome materials cached for the session.
+
 ## Improvement backlog (suggested)
 
 ### Performance

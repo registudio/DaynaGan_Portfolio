@@ -4,6 +4,8 @@ import { pixelTexture, type Pattern } from './textures.ts';
 /** Shared helpers for building chunky voxel meshes out of boxes. */
 
 const unit = new THREE.BoxGeometry(1, 1, 1);
+/** Shared unit cube used by every voxel box (lets static props be batched). */
+export const UNIT_BOX = unit;
 const mats = new Map<string, THREE.Material>();
 
 export type MatOpts = { emissive?: string | number; intensity?: number; pattern?: Pattern; accent?: string; metal?: number; rough?: number; transparent?: number };
