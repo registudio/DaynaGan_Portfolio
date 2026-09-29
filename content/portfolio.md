@@ -22,6 +22,7 @@
 #   link      a project/room this points to (cross-link), e.g. `link: projects/rosa-ros2`
 #   status    complete | in-progress | todo
 #   biome / light / enemies   (levels only) game world settings
+#   profile   (levels only) replaces the intro text in Professional mode
 #
 # Anything marked TODO is a placeholder for Dayna to fill in.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ grants: python +1, soldering +1, arduino +1
 
 ### O-Level subjects
 id: sst-subjects
-tags: English, Higher Chinese, Elementary Mathematics, Additional Mathematics, Pure Chemistry, Pure Physics, Computing, Combined Humanities (History, Social Studies)
+tags: English, Higher Chinese, Elementary Mathematics, Additional Mathematics, Pure Chemistry, Pure Physics, Computing, Combined Humanities — History & Social Studies
 
 ### President, Robotics @APEX
 id: sst-robotics
@@ -398,6 +399,7 @@ biome: circuit-caverns
 light: #22d3ee
 enemies: short-circuit-bugs
 mission: Recover the parts and build every project
+profile: Each build, taken apart — what it is, what I did and what I learnt. Drag to rotate, slide to explode, hover a part to identify it.
 
 Each project's components are scattered through the caverns. Find them, bring them to the project's blueprint room, and build it.
 
