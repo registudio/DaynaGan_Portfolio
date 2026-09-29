@@ -43,7 +43,7 @@ Agreed in the design Q&A. `content/portfolio.md` is the single content source; t
 ## Companion — Dayna's cat
 - Pet cat follows Dayna; **meows (audio)**; tutorial, hints and narration appear as speech bubbles from the cat; points to the nearest missing part.
 - Look (from photos): brown **mackerel tabby** — warm grey-brown coat with dark vertical stripes, 'M' mark on the forehead, lighter cream/fawn belly and chin, pink nose, pale green eyes, pink inner ears; ringed tail ending in a black tip; slim dark leather collar (add a tiny purple LED tag). Idle animations: sprawls on its back, belly-up nap on the hub desk, tail flick.
-- TODO: cat's name.
+- Name: **Xiao Hu** (小虎, “little tiger”) — `companion.name` in the md.
 
 ## Avatar — Dayna (engineer-explorer)
 - MCD-proportioned voxel figure, slim.

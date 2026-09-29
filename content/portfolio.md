@@ -43,6 +43,9 @@ resume: /resume/DaynaGan_Resume.pdf
 # Comms Core (Contact) unlocks after this many missions are cleared.
 contactUnlockAfter: 3
 
+# Companion cat (guide). Speech bubbles are signed with this name.
+companion: { name: Xiao Hu, meaning: Little Tiger }
+
 # ── SKILL TREE ───────────────────────────────────────────────────────────────
 # Levels are earned in-game from `grants:` lines below. `max` caps the level.
 # To change a proficiency, edit the grants lines (or `start` for a base level).
@@ -171,9 +174,13 @@ My academic path has moved progressively deeper into the intersection of electro
 ## School of Science and Technology
 id: sst
 short: SST
-qualification: Elective: Computing+
+qualification: GCE O-Levels · Elective: Computing+
 period: TODO
 grants: python +1, soldering +1, arduino +1
+
+### O-Level subjects
+id: sst-subjects
+tags: English, Higher Chinese, Elementary Mathematics, Additional Mathematics, Pure Chemistry, Pure Physics, Computing, Combined Humanities (History, Social Studies)
 
 ### President, Robotics @APEX
 id: sst-robotics
@@ -182,11 +189,25 @@ link: leadership/apex
 
 Led the school robotics club, supporting members in robotics training, project development and competition preparation.
 
-### Modules & coursework
-id: sst-modules
+### MakeX Robotics Competition — Guangzhou
+id: sst-makex
+period: 2019
+
+Overseas learning experience to Guangzhou for the Makeblock MakeX Robotics Competition 2019.
+
+TODO: Result / role / what the team built.
+
+### Overseas learning — Taiwan
+id: sst-taiwan
 status: todo
 
-TODO: Notable subjects or projects at SST.
+TODO: Year and what the trip covered.
+
+### Robotics competitions
+id: sst-competitions
+status: todo
+
+TODO: List of robotics competitions (name · year · result).
 
 ## Singapore Polytechnic
 id: sp
@@ -208,11 +229,23 @@ id: sp-scholarship
 id: honour-roll
 period: AY2022–2025
 
-### Modules & coursework
+### Modules
 id: sp-modules
-status: todo
+tags: Systems & Control, Programmable Logic Controllers, Robotic Integration & Programming, Mobile Robotics
 
-TODO: Notable modules or projects at SP.
+TODO: Complete the DMRO (2022 intake) module list — only modules confirmed from public SP course info are listed above.
+
+### Polyforum 2023
+id: sp-polyforum
+period: 2023
+
+### Pre-University Seminar 2023
+id: sp-pre-u-seminar
+period: 2023
+
+### Skate Club & MMA Club
+id: sp-clubs
+tags: Skate Club, MMA Club
 
 ## National University of Singapore
 id: nus
@@ -224,11 +257,15 @@ grants: python +1, cpp +1, java +1, verilog +1
 ### University Engineering Scholarship
 id: nus-scholarship
 
-### Modules & coursework
+### Computer Engineering core
 id: nus-modules
-status: todo
+tags: CG1111 Engineering Principles & Practice I, CG2111A Engineering Principles & Practice II, CS1010 Programming Methodology, CS1231 Discrete Structures, CS2040C Data Structures & Algorithms, CS2113 Software Engineering & OOP, CS2107 Introduction to Information Security, EE2026 Digital Design, CG2023 Signals & Systems, CG2027 Transistor-level Digital Circuits, CG2028 Computer Organization, CG2271 Real-time Operating Systems, CG3201 Machine Learning & Deep Learning, CG3207 Computer Architecture, EE4204 Computer Networks, CG4002 Computer Engineering Capstone Project
 
-TODO: Current modules or projects at NUS.
+TODO: This is the CEG core curriculum for the AY2025/26 intake. Trim to the courses Dayna has taken (poly exemptions may apply) and mark any in progress.
+
+### Skate Club
+id: nus-skate
+tags: NUS Skate Club
 
 # Experience
 id: experience
