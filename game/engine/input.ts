@@ -11,6 +11,8 @@ export class Input {
   /** Mouse position in normalised device coords, or null if the mouse hasn't moved. */
   pointer: { x: number; y: number } | null = null;
   usingPointer = false;
+  /** Whether the latest attack came from a mouse button (aim at cursor) or a key/pad/touch (auto-aim). */
+  attackFromMouse = false;
   private prevPad = new Set<string>();
   private el: HTMLElement;
   enabled = true;
@@ -53,6 +55,7 @@ export class Input {
     if (action !== 'pause' && !this.enabled) return;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (!this.down.has(e.code)) this.pressed.add(action);
+    if (action === 'melee' || action === 'zap') this.attackFromMouse = false;
     this.down.add(e.code);
   };
   private onKeyUp = (e: KeyboardEvent) => {
@@ -72,6 +75,7 @@ export class Input {
     if (e.pointerType !== 'mouse' || !this.enabled) return;
     this.onPointerMove(e);
     const action: Action = e.button === 2 ? 'zap' : 'melee';
+    this.attackFromMouse = true;
     this.pressed.add(action);
     this.held.add(action);
   };
@@ -85,6 +89,7 @@ export class Input {
     this.pressed.add(action);
   }
   hold(action: Action, on: boolean) {
+    if (action === 'melee' || action === 'zap') this.attackFromMouse = false;
     if (on) {
       this.pressed.add(action);
       this.held.add(action);

@@ -1277,7 +1277,7 @@ export class Game {
   private aimDir(range = 9): THREE.Vector3 {
     const p = this.player;
     // Mouse aim
-    if (this.input.usingPointer && this.input.pointer) {
+    if (this.input.attackFromMouse && this.input.pointer) {
       this.ray.setFromCamera(new THREE.Vector2(this.input.pointer.x, this.input.pointer.y), this.camera);
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(p.pos.y + 0.6));
       const hit = new THREE.Vector3();
@@ -1333,7 +1333,7 @@ export class Game {
     requestAnimationFrame(fade);
     for (const e of [...this.enemies]) {
       const d = e.pos.clone().sub(p.pos).setY(0);
-      if (d.length() < 1.5 + e.spec.radius && d.normalize().dot(dir) > 0.2) this.damageEnemy(e, 2, dir);
+      if (d.length() < 1.9 + e.spec.radius && d.normalize().dot(dir) > 0.1) this.damageEnemy(e, 2, dir);
     }
     for (const [id, obj] of this.relayObjs)
       if (!this.save.relays.includes(id) && obj.position.distanceTo(p.pos) < 1.8) this.powerRelay(id);
@@ -1369,7 +1369,7 @@ export class Game {
     e.flash = 0.12;
     this.audio.sfx('hit');
     this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.6, 0)), e.spec.color, 4, 2);
-    if (dir && e.type !== 'boss') this.world!.move(e.pos, dir.x * 0.5, dir.z * 0.5, e.spec.radius);
+    if (dir && e.type !== 'boss') this.world!.move(e.pos, dir.x * 0.3, dir.z * 0.3, e.spec.radius);
     if (e.hp <= 0) this.killEnemy(e);
   }
 
@@ -1736,6 +1736,12 @@ export class Game {
     this.save.shelved.push(room.id);
     this.markDirty();
     this.putOnShelf(plinth, room.id);
+    const it = this.inters.find((i) => i.id === `shelf:${room.id}`);
+    if (it) {
+      it.sub = 'On display';
+      it.el?.remove();
+      it.el = undefined;
+    }
     this.audio.sfx('build');
     this.bursts.spawn(plinth.position.clone().add(new THREE.Vector3(0, 1.4, 0)), '#fbbf24', 20, 2.5);
     this.store.toast(`${room.title} placed on the shelf (${this.save.shelved.length}/${this.projectRooms().length})`, 'info');
@@ -1975,7 +1981,11 @@ export class Game {
     }
     if (!this.bubble.hidden) {
       const s = this.project(this.cat.pos.clone().add(new THREE.Vector3(0, 2.4, 0)));
-      this.bubble.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
+      const w = this.canvas.clientWidth;
+      const half = Math.min(150, w * 0.35);
+      const x = Math.max(half + 8, Math.min(w - half - 8, s.x));
+      const y = Math.max(this.bubble.offsetHeight + 70, s.y);
+      this.bubble.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
     }
     this.minimapT -= 1 / 60;
     if (this.minimap && this.minimapT <= 0) {
