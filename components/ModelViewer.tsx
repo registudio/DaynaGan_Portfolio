@@ -10,6 +10,8 @@ export default function ModelViewer({
   labels = {},
   dark = false,
   initialExplode = 0.35,
+  ghost = [],
+  showSlider = true,
 }: {
   projectId: string;
   active?: string | null;
@@ -17,12 +19,16 @@ export default function ModelViewer({
   labels?: Record<string, string>;
   dark?: boolean;
   initialExplode?: number;
+  /** Part ids to render as translucent blueprint ghosts. */
+  ghost?: string[];
+  showSlider?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ explode: (t: number) => void; highlight: (id: string | null) => void } | null>(null);
   const [explode, setExplode] = useState(initialExplode);
   const [hovered, setHovered] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const ghostKey = ghost.join(',');
   const hoverRef = useRef(onHover);
   hoverRef.current = onHover;
 
@@ -65,6 +71,7 @@ export default function ModelViewer({
       scene.add(rim);
       const model = buildProjectModel(projectId);
       model.setExplode(initialExplode);
+      for (const id of ghostKey ? ghostKey.split(',') : []) model.setPartState(id, 'ghost');
       scene.add(model.group);
       const box = new THREE.Box3().setFromObject(model.group);
       const center = box.getCenter(new THREE.Vector3());
@@ -136,7 +143,7 @@ export default function ModelViewer({
       disposed = true;
       cleanup();
     };
-  }, [projectId, dark, initialExplode]);
+  }, [projectId, dark, initialExplode, ghostKey]);
 
   useEffect(() => {
     api.current?.highlight(active);
@@ -151,7 +158,7 @@ export default function ModelViewer({
         </p>
       )}
       {label && labels[label] && <div className="viewer-tip">{labels[label]}</div>}
-      <label className="viewer-controls">
+      {showSlider && <label className="viewer-controls">
         <span>Assembled</span>
         <input
           type="range"
@@ -167,7 +174,7 @@ export default function ModelViewer({
           aria-label="Explode model"
         />
         <span>Exploded</span>
-      </label>
+      </label>}
     </div>
   );
 }

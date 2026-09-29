@@ -160,6 +160,10 @@ export type Hud = {
   objective: { mission: string; text: string; done: boolean } | null;
   chips: { got: number; total: number } | null;
   panel: Panel | null;
+  /** Non-blocking info card (e.g. a recovered project part). */
+  card: { title: string; eyebrow: string; html: string; id: number } | null;
+  /** Mission just cleared banner. */
+  banner: { title: string; sub: string; id: number } | null;
   menu: null | 'pause';
   toasts: Toast[];
   save: SaveData;

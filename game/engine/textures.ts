@@ -21,16 +21,8 @@ export type Pattern =
 
 const cache = new Map<string, THREE.CanvasTexture>();
 
-// Deterministic PRNG so textures look the same every load.
-export function rng(seed: number) {
-  let s = seed >>> 0 || 1;
-  return () => {
-    s ^= s << 13;
-    s ^= s >>> 17;
-    s ^= s << 5;
-    return ((s >>> 0) % 100000) / 100000;
-  };
-}
+import { rng } from './rng.ts';
+export { rng };
 
 const clamp = (v: number) => Math.max(0, Math.min(255, v));
 

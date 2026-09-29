@@ -1,8 +1,7 @@
 import type { GitHubFeed } from '@/lib/github';
 import type { Site } from '@/lib/portfolio';
+import { heatLevel } from '@/game/engine/heat';
 
-export const heatLevel = (count: number, max: number) =>
-  count === 0 ? 0 : Math.min(4, Math.ceil((count / Math.max(1, max)) * 4));
 
 export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Site }) {
   if (feed.status === 'offline')
