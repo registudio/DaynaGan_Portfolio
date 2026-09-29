@@ -78,7 +78,7 @@ export default function ModelViewer({
       controls.target.copy(center);
       const radius = box.getSize(new THREE.Vector3()).length() / 2;
       const dir = new THREE.Vector3(4.2, 3.4, 4.6).normalize();
-      camera.position.copy(center).addScaledVector(dir, radius * 2.6);
+      camera.position.copy(center).addScaledVector(dir, radius * 3.1);
       controls.minDistance = radius * 1.4;
       controls.maxDistance = radius * 5;
 

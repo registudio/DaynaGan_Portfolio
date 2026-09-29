@@ -15,12 +15,12 @@ const POS: Record<string, [number, number]> = {
   projects: [3.6, 0.8],
   trophies: [1.8, 3.2],
   leadership: [-1.2, 3.4],
-  github: [-3.4, 1.3],
+  github: [-3.7, -0.5],
   contact: [-0.2, 0.3],
 };
 
-const TW = 64;
-const TH = 36;
+const TW = 50;
+const TH = 40;
 const iso = (x: number, y: number) => ({ x: (x - y) * TW, y: (x + y) * TH * 0.62 });
 
 function shade(hex: string, f: number) {
@@ -44,10 +44,10 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
       <div className="g-eyebrow">Station Hub · Star map</div>
       <h2>Choose a deployment</h2>
       <div className="g-map-wrap">
-        <svg viewBox="-330 -200 660 400" className="g-map" role="list" aria-label="Missions">
+        <svg viewBox="-340 -230 680 470" className="g-map" role="list" aria-label="Missions">
           {/* Starfield */}
           {Array.from({ length: 70 }, (_, i) => (
-            <rect key={i} x={((i * 97) % 660) - 330} y={((i * 53) % 400) - 200} width={i % 7 ? 1.5 : 2.5} height={i % 7 ? 1.5 : 2.5} fill={i % 5 ? '#6d5aa8' : '#fff'} opacity={0.7} />
+            <rect key={i} x={((i * 97) % 680) - 340} y={((i * 53) % 470) - 230} width={i % 7 ? 1.5 : 2.5} height={i % 7 ? 1.5 : 2.5} fill={i % 5 ? '#6d5aa8' : '#fff'} opacity={0.7} />
           ))}
           {/* Routes */}
           {MISSION_ORDER.filter((id) => id !== 'contact').map((id) => {

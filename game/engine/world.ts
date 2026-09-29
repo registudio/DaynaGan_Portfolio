@@ -20,8 +20,9 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshStandardMaterial {
   if (s.glow) {
     m.emissiveMap = glowTexture(s.pattern, s.accent ?? s.color);
     m.emissive = new THREE.Color('#ffffff');
-    m.emissiveIntensity = s.pattern === 'metal' ? 0.9 : 1.3;
+    m.emissiveIntensity = s.pattern === 'metal' ? 0.55 : 0.75;
     if (s.pattern === 'metal') {
+      m.color = new THREE.Color('#333333');
       m.emissive = new THREE.Color(s.color);
       m.emissiveMap = null;
     }
@@ -64,10 +65,12 @@ export class World {
     const path = surfaceMaterial(b.path ?? b.floorAlt);
     const wall = surfaceMaterial(b.wall);
     const wallDark = surfaceMaterial(b.wall, 0.75);
-    const top = surfaceMaterial(b.wallTop);
+    const top = surfaceMaterial({ pattern: 'metal', color: b.wall.color }, 0.6);
+    const trim = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.wallTop.color), emissiveIntensity: 1.3 });
+    this.materials.push(trim);
     const cliff = new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1 });
     const cliffDeep = new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1, color: '#777777' });
-    const rail = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.rail), emissiveIntensity: 1.8 });
+    const rail = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.rail), emissiveIntensity: 1.1 });
     const windowMat = new THREE.MeshStandardMaterial({
       color: '#0b1020',
       emissive: new THREE.Color('#1e3a8a'),
@@ -110,6 +113,11 @@ export class World {
             add(m, cx, base + k + 0.5, cz);
           }
           add(top, cx, base + WALL_BLOCKS + 0.06, cz, 1, 0.12, 1);
+          // Neon trim on the faces that look onto the floor.
+          if (at(x + 1, z)?.t === FLOOR) add(trim, x + 1.01, base + 2.3, cz, 0.04, 0.1, 1);
+          if (at(x, z + 1)?.t === FLOOR) add(trim, cx, base + 2.3, z + 1.01, 1, 0.1, 0.04);
+          if (at(x + 1, z)?.t === FLOOR) add(trim, x + 1.01, base + 0.12, cz, 0.04, 0.06, 1);
+          if (at(x, z + 1)?.t === FLOOR) add(trim, cx, base + 0.12, z + 1.01, 1, 0.06, 0.04);
           for (let k = 1; k <= CLIFF_DEPTH - 1; k++) add(cliffDeep, cx, base - 0.5 - k + 1, cz);
         }
       }
@@ -198,7 +206,7 @@ export class LightPool {
   private t = 0;
   constructor(scene: THREE.Scene, count: number) {
     for (let i = 0; i < count; i++) {
-      const l = new THREE.PointLight('#ffffff', 0, 8, 1.6);
+      const l = new THREE.PointLight('#ffffff', 0, 8, 1.3);
       scene.add(l);
       this.lights.push(l);
     }
@@ -223,8 +231,9 @@ export class LightPool {
     for (const l of this.lights) {
       const s = l.userData.src as LightSource | null;
       if (!s) continue;
+      const boost = 4;
       const flicker = s.flicker ? 1 + Math.sin(time * 13 + s.pos.x) * s.flicker * 0.5 + (Math.random() - 0.5) * s.flicker * 0.3 : 1;
-      l.intensity = s.intensity * flicker;
+      l.intensity = s.intensity * flicker * boost;
     }
   }
   dispose(scene: THREE.Scene) {

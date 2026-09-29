@@ -43,6 +43,7 @@ export default function GameShell({
       });
       g.start();
       setGame(g);
+      if (process.env.NODE_ENV !== 'production') (window as unknown as { __game: Game }).__game = g;
     } catch (e) {
       console.error(e);
       setError('Your browser could not start the 3D game (WebGL unavailable).');

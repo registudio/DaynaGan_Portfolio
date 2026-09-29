@@ -133,6 +133,7 @@ export class Game {
   private hemi = new THREE.HemisphereLight('#ffffff', '#222222', 1);
   private sun = new THREE.DirectionalLight('#ffffff', 1);
   private lights!: LightPool;
+  private suit = new THREE.PointLight('#e9e3ff', 14, 7, 1.4);
   private raf = 0;
   private last = 0;
   private time = 0;
@@ -235,11 +236,11 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.8, 0.45, 0.82);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.4, 0.9);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
-    this.scene.add(this.hemi, this.sun, this.sun.target, this.level, this.bursts.group);
+    this.scene.add(this.hemi, this.sun, this.sun.target, this.level, this.bursts.group, this.suit);
     this.sun.castShadow = this.quality === 'high';
     this.sun.shadow.mapSize.set(1024, 1024);
     const sc = this.sun.shadow.camera;
@@ -292,7 +293,7 @@ export class Game {
     this.composer.setSize(w, h);
     this.bloom.resolution.set(w / 2, h / 2);
     const aspect = w / h;
-    const half = aspect >= 1 ? 7.2 : Math.min(11, 7.2 / Math.max(aspect, 0.55));
+    const half = aspect >= 1 ? 5.6 : Math.min(9, 5.6 / Math.max(aspect, 0.6));
     this.camera.left = -half * aspect;
     this.camera.right = half * aspect;
     this.camera.top = half;
@@ -398,6 +399,8 @@ export class Game {
 
   private buildScene(id: string) {
     this.clearScene();
+    this.bubbleQueue = [];
+    this.bubbleT = 0;
     this.sceneId = id;
     const level = this.portfolio.levels.find((l) => l.id === id);
     this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : biomeFor(level?.meta.biome, level?.meta.light);
@@ -409,12 +412,12 @@ export class Game {
     this.level.add(this.world.group);
 
     this.scene.background = new THREE.Color(b.background);
-    this.scene.fog = new THREE.Fog(b.fog, 36, 70);
+    this.scene.fog = new THREE.Fog(b.fog, 52, 95);
     this.hemi.color.set(b.ambient);
     this.hemi.groundColor.set(b.background);
-    this.hemi.intensity = b.ambientIntensity * 1.4;
+    this.hemi.intensity = b.ambientIntensity * 2.2;
     this.sun.color.set(b.sun);
-    this.sun.intensity = b.sunIntensity * 1.6;
+    this.sun.intensity = b.sunIntensity * 2;
 
     // Room lights in the biome's dominant colour.
     for (const room of this.map.rooms) {
@@ -433,7 +436,7 @@ export class Game {
     this.player = {
       rig,
       pos,
-      facing: Math.PI * 1.25,
+      facing: Math.PI / 4,
       hp: maxHp,
       invuln: 0,
       dashT: 0,
@@ -969,8 +972,9 @@ export class Game {
       id: 'cat',
       kind: 'cat',
       pos: this.cat.pos,
-      radius: 1.1,
+      radius: 0.9,
       verb: 'Pet',
+      enabled: () => this.cat.sleeping || this.cat.sit > 1.2,
       label: name,
       object: this.cat.rig.root,
       done: () => false,
@@ -1133,6 +1137,7 @@ export class Game {
     if (p.swingT > 0) arm.rotation.x = -2.2 + (1 - p.swingT / 0.25) * 2.6;
 
     p.rig.root.position.copy(p.pos);
+    this.suit.position.copy(p.pos).add(new THREE.Vector3(0.6, 2.2, 0.6));
     p.rig.root.rotation.y = lerpAngle(p.rig.root.rotation.y, p.facing, 1 - Math.exp(-dt * 16));
     p.rig.animate(this.time, p.dashT > 0 ? 8 : speed, dt);
     p.rig.root.visible = p.invuln <= 0 || Math.floor(this.time * 20) % 2 === 0 || p.dashT > 0;
@@ -1969,7 +1974,7 @@ export class Game {
       i.el.classList.toggle('near', i === near);
     }
     if (!this.bubble.hidden) {
-      const s = this.project(this.cat.pos.clone().add(new THREE.Vector3(0, 0.9, 0)));
+      const s = this.project(this.cat.pos.clone().add(new THREE.Vector3(0, 2.4, 0)));
       this.bubble.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
     }
     this.minimapT -= 1 / 60;
@@ -2011,9 +2016,8 @@ export class Game {
     ctx.clearRect(0, 0, W, H);
     if (!this.minimapBase) return;
     const S = 4;
-    const scale = (W / 150) * 1.1;
-    // Isometric-ish transform matching the camera (screen up = world −x−z).
-    const k = scale / S;
+    // ~26 tiles across; isometric-ish transform matching the camera (screen up = world −x−z).
+    const k = W / 26 / S;
     const a = 0.707 * k;
     const b = 0.707 * k * 0.6;
     const p = this.player.pos;
