@@ -61,8 +61,8 @@ npm run build
 | Variable | Required | Purpose |
 |---|---|---|
 | `RESEND_API_KEY` | for the contact form | API key from [resend.com](https://resend.com). Without it, the form offers an email link instead. |
-| `CONTACT_FROM_EMAIL` | recommended | A sender on a domain verified in Resend, e.g. `Portfolio <hello@your-domain.com>`. Resend's default `onboarding@resend.dev` only delivers to the Resend account owner's own address. |
-| `CONTACT_TO_EMAIL` | optional | Inbox for messages. Defaults to the email in `portfolio.md`. |
+| `CONTACT_FROM_EMAIL` | recommended | A sender on a domain verified in Resend, e.g. `Portfolio <hello@your-domain.com>`. Resend's default `onboarding@resend.dev` only delivers to the Resend account owner's own address — so if the Resend account is created with daynagsr@gmail.com, the default sender works with no domain. |
+| `CONTACT_TO_EMAIL` | optional | Inbox for messages — `daynagsr@gmail.com`. Defaults to the email in `portfolio.md` (the same address). |
 | `GITHUB_TOKEN` | optional | Read-only token from Dayna's account; enables the full contribution calendar. |
 | `NEXT_PUBLIC_SITE_URL` | optional | Canonical URL for metadata. |
 

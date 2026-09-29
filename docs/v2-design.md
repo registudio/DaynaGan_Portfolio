@@ -190,11 +190,55 @@ Star-map holo table (mission select) · Dayna's bunk + Xiao Hu's cat bed (bio li
 - Robot Claw case study; Drone photos/write-up.
 - Certifications (Trophy Hall).
 - Backroom content.
-- Vercel: create project, set env vars, verify a Resend sender domain (see README).
+- Vercel: create project, set env vars (see README). Contact form delivers to daynagsr@gmail.com. Simplest setup: create the Resend account with daynagsr@gmail.com so the default sender works without a custom domain.
 - Real meow recording (optional) → `public/audio/meow.mp3`.
 - Balance tuning after playtests (enemy counts, damage, cooldowns — `game/engine/Game.ts` ENEMY table, `missions.ts` COOLDOWNS).
 - Publish the `v1-archive` tag on commit `662dd85` (`git tag v1-archive 662dd85 && git push origin v1-archive`) — the build session couldn't push tags.
 - All work now lives on `main` (per request).
+
+## Improvement backlog (suggested, not built yet)
+
+### Performance
+1. Batch static props into per-material InstancedMeshes (each prop is currently several meshes → many draw calls).
+2. Only simulate enemies, particles and animations in the player's room ±1; freeze the rest.
+3. Dynamic resolution: lower pixel ratio / bloom resolution automatically when FPS drops below ~50.
+4. Prefetch the game chunk (Three.js + engine) while the splash is showing; subset the fonts.
+5. Cache generated textures, voxel models and level meshes between visits; pack textures into one atlas.
+
+### Gameplay
+1. A mini-boss per combat mission (e.g. Forge: Rogue Assembly Arm, Caverns: Bug Queen, Comms: Static Swarm).
+2. Content-themed puzzles: rewire a circuit to open a Caverns vault, align lasers in the Reactor, route packets in the Mainframe.
+3. Combat feel: 3-hit melee combo, dodge i-frames, enemy attack telegraphs, hit-stop.
+4. Difficulty presets (Story / Normal / Hard) scaling enemy HP, damage and count.
+5. Xiao Hu ability: pounce to stun a bot, or fetch the nearest project part.
+
+### Features
+1. Futuristic currency ("Flux Cores") + vendor cosmetics for Dayna and cat variants (already planned).
+2. Shareable run summary card (time, chips, achievements) with a link back to the site.
+3. "Tour mode" for busy recruiters: auto-walk through every mission with Xiao Hu narrating.
+4. Vercel Analytics events: mode chosen, missions cleared, drop-off point, messages sent.
+5. Real CAD (GLB) models and photo/video galleries per project.
+
+### Content
+1. Fill the TODOs: SST period, competitions, Taiwan trip, MakeX result, full SP module list, trimmed NUS list.
+2. Robot Claw and Drone case studies with build photos and flight footage.
+3. Quantify Ecovolt impact (deployment counts, time saved, accuracy) where allowed.
+4. Backroom content — e.g. behind-the-scenes lab notebook, bloopers, or a hidden Xiao Hu photo gallery.
+5. Per-project links (GitHub repos, reports, demo videos) and a "what I'd do next" line.
+
+### UI/UX & HUD
+1. First-run control overlay with device-specific glyphs (keyboard / gamepad / touch).
+2. Damage numbers, small enemy health bars and a low-health vignette.
+3. Off-screen objective arrow + tap-to-expand full map with a legend.
+4. Panel readability: text-size shortcut, "next unread" button, full keyboard navigation of the codex.
+5. Mobile polish: haptics, landscape hint, larger hotbar targets, one-thumb mode.
+
+### Design
+1. Hand-authored pixel texture atlas and more bespoke props per biome.
+2. Stronger avatar likeness (layered wavy hair, per-biome outfits such as a lab coat in the Spires).
+3. Lighting set pieces: god-rays in the Spires, molten-solder rivers in the Forge, data waterfalls in the Caverns.
+4. Cinematic transitions: teleport beam-out/in, star-map zoom into the chosen island.
+5. Professional mode visuals: a rendered voxel hero of Dayna + Xiao Hu, consistent icon set, custom OG image.
 
 ## Future update (not built now)
 - Futuristic currency (not emeralds) dropped by bots/crates, spent at the hub vendor on cosmetic skins for Dayna **and cat variants** (orange, British blue, Garfield, striped, white socks…).
