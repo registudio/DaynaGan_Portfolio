@@ -76,6 +76,13 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
         </div>
       )}
 
+      {hud.boss && !hud.banner && (
+        <div className="g-bossplate" key={hud.boss.name}>
+          <b>{hud.boss.name.toUpperCase()}</b>
+          <span>{hud.boss.title}</span>
+        </div>
+      )}
+
       {hud.banner && (
         <div className="g-banner" key={hud.banner.id}>
           <b>{hud.banner.title}</b>
@@ -120,6 +127,13 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
             {hud.hp}/{hud.maxHp}
           </span>
         </div>
+        <button className="g-slot" title="Xiao Hu — pounce on a bot / fetch a part" onClick={() => game.catAbility()}>
+          <span className="g-ico">
+            <PixelIcon name="cat" />
+          </span>
+          <Cooldown v={hud.cooldowns.cat} />
+          <kbd>{hud.touch ? '' : keyName(keys.cat?.[0])}</kbd>
+        </button>
         {GEAR.filter((g) => g.slot).map((g) => (
           <button
             key={g.id}

@@ -67,6 +67,7 @@ export default function TouchControls({ game, hud }: { game: Game; hud: Hud }) {
         {btn('zap', 'bolt', 'Solder beam', 'b1')}
         {btn('melee', 'wrench', 'Wrench', 'b2 big')}
         {btn('dash', 'boot', 'Dash', 'b3')}
+        {btn('cat', 'cat', 'Xiao Hu', 'b5')}
         {hud.prompt && btn('interact', 'E', 'Interact', 'b4 act')}
       </div>
     </div>

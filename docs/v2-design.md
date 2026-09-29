@@ -208,6 +208,13 @@ Chosen by the owner from the backlog below:
 
 Implementation notes are added to the sections below as each lands.
 
+**Done — Gameplay:**
+- *Mini-bosses* (`BOSSES` in `missions.ts`): Overloaded Core (Reactor), Rogue Assembly Arm (Forge), Bug Queen (Caverns), Merge Conflict (Mainframe), Static Swarm (Comms Array, optional so the contact form is never gated). Each has a telegraphed attack rotation (ring / fan / lunge / summon / blink), a nameplate and a defeat banner; required bosses gate the mission clear except in Peaceful mode. Achievement: Giant Slayer.
+- *Puzzles* (`PUZZLES`): Reactor — charge capacitors in order; Caverns — rotate junctions to match the circuit diagram; Mainframe — set packet-routing switches. Each gates the final room with an energy barrier; the diagnostics console shows the answer; after a few failed tries Xiao Hu offers to chew through the wire. Achievement: Puzzler (no bypass).
+- *Combat feel*: 3-hit wrench combo (finisher = wide, heavy), red telegraph warnings before every enemy attack, hit-stop, dash i-frames that pass through projectiles.
+- *Difficulty*: Story / Normal / Hard (enemy HP, damage, speed, attack rate; Hard adds extra bots). Pause → Settings.
+- *Xiao Hu* (C / cat button): pounces to stun the nearest bot, otherwise fetches the nearest project part. 10 s cooldown. Achievement: Good Kitty.
+
 **Done — Performance:** static props batched into per-material InstancedMeshes (`game/engine/batch.ts`); character rigs merged per limb/material (~20% fewer draw calls); bots, NPCs and spinners far from the player sleep; dynamic resolution (0.5–1× pixel ratio, tuned every 2 s from a frame-time average); game bundle prefetched during the splash; Latin-only font subsets; level layouts and biome materials cached for the session.
 
 ## Improvement backlog (suggested)

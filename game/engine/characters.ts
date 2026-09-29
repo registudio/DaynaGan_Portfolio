@@ -186,7 +186,7 @@ export function buildCat(): Rig {
 
 // ── Enemies ──────────────────────────────────────────────────────────────────
 
-export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss';
+export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss' | 'core' | 'arm' | 'queen' | 'swarm';
 
 export function buildEnemy(type: EnemyType): Rig {
   const root = new THREE.Group();
@@ -284,6 +284,71 @@ export function buildEnemy(type: EnemyType): Rig {
       parts.craft = craft;
       break;
     }
+    case 'core': {
+      // Overloaded Core: a giant unstable reactor orb ringed by capacitor plates.
+      floaty = true;
+      blobShadow(0.9, root);
+      const core = group(body, 0, 1.6, 0);
+      box(0.9, 0.9, 0.9, glow('#f0abfc', 3.2), 0, 0, 0, core);
+      box(1.1, 0.25, 1.1, mat('#3b2a47', { pattern: 'metal' }), 0, 0.55, 0, core);
+      box(1.1, 0.25, 1.1, mat('#3b2a47', { pattern: 'metal' }), 0, -0.55, 0, core);
+      for (let i = 0; i < 6; i++) {
+        const plate = box(0.18, 0.5, 0.5, glow('#e879f9', 1.8), 0, 0, 0, core);
+        plate.userData.orbit = i;
+      }
+      parts.core = core;
+      break;
+    }
+    case 'arm': {
+      // Rogue Assembly Arm: heavy base, rotating shoulder, long arm with a welding head.
+      blobShadow(1.0, root);
+      const orange = mat('#f59e0b', { pattern: 'metal', metal: 0.4 });
+      box(1.6, 0.5, 1.6, mat('#3b3b40', { pattern: 'panel' }), 0, 0.25, 0, body);
+      box(1.7, 0.1, 1.7, mat('#15151a', { pattern: 'hazard', accent: '#f59e0b' }), 0, 0.52, 0, body);
+      const shoulder = group(body, 0, 0.6, 0);
+      box(0.8, 0.5, 0.8, orange, 0, 0.25, 0, shoulder);
+      const upper = group(shoulder, 0, 0.5, 0);
+      box(0.35, 1.5, 0.35, orange, 0, 0.75, 0, upper);
+      const fore = group(upper, 0, 1.5, 0);
+      box(0.3, 0.3, 1.4, orange, 0, 0, 0.6, fore);
+      box(0.4, 0.4, 0.3, mat('#3a2a22'), 0, 0, 1.35, fore);
+      box(0.16, 0.16, 0.16, glow('#fde68a', 5), 0, 0, 1.55, fore);
+      box(0.5, 0.12, 0.02, glow('#ef4444', 3), 0, 0.3, 0.41, shoulder);
+      parts.arm = fore;
+      parts.shoulder = shoulder;
+      break;
+    }
+    case 'queen': {
+      // Bug Queen: an oversized circuit beetle with a glowing egg sac.
+      blobShadow(1.1, root);
+      const shell = mat('#0f3a44', { pattern: 'circuit', accent: '#22d3ee' });
+      box(1.3, 0.6, 1.7, shell, 0, 0.55, 0, body);
+      box(0.08, 0.62, 1.72, glow('#22d3ee', 2), 0, 0.56, 0, body);
+      box(0.9, 0.5, 0.7, glow('#67e8f9', 1.2), 0, 0.6, -1.05, body);
+      box(0.8, 0.45, 0.5, mat('#123039'), 0, 0.5, 1.05, body);
+      box(0.14, 0.14, 0.04, glow('#fde047', 4), -0.2, 0.55, 1.31, body);
+      box(0.14, 0.14, 0.04, glow('#fde047', 4), 0.2, 0.55, 1.31, body);
+      for (const x of [-0.25, 0.25]) box(0.08, 0.08, 0.5, mat('#0a2229'), x, 0.35, 1.5, body).rotation.y = x * 0.8;
+      for (let i = 0; i < 6; i++) {
+        const leg = group(body, i < 3 ? -0.7 : 0.7, 0.4, -0.5 + (i % 3) * 0.5);
+        box(0.5, 0.1, 0.1, mat('#0a2229'), i < 3 ? -0.22 : 0.22, -0.12, 0, leg);
+        parts[`leg${i}`] = leg;
+      }
+      break;
+    }
+    case 'swarm': {
+      // Static Swarm: a cloud of interference drones around a bright core.
+      floaty = true;
+      blobShadow(0.9, root);
+      const core = group(body, 0, 1.4, 0);
+      box(0.5, 0.5, 0.5, glow('#e9d5ff', 3), 0, 0, 0, core);
+      for (let i = 0; i < 9; i++) {
+        const d = box(0.24, 0.1, 0.24, mat('#d4d0e8', { emissive: '#a78bfa', intensity: 1.2 }), 0, 0, 0, core);
+        d.userData.orbit = i;
+      }
+      parts.core = core;
+      break;
+    }
     case 'boss': {
       floaty = true;
       blobShadow(1.0, root);
@@ -313,6 +378,19 @@ export function buildEnemy(type: EnemyType): Rig {
     animate(t, speed, dt) {
       bob += dt * (6 + speed * 3);
       if (floaty) body.position.y = Math.sin(t * 3 + root.id) * 0.08;
+      if (parts.core && (type === 'core' || type === 'swarm')) {
+        parts.core.rotation.y += dt * (type === 'core' ? 1.5 : 2.5);
+        parts.core.children.forEach((c) => {
+          const i = c.userData.orbit;
+          if (i == null) return;
+          const n = type === 'core' ? 6 : 9;
+          const a = t * (type === 'core' ? 1.2 : 3) + (i * Math.PI * 2) / n;
+          const r = type === 'core' ? 0.85 : 0.9 + Math.sin(t * 5 + i) * 0.25;
+          c.position.set(Math.cos(a) * r, type === 'swarm' ? Math.sin(a * 2 + i) * 0.4 : 0, Math.sin(a) * r);
+          c.rotation.y = -a;
+        });
+      }
+      if (parts.shoulder && type === 'arm') parts.arm.rotation.x = Math.sin(t * 2) * 0.25 - 0.15;
       if (parts.core && type === 'wisp') {
         parts.core.rotation.y += dt * 3;
         parts.core.children.forEach((c) => {

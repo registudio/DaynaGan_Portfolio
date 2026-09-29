@@ -399,3 +399,28 @@ export function contributionTile(level: number, color: string) {
 }
 
 export { disc };
+
+/** Puzzle node: capacitor (sequence), rotating junction (rotate) or bit switch (pattern). */
+export function buildPuzzleNode(type: 'sequence' | 'rotate' | 'pattern', accent: string, index: number) {
+  const g = new THREE.Group();
+  box(0.8, 0.5, 0.8, mat('#2b3040', { pattern: 'panel' }), 0, 0.25, 0, g);
+  const head = group(g, 0, 0.55, 0);
+  head.userData.dynamic = true;
+  if (type === 'sequence') {
+    box(0.4, 0.9, 0.4, mat('#3b2a47', { pattern: 'metal' }), 0, 0.45, 0, head);
+    for (let i = 0; i < 3; i++) box(0.5, 0.06, 0.5, glow(accent, 1.4), 0, 0.2 + i * 0.3, 0, head);
+  } else if (type === 'rotate') {
+    box(0.64, 0.08, 0.64, mat('#15202a', { pattern: 'circuit', accent }), 0, 0.04, 0, head);
+    box(0.14, 0.1, 0.5, glow(accent, 2.2), 0, 0.12, -0.14, head); // arrow shaft (points −z at state 0)
+    box(0.34, 0.1, 0.12, glow(accent, 2.2), 0, 0.12, -0.36, head); // arrow head
+  } else {
+    box(0.3, 0.5, 0.2, mat('#1d2b22', { pattern: 'server', accent }), 0, 0.25, 0, head);
+  }
+  const lamp = box(0.2, 0.2, 0.2, glow('#f59e0b', 1.2), 0, type === 'sequence' ? 1.15 : 0.75, 0, head);
+  lamp.userData.dynamic = true;
+  g.userData.head = head;
+  g.userData.lamp = lamp;
+  g.userData.index = index;
+  interactRing(g, accent, 0.6);
+  return g;
+}

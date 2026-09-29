@@ -15,6 +15,7 @@ import { buildLevel, setProjectIds, type LevelMap, type Spawn } from './layout.t
 import {
   ACHIEVEMENTS,
   allChipsCollected,
+  BOSSES,
   chips,
   contactUnlocked,
   COOLDOWNS,
@@ -23,6 +24,7 @@ import {
   isCleared,
   MISSION_ORDER,
   objective,
+  PUZZLES,
 } from './missions.ts';
 import { githubConsole, npcPanel, partCard, partPanel, projectPanel, repoPanel, roomPanel } from './panels.ts';
 import {
@@ -38,6 +40,7 @@ import {
   buildMatrix,
   buildPartPickup,
   buildPlinth,
+  buildPuzzleNode,
   buildProp,
   buildRelay,
   buildRepoRack,
@@ -48,7 +51,8 @@ import {
 } from './props.ts';
 import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
-import { loadSave, loadSettings, persist, Store, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
+import { rng } from './rng.ts';
+import { loadSave, loadSettings, persist, Store, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { glow } from './voxels.ts';
 import { Ambient, Bursts, LightPool, World, type LightSource } from './world.ts';
 
@@ -68,7 +72,28 @@ const ENEMY: Record<EnemyType, EnemySpec> = {
   bug: { hp: 3, speed: 2.1, dmg: 1, radius: 0.36, color: '#22d3ee', aggro: 5 },
   packet: { hp: 2, speed: 3.6, dmg: 1, radius: 0.3, color: '#f87171', aggro: 8 },
   drone: { hp: 3, speed: 1.9, dmg: 1, radius: 0.36, shoot: 2.2, range: 7, color: '#a78bfa', aggro: 8 },
-  boss: { hp: 40, speed: 1.1, dmg: 2, radius: 1.1, shoot: 2.8, range: 11, color: '#fef08a', aggro: 11 },
+  // Mini-bosses
+  core: { hp: 30, speed: 1.4, dmg: 2, radius: 0.9, shoot: 2.4, range: 12, color: '#f0abfc', aggro: 12 },
+  arm: { hp: 40, speed: 0, dmg: 2, radius: 1.0, shoot: 2.2, range: 12, color: '#fbbf24', aggro: 12 },
+  queen: { hp: 40, speed: 1.2, dmg: 2, radius: 1.1, shoot: 2.6, range: 12, color: '#22d3ee', aggro: 12 },
+  boss: { hp: 55, speed: 1.1, dmg: 2, radius: 1.1, shoot: 2.5, range: 12, color: '#fef08a', aggro: 12 },
+  swarm: { hp: 34, speed: 1.6, dmg: 2, radius: 0.9, shoot: 2.4, range: 12, color: '#c4b5fd', aggro: 12 },
+};
+
+/** Attack rotation per mini-boss; every attack is telegraphed first. */
+const BOSS_PATTERNS: Record<string, string[]> = {
+  core: ['ring', 'lunge', 'ring', 'summon'],
+  arm: ['fan', 'fan', 'summon', 'ring'],
+  queen: ['fan', 'summon', 'lunge', 'fan'],
+  boss: ['ring', 'summon', 'fan', 'ring'],
+  swarm: ['blink', 'ring', 'fan', 'blink', 'summon'],
+};
+
+/** Difficulty presets (Pause → Settings). */
+const DIFFICULTY: Record<Difficulty, { hp: number; dmg: number; speed: number; cooldown: number; extra: boolean }> = {
+  story: { hp: 0.6, dmg: 0.5, speed: 0.85, cooldown: 1.35, extra: false },
+  normal: { hp: 1, dmg: 1, speed: 1, cooldown: 1, extra: false },
+  hard: { hp: 1.45, dmg: 1.5, speed: 1.15, cooldown: 0.8, extra: true },
 };
 
 type Enemy = {
@@ -78,6 +103,7 @@ type Enemy = {
   pos: THREE.Vector3;
   hp: number;
   cd: number;
+  touchCd: number;
   stun: number;
   wander: THREE.Vector3 | null;
   wanderT: number;
@@ -85,8 +111,14 @@ type Enemy = {
   home: THREE.Vector3;
   flash: number;
   carry: { projectId: string; partId: string } | null;
-  summonT: number;
-  bar?: THREE.Mesh;
+  boss: boolean;
+  summoned: boolean;
+  step: number;
+  windup: number;
+  pending: string | null;
+  aim: THREE.Vector3 | null;
+  lunge: { dir: THREE.Vector3; t: number } | null;
+  tele?: THREE.Mesh;
 };
 
 type Projectile = { mesh: THREE.Mesh; pos: THREE.Vector3; vel: THREE.Vector3; from: 'player' | 'enemy'; dmg: number; life: number };
@@ -167,7 +199,16 @@ export class Game {
     idle: number;
     history: THREE.Vector3[];
   };
-  private cat!: { rig: Rig; pos: THREE.Vector3; facing: number; sleeping: boolean; sit: number };
+  private cat!: {
+    rig: Rig;
+    pos: THREE.Vector3;
+    facing: number;
+    sleeping: boolean;
+    sit: number;
+    mode: 'follow' | 'pounce' | 'fetch' | 'carry';
+    target: Enemy | null;
+    fetch: Inter | null;
+  };
   private enemies: Enemy[] = [];
   private projectiles: Projectile[] = [];
   private inters: Inter[] = [];
@@ -179,6 +220,10 @@ export class Game {
   private blueprints = new Map<string, ProjectModel>();
   private cooldowns: Record<string, number> = {};
   private scannerT = 0;
+  private combo = 0;
+  private comboT = 0;
+  private hitStop = 0;
+  private touring = false;
   private buddy: { mesh: THREE.Object3D; t: number; fire: number } | null = null;
   private relayObjs = new Map<string, THREE.Group>();
   private dish: THREE.Group | null = null;
@@ -226,6 +271,8 @@ export class Game {
       rev: 0,
       touch: opts.touch,
       dead: false,
+      boss: null,
+      tour: null,
     });
     this.skillsCache = this.skills();
   }
@@ -321,10 +368,17 @@ export class Game {
     const paused = !!(st.panel || st.menu || st.loading);
     const actions = this.input.consume();
     if (actions.has('pause')) this.togglePause();
-    if (!paused && this.world) {
+    if (!paused && this.world && this.hitStop > 0) {
+      this.hitStop -= dt;
+    } else if (!paused && this.world) {
       this.time += dt;
       this.save.playMs += dt * 1000;
-      this.update(dt, actions);
+      try {
+        this.update(dt, actions);
+      } catch (e) {
+        // Never let one bad frame freeze the game.
+        console.error(e);
+      }
     } else if (this.world) {
       // Keep idle animations alive behind panels.
       this.player.rig.animate(this.time, 0, dt * 0.3);
@@ -340,8 +394,9 @@ export class Game {
 
   /** Dynamic resolution: trade pixels for frame rate when frames run long, recover when they don't. */
   private adaptResolution(frameMs: number, dt: number) {
-    if (document.hidden || frameMs > 250) return;
-    this.frameEma += (frameMs - this.frameEma) * 0.05;
+    if (document.hidden || frameMs > 2000) return;
+    // Count slow frames too (capped), otherwise a struggling device looks fine.
+    this.frameEma += (Math.min(frameMs, 500) - this.frameEma) * 0.08;
     this.stats.fps = Math.round(1000 / this.frameEma);
     this.resT -= dt;
     if (this.resT > 0) return;
@@ -416,6 +471,7 @@ export class Game {
     this.hearts = [];
     this.spinners = [];
     this.staticRoots = [];
+    this.puzzle = null;
     this.relayObjs.clear();
     this.dish = null;
     this.buddy = null;
@@ -449,6 +505,7 @@ export class Game {
     this.clearScene();
     this.bubbleQueue = [];
     this.bubbleT = 0;
+    this.store.set({ boss: null });
     this.sceneId = id;
     const level = this.portfolio.levels.find((l) => l.id === id);
     this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : biomeFor(level?.meta.biome, level?.meta.light);
@@ -509,7 +566,7 @@ export class Game {
         sleeping = true;
       }
     }
-    this.cat = { rig: catRig, pos: catPos, facing: 0, sleeping, sit: 0 };
+    this.cat = { rig: catRig, pos: catPos, facing: 0, sleeping, sit: 0, mode: 'follow', target: null, fetch: null };
     this.addCatInteract();
     this.camTarget.copy(pos);
 
@@ -777,6 +834,15 @@ export class Game {
       }
       case 'secret':
         break;
+      case 'barrier':
+        this.spawnBarrier(s);
+        break;
+      case 'pnode':
+        this.spawnNode(s);
+        break;
+      case 'phint':
+        this.spawnHint(s);
+        break;
       case 'backroom': {
         const obj = this.place(buildConsole('#fef08a'), s.x, s.z);
         this.inter({
@@ -902,9 +968,12 @@ export class Game {
       case 'enemy':
       case 'boss': {
         if (this.settings.peaceful) break;
-        if (s.kind === 'boss' && this.save.bossDefeated) break;
-        const type = (s.kind === 'boss' ? 'boss' : s.type) as EnemyType;
-        this.addEnemy(type, s.x, s.z, s.room);
+        if (s.kind === 'boss' && this.save.bosses.includes(this.sceneId)) break;
+        const type = s.type as EnemyType;
+        const e = this.addEnemy(type, s.x, s.z, s.room);
+        // Hard mode: extra regular bots.
+        if (s.kind === 'enemy' && this.difficulty().extra && !this.world!.solid(s.x + 1, s.z)) this.addEnemy(type, s.x + 1, s.z, s.room);
+        void e;
         break;
       }
       case 'hub':
@@ -1095,13 +1164,12 @@ export class Game {
     const pos = new THREE.Vector3(x, this.world!.heightAt(x, z), z);
     rig.root.position.copy(pos);
     this.level.add(rig.root);
-    const e: Enemy = { type, spec, rig, pos, hp: spec.hp, cd: 1 + Math.random(), stun: 0, wander: null, wanderT: Math.random() * 2, room, home: pos.clone(), flash: 0, carry: null, summonT: 6 };
-    if (type === 'boss') {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.12), glow('#fef08a', 2));
-      bar.position.y = 3.2;
-      rig.root.add(bar);
-      e.bar = bar;
-    }
+    const boss = type in BOSS_PATTERNS;
+    const hp = Math.max(1, Math.round(spec.hp * this.difficulty().hp));
+    const e: Enemy = {
+      type, spec, rig, pos, hp, cd: 1 + Math.random(), touchCd: 0, stun: 0, wander: null, wanderT: Math.random() * 2, room,
+      home: pos.clone(), flash: 0, carry: null, boss, summoned: false, step: 0, windup: 0, pending: null, aim: null, lunge: null,
+    };
     this.enemies.push(e);
     return e;
   }
@@ -1112,6 +1180,7 @@ export class Game {
     const p = this.player;
     const world = this.world!;
     for (const k in this.cooldowns) this.cooldowns[k] = Math.max(0, this.cooldowns[k] - dt);
+    this.comboT = Math.max(0, this.comboT - dt);
 
     // Death / respawn
     if (p.dead > 0) {
@@ -1148,7 +1217,7 @@ export class Game {
         this.cooldowns.dash = COOLDOWNS.dash;
         p.dashT = 0.18;
         p.dashDir.set(Math.sin(p.facing), 0, Math.cos(p.facing));
-        p.invuln = Math.max(p.invuln, 0.25);
+        p.invuln = Math.max(p.invuln, 0.32);
         this.audio.sfx('dash');
         this.bursts.spawn(p.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), '#c4b5fd', 6, 1.5);
       }
@@ -1177,6 +1246,7 @@ export class Game {
     // Combat
     if (actions.has('melee') || (this.input.isDown('melee') && !this.cooldowns.melee)) this.melee();
     if (actions.has('zap') || (this.input.isDown('zap') && !this.cooldowns.zap)) this.zap();
+    if (actions.has('cat')) this.catAbility();
     const art = (['artifact1', 'artifact2', 'artifact3', 'artifact4'] as const).findIndex((a) => actions.has(a));
     if (art >= 0) this.useArtifact(art + 1);
 
@@ -1277,6 +1347,7 @@ export class Game {
   private updateCat(dt: number, playerSpeed: number) {
     const c = this.cat;
     const p = this.player;
+    if (this.updateCatAbility(dt)) return;
     if (c.sleeping) {
       c.rig.root.position.copy(c.pos);
       c.rig.body.rotation.z = Math.PI / 2.2; // sprawled on its side, belly out
@@ -1363,17 +1434,23 @@ export class Game {
     if (this.cooldowns.melee) return;
     this.cooldowns.melee = COOLDOWNS.melee;
     const p = this.player;
-    const dir = this.aimDir(2.5);
+    // 3-hit combo: swings within 0.6 s chain; the third is a wide, heavy finisher.
+    this.combo = this.comboT > 0 ? (this.combo % 3) + 1 : 1;
+    this.comboT = 0.6;
+    const finisher = this.combo === 3;
+    const range = finisher ? 2.4 : 1.9;
+    const dmg = finisher ? 3 : 2;
+    const dir = this.aimDir(2.8);
     p.facing = Math.atan2(dir.x, dir.z);
     p.swingT = 0.25;
-    this.audio.sfx('swing');
-    // Slash arc FX
+    if (finisher) this.cooldowns.melee = COOLDOWNS.melee * 1.6;
+    this.audio.sfx(finisher ? 'hit' : 'swing');
     const arc = new THREE.Mesh(
-      new THREE.RingGeometry(0.9, 1.5, 12, 1, -Math.PI / 3, (Math.PI * 2) / 3),
-      new THREE.MeshBasicMaterial({ color: '#e9d5ff', transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false }),
+      new THREE.RingGeometry(0.9, range, 12, 1, -Math.PI / (finisher ? 2 : 3), (Math.PI * 2) / (finisher ? 2 : 3)),
+      new THREE.MeshBasicMaterial({ color: finisher ? '#fde68a' : '#e9d5ff', transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false }),
     );
     arc.rotation.x = -Math.PI / 2;
-    arc.rotation.z = -p.facing + Math.PI / 2;
+    arc.rotation.z = -p.facing + Math.PI / 2 + (this.combo === 2 ? 0.5 : 0);
     arc.position.copy(p.pos).add(new THREE.Vector3(0, 0.6, 0));
     this.level.add(arc);
     const fade = () => {
@@ -1385,10 +1462,16 @@ export class Game {
       }
     };
     requestAnimationFrame(fade);
+    let hit = false;
     for (const e of [...this.enemies]) {
       const d = e.pos.clone().sub(p.pos).setY(0);
-      if (d.length() < 1.9 + e.spec.radius && d.normalize().dot(dir) > 0.1) this.damageEnemy(e, 2, dir);
+      if (d.length() < range + e.spec.radius && d.normalize().dot(dir) > (finisher ? -0.2 : 0.1)) {
+        hit = true;
+        this.damageEnemy(e, dmg, dir, finisher ? 0.9 : 0.3);
+        if (finisher && e.boss) this.award('combo');
+      }
     }
+    if (hit) this.hitStop = finisher ? 0.09 : 0.045;
     for (const [id, obj] of this.relayObjs)
       if (!this.save.relays.includes(id) && obj.position.distanceTo(p.pos) < 1.8) this.powerRelay(id);
   }
@@ -1410,42 +1493,70 @@ export class Game {
     this.audio.sfx('zap');
   }
 
-  private enemyShoot(e: Enemy, dir: THREE.Vector3, speed = 7) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), glow(e.spec.color, 3.5));
-    const start = e.pos.clone().add(new THREE.Vector3(0, e.type === 'boss' ? 1.4 : 0.7, 0));
-    mesh.position.copy(start);
-    this.level.add(mesh);
-    this.projectiles.push({ mesh, pos: start, vel: dir.clone().setY(0).normalize().multiplyScalar(speed), from: 'enemy', dmg: e.spec.dmg, life: 2.4 });
+  private difficulty() {
+    return DIFFICULTY[this.settings.difficulty ?? 'normal'];
   }
 
-  private damageEnemy(e: Enemy, dmg: number, dir?: THREE.Vector3) {
+  private enemyShoot(e: Enemy, dir: THREE.Vector3, speed = 7) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), glow(e.spec.color, 3.5));
+    const start = e.pos.clone().add(new THREE.Vector3(0, e.boss ? 1.3 : 0.7, 0));
+    mesh.position.copy(start);
+    this.level.add(mesh);
+    this.projectiles.push({ mesh, pos: start, vel: dir.clone().setY(0).normalize().multiplyScalar(speed), from: 'enemy', dmg: e.spec.dmg, life: 2.6 });
+  }
+
+  private damageEnemy(e: Enemy, dmg: number, dir?: THREE.Vector3, knock = 0.3) {
     e.hp -= dmg;
     e.flash = 0.12;
     this.audio.sfx('hit');
     this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.6, 0)), e.spec.color, 4, 2);
-    if (dir && e.type !== 'boss') this.world!.move(e.pos, dir.x * 0.3, dir.z * 0.3, e.spec.radius);
+    if (dir && !e.boss) this.world!.move(e.pos, dir.x * knock, dir.z * knock, e.spec.radius);
+    if (e.boss) this.damageNumber(e, dmg);
     if (e.hp <= 0) this.killEnemy(e);
+  }
+
+  /** Floating damage numbers — mini-bosses only. */
+  private damageNumber(e: Enemy, dmg: number) {
+    const el = document.createElement('div');
+    el.className = `g-dmg${dmg >= 3 ? ' big' : ''}`;
+    el.textContent = String(dmg);
+    const s = this.project(e.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.8, e.spec.radius * 2 + 1.2, 0)));
+    el.style.left = `${s.x}px`;
+    el.style.top = `${s.y}px`;
+    this.overlay.appendChild(el);
+    setTimeout(() => el.remove(), 900);
   }
 
   private killEnemy(e: Enemy) {
     this.enemies = this.enemies.filter((x) => x !== e);
     this.level.remove(e.rig.root);
-    this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), e.spec.color, e.type === 'boss' ? 60 : 16, e.type === 'boss' ? 6 : 3);
+    if (e.tele) this.level.remove(e.tele);
+    this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), e.spec.color, e.boss ? 60 : 16, e.boss ? 6 : 3);
     this.audio.sfx('die');
-    this.shake = e.type === 'boss' ? 0.6 : 0.15;
+    this.shake = e.boss ? 0.6 : 0.15;
+    this.hitStop = e.boss ? 0.25 : 0.06;
     this.save.kills++;
     this.save.levelKills[this.sceneId] = (this.save.levelKills[this.sceneId] ?? 0) + 1;
     if (this.save.kills >= 25) this.award('bug-squasher');
     if (e.carry) {
       this.spawnPart(e.carry.projectId, e.carry.partId, Math.floor(e.pos.x) + 0.5, Math.floor(e.pos.z) + 0.5);
       this.say('It dropped a part! Grab it.', 2500);
-    } else if (Math.random() < 0.22) this.dropHeart(e.pos);
-    if (e.type === 'boss') {
-      this.save.bossDefeated = true;
-      this.award('merge-resolved');
-      this.store.toast('MERGE CONFLICT RESOLVED', 'achievement', 4000);
-      this.say('Conflict resolved! Both branches live happily now.', 4000);
+    } else if (Math.random() < (e.boss ? 1 : 0.22)) this.dropHeart(e.pos);
+    if (e.boss) {
+      const def = BOSSES[this.sceneId];
+      if (!this.save.bosses.includes(this.sceneId)) this.save.bosses.push(this.sceneId);
+      if (e.type === 'boss') {
+        this.save.bossDefeated = true;
+        this.award('merge-resolved');
+      }
+      if (Object.keys(BOSSES).every((id) => this.save.bosses.includes(id))) this.award('giant-slayer');
+      // Minions fizzle out with their boss.
+      for (const m of [...this.enemies]) if (m.room === e.room && m.summoned) this.killEnemy(m);
+      this.store.set({ boss: null, banner: { title: `${def?.name.toUpperCase() ?? 'BOSS'} DEFEATED`, sub: def?.title ?? '', id: Date.now() } });
+      setTimeout(() => this.store.set({ banner: null }), 3600);
+      this.say(e.type === 'boss' ? 'Conflict resolved! Both branches live happily now.' : `We beat the ${def?.name}! Meow!`, 4000);
       this.checkCleared();
+      this.refreshHud();
     }
     this.markDirty();
   }
@@ -1460,7 +1571,11 @@ export class Game {
       [-0.12, 0.14],
       [0.12, 0.14],
     ])
-      g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.1), m), { position: new THREE.Vector3(x, y, 0) }));
+    {
+      const px = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.1), m);
+      px.position.set(x, y, 0);
+      g.add(px);
+    }
     const pos = at.clone();
     g.position.copy(pos).add(new THREE.Vector3(0, 0.5, 0));
     this.level.add(g);
@@ -1469,10 +1584,11 @@ export class Game {
 
   private hurtPlayer(dmg: number, from: THREE.Vector3) {
     const p = this.player;
-    if (p.invuln > 0 || p.dead > 0) return;
-    p.hp -= dmg;
+    if (p.invuln > 0 || p.dead > 0 || this.touring) return;
+    p.hp -= Math.max(1, Math.round(dmg * this.difficulty().dmg));
     p.invuln = 0.7;
     this.shake = 0.3;
+    this.hitStop = 0.05;
     this.audio.sfx('hurt');
     const push = p.pos.clone().sub(from).setY(0).normalize().multiplyScalar(0.6);
     this.world!.move(p.pos, push.x, push.z, 0.3);
@@ -1485,58 +1601,167 @@ export class Game {
     this.store.set({ hp: p.hp });
   }
 
+  /** Warning decal shown while a bot winds up an attack (ring = area, line = aimed). */
+  private telegraph(e: Enemy, kind: 'ring' | 'line', dir?: THREE.Vector3) {
+    if (e.tele) this.level.remove(e.tele);
+    const mat = new THREE.MeshBasicMaterial({ color: '#ef4444', transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide });
+    let mesh: THREE.Mesh;
+    if (kind === 'ring') {
+      const r = e.boss ? 3.2 : 1.4;
+      mesh = new THREE.Mesh(new THREE.RingGeometry(r - 0.18, r, 32), mat);
+      mesh.rotation.x = -Math.PI / 2;
+    } else {
+      const len = e.boss ? 8 : 6;
+      mesh = new THREE.Mesh(new THREE.PlaneGeometry(e.boss ? 1.4 : 0.35, len), mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.rotation.z = -Math.atan2(dir!.x, dir!.z);
+      mesh.position.addScaledVector(dir!, len / 2);
+    }
+    mesh.position.add(e.pos).setY(e.pos.y + 0.05);
+    e.tele = mesh;
+    this.level.add(mesh);
+  }
+
+  private clearTelegraph(e: Enemy) {
+    if (!e.tele) return;
+    this.level.remove(e.tele);
+    e.tele.geometry.dispose();
+    e.tele = undefined;
+  }
+
+  /** Run a wound-up attack. */
+  private attack(e: Enemy, kind: string) {
+    const p = this.player;
+    const toP = p.pos.clone().sub(e.pos).setY(0).normalize();
+    const d = this.difficulty();
+    switch (kind) {
+      case 'shot':
+        this.enemyShoot(e, e.aim ?? toP);
+        break;
+      case 'lunge':
+        e.lunge = { dir: (e.aim ?? toP).clone(), t: e.boss ? 0.5 : 0.32 };
+        break;
+      case 'ring': {
+        const n = e.boss ? 12 : 8;
+        const off = Math.random() * Math.PI;
+        for (let i = 0; i < n; i++) {
+          const a = off + (i / n) * Math.PI * 2;
+          this.enemyShoot(e, new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), 5.5);
+        }
+        break;
+      }
+      case 'fan': {
+        const base = Math.atan2((e.aim ?? toP).x, (e.aim ?? toP).z);
+        for (let i = -2; i <= 2; i++) {
+          const a = base + i * 0.2;
+          this.enemyShoot(e, new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), 7.5);
+        }
+        break;
+      }
+      case 'summon': {
+        const minion: EnemyType = ({ core: 'wisp', arm: 'crawler', queen: 'bug', boss: 'packet', swarm: 'drone' } as Record<string, EnemyType>)[e.type] ?? 'wisp';
+        const alive = this.enemies.filter((m) => m.summoned && m.room === e.room).length;
+        const count = Math.min(2 + (d.extra ? 1 : 0), 5 - alive);
+        for (let i = 0; i < count; i++) {
+          const a = (i / Math.max(1, count)) * Math.PI * 2 + Math.random();
+          const x = e.pos.x + Math.cos(a) * 2;
+          const z = e.pos.z + Math.sin(a) * 2;
+          if (this.world!.solid(x, z)) continue;
+          const m = this.addEnemy(minion, x, z, e.room);
+          m.summoned = true;
+          this.bursts.spawn(m.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), m.spec.color, 8, 2);
+        }
+        break;
+      }
+      case 'blink': {
+        for (let tries = 0; tries < 12; tries++) {
+          const a = Math.random() * Math.PI * 2;
+          const x = p.pos.x + Math.cos(a) * 4.5;
+          const z = p.pos.z + Math.sin(a) * 4.5;
+          if (!this.world!.solid(x, z) && this.world!.roomAt(x, z) === e.room) {
+            this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.spec.color, 14, 3);
+            e.pos.set(x, this.world!.heightAt(x, z), z);
+            this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.spec.color, 14, 3);
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+
   private updateEnemies(dt: number) {
     const p = this.player;
     const world = this.world!;
     const playerRoom = world.roomAt(p.pos.x, p.pos.z);
+    const diff = this.difficulty();
+    let bossActive: Enemy | null = null;
     for (const e of [...this.enemies]) {
       // Room-local simulation: bots far from the player (and not in their room) sleep.
       const far = e.pos.distanceToSquared(p.pos) > 22 * 22 && e.room !== playerRoom;
       if (far) continue;
       e.cd -= dt;
       e.flash = Math.max(0, e.flash - dt);
-      e.rig.root.scale.setScalar(e.flash > 0 ? 1.15 : 1);
+      const pulse = e.windup > 0 ? 1 + Math.sin(this.time * 40) * 0.06 : 1;
+      e.rig.root.scale.setScalar((e.flash > 0 ? 1.15 : 1) * pulse);
       if (e.stun > 0) {
         e.stun -= dt;
+        e.windup = 0;
+        this.clearTelegraph(e);
         e.rig.animate(this.time, 0, dt * 0.2);
         continue;
       }
       const to = p.pos.clone().sub(e.pos).setY(0);
       const dist = to.length();
-      const active = p.dead <= 0 && (dist < e.spec.aggro || (e.room === playerRoom && dist < e.spec.aggro * 1.6));
+      const active =
+        p.dead <= 0 && !this.touring && (e.boss ? e.room === playerRoom : dist < e.spec.aggro || (e.room === playerRoom && dist < e.spec.aggro * 1.6));
+      if (e.boss && active) bossActive = e;
       let speed = 0;
-      if (active) {
-        const dir = to.clone().normalize();
-        const keep = e.spec.shoot ? (e.type === 'boss' ? 3 : 3.5) : 0;
-        if (dist > keep + e.spec.radius) {
-          speed = e.spec.speed * (e.type === 'wisp' ? 0.8 + Math.sin(this.time * 5 + e.home.x) * 0.4 : 1);
+      const dir = dist > 0.001 ? to.clone().normalize() : new THREE.Vector3(0, 0, 1);
+      if (e.lunge) {
+        e.lunge.t -= dt;
+        speed = e.spec.speed * 3.2;
+        world.move(e.pos, e.lunge.dir.x * speed * dt, e.lunge.dir.z * speed * dt, e.spec.radius);
+        if (e.lunge.t <= 0) e.lunge = null;
+      } else if (e.windup > 0) {
+        // Telegraphed attack: hold still, then strike.
+        e.windup -= dt;
+        e.rig.root.rotation.y = lerpAngle(e.rig.root.rotation.y, Math.atan2(dir.x, dir.z), 1 - Math.exp(-dt * 4));
+        if (e.windup <= 0) {
+          this.clearTelegraph(e);
+          if (e.pending) this.attack(e, e.pending);
+          e.pending = null;
+        }
+      } else if (active) {
+        const keep = e.spec.shoot ? (e.boss ? 3.5 : 3.5) : 0;
+        if (dist > keep + e.spec.radius && e.type !== 'arm') {
+          speed = e.spec.speed * diff.speed * (e.type === 'wisp' ? 0.8 + Math.sin(this.time * 5 + e.home.x) * 0.4 : 1);
           const wobble = e.type === 'wisp' ? new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(Math.sin(this.time * 3) * 0.6) : new THREE.Vector3();
           const m = dir.clone().add(wobble).normalize();
           world.move(e.pos, m.x * speed * dt, m.z * speed * dt, e.spec.radius);
         }
         e.rig.root.rotation.y = lerpAngle(e.rig.root.rotation.y, Math.atan2(dir.x, dir.z), 1 - Math.exp(-dt * 8));
-        if (e.spec.shoot && e.cd <= 0 && dist < (e.spec.range ?? 6) && world.clearLine(e.pos.x, e.pos.z, p.pos.x, p.pos.z)) {
-          e.cd = e.spec.shoot * (0.8 + Math.random() * 0.4);
-          if (e.type === 'boss') {
-            const n = 10;
-            const off = Math.random() * Math.PI;
-            for (let i = 0; i < n; i++) {
-              const a = off + (i / n) * Math.PI * 2;
-              this.enemyShoot(e, new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), 5);
-            }
-          } else this.enemyShoot(e, dir);
-        }
-        if (dist < e.spec.radius + 0.45 && e.cd <= 0.6) {
-          this.hurtPlayer(e.spec.dmg, e.pos);
-          e.cd = 1;
-        }
-        if (e.type === 'boss') {
-          e.summonT -= dt;
-          if (e.summonT <= 0 && this.enemies.length < 5) {
-            e.summonT = 7;
-            for (let i = 0; i < 2; i++) this.addEnemy('packet', e.pos.x + (i ? 1.5 : -1.5), e.pos.z + 1, e.room);
+        // Choose and telegraph the next attack.
+        if (e.cd <= 0) {
+          let kind: string | null = null;
+          if (e.boss) {
+            const pattern = BOSS_PATTERNS[e.type] ?? ['ring'];
+            kind = pattern[e.step++ % pattern.length];
+            e.cd = (e.spec.shoot ?? 2.6) * diff.cooldown;
+          } else if (e.spec.shoot && dist < (e.spec.range ?? 6) && world.clearLine(e.pos.x, e.pos.z, p.pos.x, p.pos.z)) {
+            kind = 'shot';
+            e.cd = e.spec.shoot * diff.cooldown * (0.8 + Math.random() * 0.4);
+          } else if ((e.type === 'crawler' || e.type === 'packet') && dist < 4 && dist > 1.2) {
+            kind = 'lunge';
+            e.cd = 2.2 * diff.cooldown;
           }
-          if (e.bar) e.bar.scale.x = Math.max(0.01, e.hp / e.spec.hp);
+          if (kind) {
+            e.pending = kind;
+            e.aim = dir.clone();
+            e.windup = e.boss ? 0.75 : 0.45;
+            if (kind === 'ring' || kind === 'summon' || kind === 'blink') this.telegraph(e, 'ring');
+            else this.telegraph(e, 'line', dir);
+          }
         }
       } else {
         e.wanderT -= dt;
@@ -1544,7 +1769,7 @@ export class Game {
           e.wanderT = 2 + Math.random() * 2;
           e.wander = e.home.clone().add(new THREE.Vector3((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5));
         }
-        if (e.wander) {
+        if (e.wander && e.type !== 'arm') {
           const w = e.wander.clone().sub(e.pos).setY(0);
           if (w.length() > 0.3) {
             speed = e.spec.speed * 0.4;
@@ -1554,9 +1779,23 @@ export class Game {
           }
         }
       }
+      // Contact damage.
+      if (active && dist < e.spec.radius + 0.45 && e.touchCd <= 0) {
+        this.hurtPlayer(e.spec.dmg, e.pos);
+        e.touchCd = 1;
+      }
+      e.touchCd -= dt;
       e.pos.y = world.heightAt(e.pos.x, e.pos.z);
       e.rig.root.position.copy(e.pos);
       e.rig.animate(this.time, speed, dt);
+    }
+    const bossPlate = bossActive ? { name: BOSSES[this.sceneId]?.name ?? 'Boss', title: BOSSES[this.sceneId]?.title ?? '' } : null;
+    if ((bossPlate?.name ?? null) !== (this.store.get().boss?.name ?? null)) {
+      this.store.set({ boss: bossPlate });
+      if (bossPlate) {
+        this.audio.sfx('emp');
+        this.say(`Careful — the ${bossPlate.name}! Watch for the red warnings and dodge.`, 3500, true);
+      }
     }
   }
 
@@ -1583,7 +1822,7 @@ export class Game {
             this.powerRelay(id);
             dead = true;
           }
-      } else if (this.player.pos.clone().setY(0).distanceTo(pr.pos.clone().setY(0)) < 0.45) {
+      } else if (this.player.dashT <= 0 && this.player.pos.clone().setY(0).distanceTo(pr.pos.clone().setY(0)) < 0.45) {
         this.hurtPlayer(pr.dmg, pr.pos);
         dead = true;
       }
@@ -1686,6 +1925,324 @@ export class Game {
       }
     };
     grow();
+  }
+
+  // ── Xiao Hu's ability ───────────────────────────────────────────────────────
+
+  /** C / cat button: pounce on the nearest bot, or fetch the nearest project part. */
+  catAbility() {
+    const c = this.cat;
+    const p = this.player;
+    if (this.cooldowns.cat) {
+      this.say('*licks paw* …give me a second.', 1600, true);
+      return;
+    }
+    if (c.mode !== 'follow') return;
+    c.sleeping = false;
+    const enemy = this.enemies
+      .filter((e) => e.pos.distanceTo(p.pos) < 8 && this.world!.clearLine(c.pos.x, c.pos.z, e.pos.x, e.pos.z))
+      .sort((a, b) => a.pos.distanceTo(p.pos) - b.pos.distanceTo(p.pos))[0];
+    if (enemy) {
+      c.mode = 'pounce';
+      c.target = enemy;
+      this.cooldowns.cat = COOLDOWNS.cat;
+      this.audio.meow(1.3);
+      this.say('MRRRAOW!', 1400, true);
+      return;
+    }
+    const part = this.inters
+      .filter((i) => i.kind === 'part' && i.pos.distanceTo(p.pos) < 14)
+      .sort((a, b) => a.pos.distanceTo(p.pos) - b.pos.distanceTo(p.pos))[0];
+    if (part) {
+      c.mode = 'fetch';
+      c.fetch = part;
+      this.cooldowns.cat = COOLDOWNS.cat;
+      this.audio.meow(1.1);
+      this.say(`I'll get the ${part.label}!`, 1800, true);
+      return;
+    }
+    this.say('Nothing to chase here… *yawns*', 1800, true);
+  }
+
+  /** Returns true while the cat is busy with an ability (skips follow logic). */
+  private updateCatAbility(dt: number): boolean {
+    const c = this.cat;
+    const world = this.world!;
+    const run = (to: THREE.Vector3, speed: number) => {
+      const d = to.clone().sub(c.pos).setY(0);
+      const len = d.length();
+      if (len > 0.05) {
+        d.normalize();
+        c.pos.x += d.x * Math.min(len, speed * dt);
+        c.pos.z += d.z * Math.min(len, speed * dt);
+        c.facing = Math.atan2(d.x, d.z);
+      }
+      c.pos.y = world.heightAt(c.pos.x, c.pos.z) + (c.mode === 'pounce' ? Math.sin(Math.min(1, len / 3) * Math.PI) * 0.6 : 0);
+      c.rig.root.position.copy(c.pos);
+      c.rig.root.rotation.y = c.facing;
+      c.rig.animate(this.time, speed, dt);
+      return len;
+    };
+    if (c.mode === 'pounce') {
+      const e = c.target;
+      if (!e || !this.enemies.includes(e)) {
+        c.mode = 'follow';
+        return false;
+      }
+      if (run(e.pos, 12) < e.spec.radius + 0.4) {
+        e.stun = Math.max(e.stun, e.boss ? 1.2 : 2.5);
+        e.windup = 0;
+        this.clearTelegraph(e);
+        this.damageEnemy(e, 1);
+        this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.8, 0)), '#fcd34d', 10, 2.5);
+        this.catAssist();
+        c.mode = 'follow';
+        c.target = null;
+      }
+      return true;
+    }
+    if (c.mode === 'fetch' || c.mode === 'carry') {
+      const it = c.fetch;
+      if (!it || !this.inters.includes(it)) {
+        c.mode = 'follow';
+        c.fetch = null;
+        return false;
+      }
+      if (c.mode === 'fetch') {
+        if (run(it.pos, 9) < 0.4) c.mode = 'carry';
+      } else {
+        run(this.player.pos, 9);
+        it.object.position.copy(c.pos).add(new THREE.Vector3(0, 0.25, 0));
+        it.pos.copy(c.pos);
+        if (c.pos.distanceTo(this.player.pos) < 1.2) {
+          it.use();
+          this.catAssist();
+          c.mode = 'follow';
+          c.fetch = null;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private catAssist() {
+    this.save.catAssists = (this.save.catAssists ?? 0) + 1;
+    if (this.save.catAssists >= 5) this.award('good-kitty');
+    this.markDirty();
+  }
+
+  // ── Puzzles ─────────────────────────────────────────────────────────────────
+
+  private puzzle: {
+    id: string;
+    type: 'sequence' | 'rotate' | 'pattern';
+    nodes: { index: number; obj: THREE.Group; state: number; pos: THREE.Vector3 }[];
+    target: number[];
+    progress: number;
+    tries: number;
+    barrier: { cells: { x: number; z: number }[]; meshes: THREE.Object3D[] } | null;
+  } | null = null;
+
+  private puzzleDef() {
+    return PUZZLES[this.sceneId];
+  }
+
+  private setupPuzzle(id: string) {
+    const def = this.puzzleDef();
+    if (!def || this.puzzle) return;
+    const r = rng(id.length * 131 + id.charCodeAt(0));
+    let target: number[];
+    if (def.type === 'sequence') {
+      target = [...Array(def.nodes).keys()].sort(() => r() - 0.5);
+      if (target.every((v, i) => v === i)) target.reverse();
+    } else if (def.type === 'rotate') target = Array.from({ length: def.nodes }, () => 1 + Math.floor(r() * 3));
+    else {
+      target = Array.from({ length: def.nodes }, () => (r() > 0.5 ? 1 : 0));
+      if (target.every((v) => !v)) target[0] = 1;
+    }
+    this.puzzle = { id, type: def.type, nodes: [], target, progress: 0, tries: 0, barrier: null };
+  }
+
+  private puzzleSolved(id: string) {
+    return this.save.puzzles.includes(id);
+  }
+
+  private spawnBarrier(s: Extract<Spawn, { kind: 'barrier' }>) {
+    this.setupPuzzle(s.id);
+    if (this.puzzleSolved(s.id) || !this.puzzle) return;
+    const meshes: THREE.Object3D[] = [];
+    const mat = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color('#ef4444'), emissiveIntensity: 1.6, transparent: true, opacity: 0.55, depthWrite: false });
+    for (const c of s.cells) {
+      const cell = this.world!.cell(c.x, c.z);
+      if (cell) cell.solid = true;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.96, 2.2, 0.96), mat);
+      m.position.set(c.x + 0.5, this.world!.heightAt(c.x + 0.5, c.z + 0.5) + 1.1, c.z + 0.5);
+      m.userData.barrier = true;
+      this.level.add(m);
+      meshes.push(m);
+    }
+    this.addLight(new THREE.Vector3(s.x, 1.5, s.z), '#ef4444', 4, 5, 0.3);
+    this.puzzle.barrier = { cells: s.cells, meshes };
+    this.inter({
+      id: `${s.id}-barrier`,
+      kind: 'barrier',
+      x: s.x,
+      z: s.z,
+      radius: 2.2,
+      verb: 'Inspect',
+      label: 'Energy barrier',
+      sub: this.puzzleDef()?.name,
+      object: this.level,
+      accent: '#ef4444',
+      done: () => this.puzzleSolved(s.id),
+      enabled: () => !this.puzzleSolved(s.id),
+      use: () => this.say(`Locked. ${this.puzzleDef()?.hint ?? ''}`, 3500, true),
+    });
+  }
+
+  private nodeLook(n: { obj: THREE.Group; state: number }, type: string, lit = false) {
+    const head = n.obj.userData.head as THREE.Object3D;
+    const lamp = n.obj.userData.lamp as THREE.Mesh;
+    if (type === 'rotate') head.rotation.y = (n.state * Math.PI) / 2;
+    const on = type === 'pattern' ? n.state === 1 : lit;
+    lamp.material = on ? glow('#4ade80', 3) : glow('#f59e0b', 1.2);
+  }
+
+  private spawnNode(s: Extract<Spawn, { kind: 'pnode' }>) {
+    this.setupPuzzle(s.id);
+    const pz = this.puzzle;
+    if (!pz) return;
+    const solved = this.puzzleSolved(s.id);
+    const obj = buildPuzzleNode(pz.type, this.biome.light, s.index);
+    this.place(obj, s.x, s.z, 0, false);
+    const node = { index: s.index, obj, state: solved ? pz.target[s.index] : 0, pos: new THREE.Vector3(s.x, 0, s.z) };
+    if (pz.type === 'sequence') node.state = 0;
+    pz.nodes.push(node);
+    this.nodeLook(node, pz.type, solved);
+    const label = pz.type === 'sequence' ? `Capacitor ${'ABCD'[s.index]}` : pz.type === 'rotate' ? `Junction ${s.index + 1}` : `Switch ${s.index + 1}`;
+    this.inter({
+      id: `${s.id}-node-${s.index}`,
+      kind: 'pnode',
+      x: s.x,
+      z: s.z + 0.8,
+      radius: 1.2,
+      verb: pz.type === 'sequence' ? 'Charge' : pz.type === 'rotate' ? 'Rotate' : 'Toggle',
+      label,
+      sub: this.puzzleDef()?.name,
+      object: obj,
+      accent: this.biome.light,
+      done: () => this.puzzleSolved(s.id),
+      enabled: () => !this.puzzleSolved(s.id),
+      use: () => this.useNode(node),
+    });
+  }
+
+  private spawnHint(s: Extract<Spawn, { kind: 'phint' }>) {
+    this.setupPuzzle(s.id);
+    const def = this.puzzleDef();
+    if (!def) return;
+    const obj = this.place(buildConsole('#f59e0b'), s.x, s.z);
+    this.inter({
+      id: `${s.id}-hint`,
+      kind: 'console',
+      x: s.x,
+      z: s.z + 0.2,
+      radius: 1.5,
+      verb: 'Read',
+      label: def.name,
+      sub: 'Diagnostics console',
+      object: obj,
+      accent: '#f59e0b',
+      done: () => this.puzzleSolved(s.id),
+      use: () => this.openPuzzleHint(),
+    });
+  }
+
+  private openPuzzleHint() {
+    const pz = this.puzzle;
+    const def = this.puzzleDef();
+    if (!pz || !def) return;
+    this.audio.sfx('open');
+    const glyph = (v: number) => (pz.type === 'rotate' ? ['↗', '↖', '↙', '↘'][v] : pz.type === 'pattern' ? String(v) : 'ABCD'[v]);
+    const solved = this.puzzleSolved(pz.id);
+    const target =
+      pz.type === 'sequence'
+        ? pz.target.map((v) => `<b>${glyph(v)}</b>`).join(' → ')
+        : pz.target.map((v, i) => `<span class="g-slotv">${i + 1}<b>${glyph(v)}</b></span>`).join(' ');
+    const html = solved
+      ? '<p class="g-ok">✔ Barrier offline — the way is open.</p>'
+      : `<p>${def.hint}</p><div class="g-puzzle">${target}</div>${
+          pz.type === 'rotate' ? '<p class="g-sub">Arrows show where each junction\u2019s glowing arrow must point on screen.</p>' : ''
+        }`;
+    this.store.set({
+      panel: {
+        kind: 'content',
+        levelId: this.sceneId,
+        roomId: 'puzzle',
+        eyebrow: 'Diagnostics console',
+        title: def.name,
+        html,
+        tone: solved ? 'success' : 'info',
+        actions: !solved && pz.tries >= 3 ? [{ id: 'puzzle:bypass', label: `🐾 Let ${this.portfolio.site.companion.name} chew through the wire`, primary: true }] : [],
+      },
+    });
+  }
+
+  private useNode(node: { index: number; obj: THREE.Group; state: number }) {
+    const pz = this.puzzle;
+    if (!pz || this.puzzleSolved(pz.id)) return;
+    this.audio.sfx('relay');
+    if (pz.type === 'sequence') {
+      if (pz.target[pz.progress] === node.index) {
+        pz.progress++;
+        this.nodeLook(node, pz.type, true);
+        if (pz.progress >= pz.target.length) this.solvePuzzle(false);
+      } else {
+        pz.tries++;
+        pz.progress = 0;
+        for (const n of pz.nodes) this.nodeLook(n, pz.type, false);
+        this.audio.sfx('error');
+        this.bursts.spawn(node.obj.position.clone().add(new THREE.Vector3(0, 1.2, 0)), '#ef4444', 10, 2);
+        this.say(pz.tries >= 3 ? 'Hmm… check the diagnostics console. Or I could chew the wire?' : 'Wrong order — the capacitors reset.', 3000, true);
+      }
+      return;
+    }
+    node.state = (node.state + 1) % (pz.type === 'rotate' ? 4 : 2);
+    this.nodeLook(node, pz.type);
+    pz.tries += 0.25;
+    if (pz.nodes.every((n) => n.state === pz.target[n.index])) this.solvePuzzle(false);
+    else if (pz.tries >= 3 && pz.tries < 3.25) this.say('Stuck? The diagnostics console has the answer — or I can chew the wire.', 3500);
+  }
+
+  private solvePuzzle(bypass: boolean) {
+    const pz = this.puzzle;
+    if (!pz || this.puzzleSolved(pz.id)) return;
+    this.save.puzzles.push(pz.id);
+    if (bypass) this.save.bypassed.push(pz.id);
+    this.markDirty();
+    for (const n of pz.nodes) {
+      if (pz.type !== 'sequence') n.state = pz.target[n.index];
+      this.nodeLook(n, pz.type, true);
+    }
+    if (pz.barrier) {
+      for (const c of pz.barrier.cells) {
+        const cell = this.world!.cell(c.x, c.z);
+        if (cell) cell.solid = false;
+      }
+      for (const m of pz.barrier.meshes) {
+        this.bursts.spawn(m.position, '#ef4444', 6, 2);
+        this.level.remove(m);
+      }
+      this.lights.sources = this.lights.sources.filter((l) => !(l.color.getHexString() === 'ef4444' && l.flicker));
+    }
+    this.audio.sfx('build');
+    this.shake = 0.3;
+    this.store.toast(`🔓 ${this.puzzleDef()?.name ?? 'Puzzle'} — barrier offline`, 'gear');
+    this.say(bypass ? '*crunch crunch* …Done! Don’t tell Dayna.' : 'You did it! The barrier is down.', 3200, true);
+    const all = Object.keys(PUZZLES);
+    if (all.every((id) => this.save.puzzles.includes(`${id}-gate`)) && !this.save.bypassed.length) this.award('puzzler');
+    this.refreshHud();
   }
 
   // ── Content interactions ────────────────────────────────────────────────────
@@ -2131,6 +2688,11 @@ export class Game {
       this.buildProject(id.slice(6));
       return;
     }
+    if (id === 'puzzle:bypass') {
+      this.store.set({ panel: null });
+      this.solvePuzzle(true);
+      return;
+    }
     void panel;
   }
 
@@ -2174,7 +2736,7 @@ export class Game {
   resetProgress() {
     const settings = this.settings;
     this.save = loadSave();
-    Object.assign(this.save, { scanned: [], built: [], shelved: [], cleared: [], achievements: [], kills: 0, pets: 0, playMs: 0, sent: false, backroom: false, tutorial: false, levelKills: {}, relays: [], bossDefeated: false });
+    Object.assign(this.save, { scanned: [], built: [], shelved: [], cleared: [], achievements: [], kills: 0, pets: 0, playMs: 0, sent: false, backroom: false, tutorial: false, levelKills: {}, relays: [], bossDefeated: false, bosses: [], puzzles: [], bypassed: [] });
     this.settings = settings;
     this.persistNow();
     this.skillsCache = this.skills();

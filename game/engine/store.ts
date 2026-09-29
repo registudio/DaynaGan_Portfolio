@@ -16,6 +16,7 @@ export type Action =
   | 'artifact2'
   | 'artifact3'
   | 'artifact4'
+  | 'cat'
   | 'pause';
 
 export const DEFAULT_KEYS: Record<Action, string[]> = {
@@ -31,11 +32,15 @@ export const DEFAULT_KEYS: Record<Action, string[]> = {
   artifact2: ['Digit2'],
   artifact3: ['Digit3'],
   artifact4: ['Digit4'],
+  cat: ['KeyC'],
   pause: ['Escape', 'KeyP'],
 };
 
+export type Difficulty = 'story' | 'normal' | 'hard';
+
 export type Settings = {
   muted: boolean;
+  difficulty: Difficulty;
   music: number;
   sfx: number;
   peaceful: boolean;
@@ -61,7 +66,15 @@ export type SaveData = {
   /** Bots defeated per mission (for the Pacifist achievement). */
   levelKills: Record<string, number>;
   relays: string[];
+  /** Legacy (v2.0): Merge Conflict defeated. Superseded by `bosses`. */
   bossDefeated: boolean;
+  /** Mission ids whose mini-boss is defeated. */
+  bosses: string[];
+  /** Puzzle ids solved. */
+  puzzles: string[];
+  /** Puzzles Xiao Hu bypassed. */
+  bypassed: string[];
+  catAssists?: number;
 };
 
 export const SAVE_KEY = 'dg-save-v2';
@@ -83,10 +96,14 @@ export const emptySave = (): SaveData => ({
   levelKills: {},
   relays: [],
   bossDefeated: false,
+  bosses: [],
+  puzzles: [],
+  bypassed: [],
 });
 
 export const defaultSettings = (): Settings => ({
   muted: true,
+  difficulty: 'normal',
   music: 0.5,
   sfx: 0.8,
   peaceful: false,
@@ -109,7 +126,9 @@ function read<T>(key: string, fallback: () => T): T {
 
 export function loadSave(): SaveData {
   const s = read(SAVE_KEY, emptySave);
-  return s.v === 2 ? s : emptySave();
+  if (s.v !== 2) return emptySave();
+  if (s.bossDefeated && !s.bosses.includes('github')) s.bosses.push('github');
+  return s;
 }
 export function loadSettings(): Settings {
   const s = read(SETTINGS_KEY, defaultSettings);
@@ -172,6 +191,10 @@ export type Hud = {
   rev: number;
   touch: boolean;
   dead: boolean;
+  /** Active mini-boss nameplate. */
+  boss: { name: string; title: string } | null;
+  /** Tour mode status (null when not touring). */
+  tour: { step: number; total: number; label: string } | null;
 };
 
 type Listener = () => void;

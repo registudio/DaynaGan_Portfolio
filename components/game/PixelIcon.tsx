@@ -7,6 +7,7 @@ const ICONS: Record<string, { rows: string[]; colors: Record<string, string> }> 
   emp: { rows: ['...aa...', '.a....a.', 'a..bb..a', '.a.bb.a.', '.a.bb.a.', 'a..bb..a', '.a....a.', '...aa...'], colors: { a: '#a78bfa', b: '#f5f3ff' } },
   repair: { rows: ['..aaaa..', '.aaaaaa.', 'aaabbaaa', 'abbbbbba', 'abbbbbba', 'aaabbaaa', '.aaaaaa.', '..aaaa..'], colors: { a: '#34d399', b: '#ecfdf5' } },
   drone: { rows: ['aa....aa', 'a.a..a.a', '..aaaa..', '..abba..', '..aaaa..', 'a.a..a.a', 'aa....aa', '........'], colors: { a: '#c4b5fd', b: '#fde047' } },
+  cat: { rows: ['a.....a.', 'aa...aa.', 'abbbbba.', 'abcbcba.', 'abbdbba.', '.abbba..', '.a.a.a..', '........'], colors: { a: '#4a3a2c', b: '#8a7560', c: '#bef264', d: '#e7a2a2' } },
   lock: { rows: ['..aaaa..', '.a....a.', '.a....a.', 'bbbbbbbb', 'bbbaabbb', 'bbbaabbb', 'bbbbbbbb', '........'], colors: { a: '#94a3b8', b: '#475569' } },
 };
 

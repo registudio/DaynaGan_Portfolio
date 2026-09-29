@@ -2,6 +2,7 @@ import type { Level, Portfolio } from '@/lib/portfolio';
 import type { GitHubFeed } from '@/lib/github';
 import { BIOMES, type PropKind } from './biomes.ts';
 import { rng } from './rng.ts';
+import { BOSSES, PUZZLES } from './missions.ts';
 
 /**
  * Turns a content level into a tile map + spawn list. Rooms are laid out as a
@@ -50,7 +51,10 @@ export type Spawn =
   | { kind: 'transmitter'; x: number; z: number }
   | { kind: 'exit'; x: number; z: number }
   | { kind: 'enemy'; x: number; z: number; type: string; room: number }
-  | { kind: 'boss'; x: number; z: number; room: number }
+  | { kind: 'boss'; x: number; z: number; room: number; type: string }
+  | { kind: 'barrier'; id: string; cells: { x: number; z: number }[]; x: number; z: number }
+  | { kind: 'pnode'; id: string; index: number; x: number; z: number }
+  | { kind: 'phint'; id: string; x: number; z: number }
   | { kind: 'prop'; x: number; z: number; prop: PropKind; rot: number }
   | { kind: 'centerpiece'; x: number; z: number; what: string }
   | { kind: 'secret'; x: number; z: number }
@@ -80,6 +84,7 @@ class Builder {
   spawns: Spawn[] = [];
   used = new Set<string>();
   doors: { x: number; z: number }[] = [];
+  corridors: { a: number; b: number; cells: { x: number; z: number }[] }[] = [];
   private raw: { x: number; z: number; h: number; room: number; surf: Cell['surf'] }[] = [];
   private secretRaw: { x: number; z: number; h: number }[] = [];
 
@@ -114,8 +119,13 @@ class Builder {
   }
 
   corridor(a: RoomRect, b: RoomRect, axis: 'x' | 'z', secret = false) {
-    const push = (x: number, z: number, h: number) =>
-      secret ? this.secretRaw.push({ x, z, h }) : this.raw.push({ x, z, h, room: -1, surf: 'path' });
+    const cells: { x: number; z: number }[] = [];
+    if (!secret) this.corridors.push({ a: a.i, b: b.i, cells });
+    const push = (x: number, z: number, h: number) => {
+      cells.push({ x, z });
+      if (secret) this.secretRaw.push({ x, z, h });
+      else this.raw.push({ x, z, h, room: -1, surf: 'path' });
+    };
     if (axis === 'x') {
       const lo = Math.max(a.z, b.z);
       const hi = Math.min(a.z + a.d, b.z + b.d);
@@ -175,6 +185,7 @@ class Builder {
       r.z -= minZ;
     }
     this.doors = this.doors.map((d) => ({ x: d.x - minX, z: d.z - minZ }));
+    for (const c of this.corridors) c.cells = c.cells.map((p) => ({ x: p.x - minX, z: p.z - minZ }));
     this.walls();
     for (const c of this.secretRaw) {
       const cell = this.cell(c.x - minX, c.z - minZ)!;
@@ -368,6 +379,8 @@ export function buildLevel(
   const spawn = entryRoom(b, rooms[0], biome);
   const contentRooms = rooms.filter((r) => r.kind !== 'entry' && r.kind !== 'secret');
 
+  // Puzzle nodes get first pick of floor space.
+  placePuzzle(b, levelId, rooms, rand);
   if (levelId === 'projects') buildProjects(b, level, rooms, rand, opts.peaceful);
   else if (levelId === 'trophies') buildTrophies(b, level, rooms, secret!);
   else if (levelId === 'github') buildGitHub(b, level, rooms, opts.github);
@@ -398,8 +411,60 @@ export function buildLevel(
   if (levelId !== 'projects' && levelId !== 'github')
     spawnEnemies(b, level, rand, opts.peaceful, contentRooms, levelId === 'about' ? 1 : 2);
   if (levelId === 'github' && !opts.peaceful) spawnEnemies(b, level, rand, false, contentRooms.slice(0, -1), 2);
+  if (!opts.peaceful) placeBoss(b, levelId, rooms);
+  else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
   b.decorate(biome, rand, levelId === 'trophies' ? 0.1 : 0.16);
   return b.result(levelId, biome, spawn);
+}
+
+/** Mini-boss arena: the last content room (Caverns: the big cavern; Comms: the relay field). */
+function placeBoss(b: Builder, levelId: string, rooms: RoomRect[]) {
+  const def = BOSSES[levelId];
+  if (!def || levelId === 'github') return;
+  const room =
+    levelId === 'projects'
+      ? rooms.find((r) => r.kind === 'cavern')
+      : levelId === 'contact'
+        ? rooms.find((r) => r.roomId === 'relays')
+        : [...rooms].reverse().find((r) => r.kind === 'content');
+  if (!room) return;
+  const p = b.randomFree(room, rng(room.x * 31 + room.z), 1, 3) ?? { x: room.x + room.w / 2, z: room.z + room.d / 2 + 1.5 };
+  b.spawns.push({ kind: 'boss', x: p.x, z: p.z, room: room.i, type: def.type });
+}
+
+/** Energy barrier across the corridor into the final room, puzzle nodes + hint console in the room before. */
+function placePuzzle(b: Builder, levelId: string, rooms: RoomRect[], rand: () => number) {
+  const def = PUZZLES[levelId];
+  if (!def) return;
+  const target = [...rooms].reverse().find((r) => r.kind === 'content' || r.kind === 'vault');
+  if (!target) return;
+  const corridor = b.corridors.find((c) => c.b === target.i);
+  const before = rooms.find((r) => r.i === corridor?.a);
+  if (!corridor || !before) return;
+  const id = `${levelId}-gate`;
+  const mid = corridor.cells[Math.floor(corridor.cells.length / 2)];
+  b.spawns.push({ kind: 'barrier', id, cells: corridor.cells, x: mid.x + 0.5, z: mid.z + 0.5 });
+  // Hint console just inside the doorway, nodes spread through the room.
+  const door = corridor.cells.reduce((best, c) => {
+    const d = Math.abs(c.x + 0.5 - (before.x + before.w / 2)) + Math.abs(c.z + 0.5 - (before.z + before.d / 2));
+    const bd = Math.abs(best.x + 0.5 - (before.x + before.w / 2)) + Math.abs(best.z + 0.5 - (before.z + before.d / 2));
+    return d < bd ? c : best;
+  });
+  const hx = Math.min(before.x + before.w - 2, Math.max(before.x + 2, door.x + 0.5 + (door.x >= before.x + before.w ? -2 : 0)));
+  const hz = Math.min(before.z + before.d - 2, Math.max(before.z + 2, door.z + 0.5 + (door.z >= before.z + before.d ? -2 : 0)));
+  const hint = b.isFree(hx, hz, 0) ? { x: hx, z: hz } : b.randomFree(before, rand, 1, 2);
+  if (hint) {
+    b.spawns.push({ kind: 'phint', id, x: hint.x, z: hint.z });
+    b.claim(hint.x, hint.z, 1);
+  }
+  for (let i = 0; i < def.nodes; i++) {
+    const p = b.randomFree(before, rand, 1, 2) ?? b.randomFree(before, rand, 0, 1.5);
+    if (!p) continue;
+    b.spawns.push({ kind: 'pnode', id, index: i, x: p.x, z: p.z });
+    b.claim(p.x, p.z, 1);
+    const c = b.cell(Math.floor(p.x), Math.floor(p.z));
+    if (c) c.solid = true;
+  }
 }
 
 function buildProjects(b: Builder, level: Level, rooms: RoomRect[], rand: () => number, peaceful: boolean) {
@@ -501,7 +566,7 @@ function buildGitHub(b: Builder, level: Level, rooms: RoomRect[], feed: GitHubFe
         b.claim(s.x, s.z, 1);
       });
     } else if (content.id === 'commits') {
-      b.spawns.push({ kind: 'boss', x: cx, z: room.z + room.d / 2 + 1, room: room.i });
+      b.spawns.push({ kind: 'boss', x: cx, z: room.z + room.d / 2 + 1, room: room.i, type: 'boss' });
     }
   }
 }

@@ -24,6 +24,7 @@ const ACTION_LABELS: Record<Action, string> = {
   artifact2: 'Artifact 2 · EMP',
   artifact3: 'Artifact 3 · Repair',
   artifact4: 'Artifact 4 · Drone',
+  cat: 'Xiao Hu: pounce / fetch',
   pause: 'Pause',
 };
 
@@ -188,6 +189,15 @@ function SettingsTab({ game, hud }: { game: Game; hud: Hud }) {
       </label>
       <label>
         Effects <input type="range" min={0} max={1} step={0.05} value={s.sfx} onChange={(e) => game.setSettings({ sfx: Number(e.target.value) })} />
+      </label>
+      <label>
+        Difficulty
+        <select value={s.difficulty} onChange={(e) => game.setSettings({ difficulty: e.target.value as 'normal' })}>
+          <option value="story">Story — relaxed</option>
+          <option value="normal">Normal</option>
+          <option value="hard">Hard — more, tougher bots</option>
+        </select>
+        <small> applies from the next deployment</small>
       </label>
       <label>
         <input type="checkbox" checked={s.peaceful} onChange={(e) => game.setSettings({ peaceful: e.target.checked })} /> Peaceful mode (no bots)
