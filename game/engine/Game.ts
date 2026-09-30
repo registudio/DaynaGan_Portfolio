@@ -48,12 +48,14 @@ import {
   buildTerminal,
   buildVendor,
   contributionTile,
+  buildFragment,
 } from './props.ts';
 import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
 import { rng } from './rng.ts';
 import { buildSetPiece, type SetPiece } from './setpieces.ts';
 import { loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
+import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
 import { glow } from './voxels.ts';
 import { Ambient, Bursts, LightPool, World, type LightSource } from './world.ts';
 
@@ -148,7 +150,15 @@ type Inter = {
   accent?: string;
   /** Floor ring drawn at exactly the trigger radius. */
   ring?: THREE.Group;
+  /** Shown on the hologram card while you stand in the ring. */
+  summary?: string;
+  /** Big always-on readout (stat parts like "3.97 · Diploma GPA"). */
+  stat?: { value: string; label: string };
+  /** Passive read: standing in the ring for a moment counts as scanning. */
+  scan?: () => void;
 };
+
+const DWELL = 1.3;
 
 export type GameEvents = {
   onExit: (mode: 'pro' | 'splash', anchor?: string) => void;
@@ -275,6 +285,7 @@ export class Game {
       chips: null,
       panel: null,
       card: null,
+      area: null,
       banner: null,
       menu: null,
       toasts: [],
@@ -508,6 +519,9 @@ export class Game {
 
   private beaming = false;
   private buffered = new Set<Action>();
+  private dwell: { target: Inter | null; t: number } = { target: null, t: 0 };
+  private announced = new Set<number>();
+  private fragments: Fragment[] = [];
 
   /** Teleport light column. `arriving` grows the rigs back in; otherwise they shrink away. */
   private beam(arriving: boolean, done?: () => void) {
@@ -616,6 +630,8 @@ export class Game {
     this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : biomeFor(level?.meta.biome, level?.meta.light);
     const b = this.biome;
     this.map = this.cachedLevel(id);
+    this.announced.clear();
+    this.fragments = level ? levelFragments(level) : [];
     const secret = this.map.rooms.find((r) => r.kind === 'secret');
     const hidden = secret && !this.save.backroom ? secret.i : null;
     this.world = new World(this.map, b, hidden);
@@ -819,10 +835,12 @@ export class Game {
           verb: 'Scan',
           label: room.title,
           sub: room.meta.role ?? room.meta.qualification ?? room.meta.label ?? firstLine(room.body),
+          summary: summarize(room.body),
           object: obj,
           accent: b.light,
           done: () => this.save.scanned.includes(key),
           use: () => this.openRoom(room),
+          scan: this.sceneId === 'github' ? undefined : () => this.markScanned(key),
         });
         break;
       }
@@ -841,10 +859,13 @@ export class Game {
           verb: 'Read',
           label: part.title,
           sub: firstLine(part.body) || part.meta.period || part.meta.org,
+          summary: summarize(part.body) || part.meta.tags?.split(',').slice(0, 6).join(' · '),
+          stat: part.meta.label ? { value: part.title, label: part.meta.label } : undefined,
           object: obj,
           accent,
           done: () => this.save.scanned.includes(key),
           use: () => this.openPart(room, part.id),
+          scan: () => this.markScanned(key),
         });
         break;
       }
@@ -1431,7 +1452,7 @@ export class Game {
       p.room = room;
       p.checkpoint.copy(p.pos);
       const r = this.map.rooms[room];
-      if (r?.title && r.kind !== 'entry' && r.kind !== 'hub') this.store.toast(`▸ ${r.title}`, 'info', 1800);
+      if (r?.title && r.kind !== 'entry' && r.kind !== 'hub') this.enterArea(r);
     }
 
     // Combat
@@ -1468,6 +1489,16 @@ export class Game {
     const cur = this.store.get().prompt;
     if (cur?.label !== prompt?.label || cur?.verb !== prompt?.verb) this.store.set({ prompt });
     if (actions.has('interact') && promptTarget) promptTarget.use();
+    // Walk-up reading: linger in a ring and it scans itself (E still opens the full entry).
+    if (promptTarget?.scan && !promptTarget.done()) {
+      if (this.dwell.target !== promptTarget) this.dwell = { target: promptTarget, t: 0 };
+      this.dwell.t += dt;
+      if (this.dwell.t >= DWELL) {
+        promptTarget.scan();
+        this.floatText(promptTarget.pos.clone().add(new THREE.Vector3(0, 2.2, 0)), 'SCANNED ◆', 'scan');
+        this.dwell = { target: null, t: 0 };
+      }
+    } else this.dwell = { target: null, t: 0 };
 
     // Hearts
     for (let i = this.hearts.length - 1; i >= 0; i--) {
@@ -1761,6 +1792,70 @@ export class Game {
     if (e.hp <= 0) this.killEnemy(e);
   }
 
+  /** First time into a room this visit: a title card, and Xiao Hu tells you what it's about. */
+  private enterArea(r: LevelMap['rooms'][number]) {
+    const level = this.portfolio.levels.find((l) => l.id === this.sceneId);
+    const room = level?.rooms.find((x) => x.id === r.roomId);
+    if (this.announced.has(r.i)) return;
+    this.announced.add(r.i);
+    const intro = room ? roomIntro(room) : null;
+    const area = { eyebrow: intro?.eyebrow ?? '', title: r.title ?? '', sub: intro?.sub ?? '', id: Date.now() };
+    this.store.set({ area });
+    setTimeout(() => this.store.get().area?.id === area.id && this.store.set({ area: null }), 4200);
+    if (intro && !this.tour && !this.store.get().boss && this.bubbleQueue.length < 2) this.say(intro.line, 5200);
+  }
+
+  /** Rising text in the world (skill ups, scans). */
+  private floatText(at: THREE.Vector3, text: string, kind: 'scan' | 'skill' | 'lore' = 'scan') {
+    const el = document.createElement('div');
+    el.className = `g-float ${kind}`;
+    el.textContent = text;
+    const s = this.project(at);
+    el.style.left = `${s.x}px`;
+    el.style.top = `${s.y}px`;
+    this.overlay.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  }
+
+  /** Bots sometimes drop a lore fragment: one fact from this mission you haven't found yet. */
+  private maybeDropFragment(at: THREE.Vector3) {
+    const got = new Set(this.save.fragments ?? []);
+    const left = this.fragments.filter((f) => !got.has(f.id) && !this.inters.some((i) => i.id === `frag:${f.id}`));
+    if (!left.length || Math.random() > 0.35) return;
+    const f = left[Math.floor(Math.random() * left.length)];
+    const x = Math.floor(at.x) + 0.5;
+    const z = Math.floor(at.z) + 0.5;
+    const obj = buildFragment(this.biome.light);
+    this.place(obj, x, z, 0, false);
+    this.spinners.push(obj.children[0]);
+    const it = this.inter({
+      id: `frag:${f.id}`,
+      kind: 'fragment',
+      x,
+      z,
+      radius: 0.9,
+      verb: 'Collect',
+      label: 'Data fragment',
+      object: obj,
+      auto: true,
+      done: () => false,
+      use: () => {
+        this.save.fragments = [...(this.save.fragments ?? []), f.id];
+        this.markDirty();
+        this.removeInter(it);
+        this.level.remove(obj);
+        this.audio.sfx('chip');
+        const card = { eyebrow: `Data fragment · ${f.room}`, title: 'Memory recovered', html: `<p>${escapeHtml(f.text)}</p>`, id: Date.now() };
+        this.store.set({ card });
+        setTimeout(() => this.store.get().card?.id === card.id && this.store.set({ card: null }), 6500);
+        const total = this.fragments.length;
+        const have = this.fragments.filter((x) => this.save.fragments!.includes(x.id)).length;
+        this.floatText(this.player.pos.clone().add(new THREE.Vector3(0, 2.2, 0)), `FRAGMENT ${have}/${total}`, 'lore');
+        if (have === total) this.award('archivist');
+      },
+    });
+  }
+
   /** Floating damage numbers — mini-bosses only. */
   private damageNumber(e: Enemy, dmg: number) {
     const el = document.createElement('div');
@@ -1797,6 +1892,7 @@ export class Game {
       this.spawnPart(e.carry.projectId, e.carry.partId, Math.floor(e.pos.x) + 0.5, Math.floor(e.pos.z) + 0.5);
       this.say('It dropped a part! Grab it.', 2500);
     } else if (Math.random() < (e.boss ? 1 : 0.22)) this.dropHeart(e.pos);
+    else if (!e.boss) this.maybeDropFragment(e.pos);
     if (e.boss) {
       const def = BOSSES[this.sceneId];
       if (!this.save.bosses.includes(this.sceneId)) this.save.bosses.push(this.sceneId);
@@ -2949,6 +3045,7 @@ export class Game {
     for (const s of this.portfolio.site.skills) {
       if ((after[s.id] ?? 0) > (before[s.id] ?? 0)) {
         this.store.toast(`SKILL UP · ${s.name} Lv ${after[s.id]}`, 'skill');
+        if (this.player) this.floatText(this.player.pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 2.4, 0)), `+ ${s.name}`, 'skill');
         this.audio.sfx('skill');
         if (after[s.id] >= s.max) this.award('maxed');
       }
@@ -3064,15 +3161,20 @@ export class Game {
     for (const i of this.inters) {
       if (i.kind === 'cat' || i.kind === 'pad' || i.kind === 'exit') continue;
       const d = i.pos.distanceTo(p);
-      const show = d < 6.5 || (this.scannerT > 0 && d < 14);
+      const show = d < (i.stat ? 11 : 6.5) || (this.scannerT > 0 && d < 14);
       if (!show) {
         if (i.el) i.el.hidden = true;
         continue;
       }
       if (!i.el) {
         i.el = document.createElement('div');
-        i.el.className = 'g-label';
-        i.el.innerHTML = `<span class="t">${escapeHtml(i.label)}</span>${i.sub ? `<span class="s">${escapeHtml(i.sub)}</span>` : ''}`;
+        i.el.className = `g-label${i.stat ? ' stat' : ''}`;
+        const head = i.stat
+          ? `<span class="big">${escapeHtml(i.stat.value)}</span><span class="s">${escapeHtml(i.stat.label)}</span>`
+          : `<span class="t">${escapeHtml(i.label)}</span>${i.sub ? `<span class="s">${escapeHtml(i.sub)}</span>` : ''}`;
+        const more = i.summary && i.summary !== i.sub ? `<span class="x">${escapeHtml(i.summary)}</span>` : '';
+        const bar = i.scan ? '<span class="bar"><i></i></span>' : '';
+        i.el.innerHTML = `${head}${more}${bar}<span class="k">E · ${escapeHtml(i.verb === 'Scan' ? 'Open' : i.verb)} full entry</span>`;
         if (i.accent) i.el.style.setProperty('--accent', i.accent);
         this.overlay.appendChild(i.el);
       }
@@ -3082,6 +3184,7 @@ export class Game {
       i.el.style.opacity = String(Math.max(0.25, Math.min(1, (7 - d) / 3)));
       i.el.classList.toggle('done', i.done());
       i.el.classList.toggle('near', i === near);
+      if (i === near && i.scan) i.el.style.setProperty('--p', String(i.done() ? 1 : this.dwell.target === i ? Math.min(1, this.dwell.t / DWELL) : 0));
     }
     if (!this.bubble.hidden) {
       const s = this.project(this.cat.pos.clone().add(new THREE.Vector3(0, 2.4, 0)));

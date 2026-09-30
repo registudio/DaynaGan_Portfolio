@@ -77,6 +77,8 @@ export type SaveData = {
   catAssists?: number;
   /** Bot fabricators destroyed (ids like `about-fab-0`). */
   spawners?: string[];
+  /** Lore fragments collected from bots. */
+  fragments?: string[];
 };
 
 export const SAVE_KEY = 'dg-save-v2';
@@ -185,6 +187,8 @@ export type Hud = {
   card: { title: string; eyebrow: string; html: string; id: number } | null;
   /** Mission just cleared banner. */
   banner: { title: string; sub: string; id: number } | null;
+  /** Area title card shown on first entering a room. */
+  area: { eyebrow: string; title: string; sub: string; id: number } | null;
   menu: null | 'pause';
   toasts: Toast[];
   save: SaveData;

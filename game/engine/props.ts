@@ -269,6 +269,18 @@ export function buildTerminal(accent: string) {
   return g;
 }
 
+/** Lore fragment dropped by a bot: a small spinning data shard over a glow disc. */
+export function buildFragment(accent: string) {
+  const g = new THREE.Group();
+  const shard = group(g, 0, 0.55, 0);
+  box(0.22, 0.3, 0.06, glow('#e0f2fe', 2.6), 0, 0, 0, shard);
+  box(0.26, 0.05, 0.08, glow(accent, 3), 0, 0.1, 0, shard);
+  shard.userData.spin = 2.4;
+  shard.userData.hover = true;
+  blobShadow(0.22, g);
+  return g;
+}
+
 export function buildPartPickup(accent: string) {
   const g = new THREE.Group();
   blobShadow(0.3, g);

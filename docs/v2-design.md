@@ -229,6 +229,45 @@ Implementation notes are added to the sections below as each lands.
 - *Lighting set pieces* (`game/engine/setpieces.ts`, unlit + additive so they cost no light slots): slanted god-ray shafts in the Spires, a churning molten-solder sea with heat bubbles below the Forge, data waterfalls with glow pools off the Caverns' front edges.
 - *Transitions:* star map zooms into the chosen island with a biome-coloured flash (~0.6 s) → Dayna and Xiao Hu stretch into a teleport light column (beam-out) → on arrival they beam back in with a spark burst. All skipped with Reduced motion.
 
+## Round 2 — bug check, feedback fixes (done)
+
+Owner feedback: combat not fully working, low fps, interacting only "from the front", content only via E + pop-up, uneven mob counts; asked for mob spawners and 10 more gameplay ideas.
+
+**Bugs found & fixed**
+- *Melee missed anything not in front*: keyboard auto-aim only looked in a 60° cone, so a bot beside/behind you was never hit (reproduced in a headless sim: 0 damage over 10 swings). Melee now targets the best bot all the way round and point-blank bots always count.
+- *Swing arc drawn mirrored*: the arc's rotation was the mirror of the real hit direction, so hits looked like misses. Fixed; the drawn arc and the hit test now share one half-angle.
+- *Zap auto-aim* ignored walls (shots into pillars); it now needs line of sight. Mouse aim snaps onto a bot within ~22° of the cursor.
+- *Inputs dropped during hit-stop* (the brief freeze on hits ate combo presses): they're buffered to the next frame.
+- *Bots stacked into one blob*: simple separation push.
+- *Interaction*: the glowing ring was drawn smaller than the trigger zone and centred on the prop, and most terminals hugged the back wall. Rings are now drawn at exactly the trigger radius around the trigger point, the zone you're deepest in wins when zones overlap, and terminals/consoles sit on an inset ring so every circle is walkable from all sides (layout test checks all 8 neighbours).
+- *Terminals silently dropped/overlapping puzzle nodes in crowded rooms*: spots skip claimed cells and fall back to any clear floor; a test asserts every part gets a terminal.
+
+**Performance**: PBR → Lambert/unlit materials (the biggest per-pixel cost), bloom computed at half resolution (radius retuned), pixel ratio capped at 1.25×, weak-GPU detection (software renderers, older Intel HD/UHD, Mali, Adreno ≤5xx, PowerVR start on Low), 6/4 pooled lights, and automatic quality tiers when frames stay slow at the lowest resolution: shadows off → fewer lights → bloom off. In the software-renderer test, render time per frame dropped ~40% at equal resolution and fps roughly doubled once tiers engaged.
+
+**Mobs**: every mission now has bots — Spires *pop-quiz drones* (drones + wisps), Trophy Hall *dust bots* (crawlers + packets), Commons *pest bugs* (bugs + crawlers); About raised to the same 2–3 per room as the rest.
+
+**Bot fabricators (spawners)**: destructible hazard-striped pads (14 HP) in 2–3 rooms per mission, never in the entry or mini-boss room. While you're in their room they print one of the mission's bots every ~4.5 s (cap 3, +1 on Hard, slower on Story) until destroyed; destroying one drops a heart, is saved, shows on the minimap, and 5 of them unlock *Supply Chain Attack*. Off in Peaceful mode.
+
+**New ways content is conveyed** (besides E → panel):
+1. *Walk-up hologram cards* — step into a ring and the label expands into a card with a one-to-two-sentence summary; linger ~1.3 s and it scans itself (progress + skill gains), E still opens the full entry.
+2. *Area title cards + narration* — entering a room shows its name, role · org · dates, and a one-line summary; Xiao Hu reads out the room's first line.
+3. *Stat holograms* — stat parts (GPA 3.97, 100+ Nav2 runs, 80+ volunteers…) float as big readouts visible from across the room.
+4. *Skill pop-ups* — "+ ROS 2", "+ CAD" rise over Dayna when a scan levels a skill.
+5. *Data fragments* — bots sometimes drop a shard with one fact from the mission (saved; collect all in a mission for *Archivist*).
+All text is derived from `portfolio.md` (`game/engine/lore.ts`, unit-tested), so editing the markdown updates every channel.
+
+### Gameplay ideas — round 2 (suggested, not built)
+1. **Mod chips** — bots/fabricators drop chips that upgrade the wrench and solder beam (chain arc, wider swing, faster cooldown), named after Dayna's real skills; slot 3 at a time (Minecraft Dungeons-style enchantments).
+2. **Hold-the-line assembly** — building a project in its vault starts a 45 s defence wave while the assembly bar fills.
+3. **Elite bots** — rare overclocked variants with an affix (shielded, splitting, haste, magnetic) and better drops.
+4. **Interactive hazards** — conveyor belts, timed laser grids, explosive capacitors you can knock into mobs, EMP floor tiles.
+5. **Parry** — a well-timed wrench swing reflects projectiles back at the shooter.
+6. **Daily Circuit** — a seeded daily remix of rooms with a modifier (glass cannon, double speed, no beam) and a local best time.
+7. **Golden screws** — 3 hidden collectibles per mission behind breakable crates/false walls; unlock a cosmetic.
+8. **Xiao Hu upgrades** — clearing missions teaches her new tricks: a hiss that stuns a group, bigger fetch radius, *nine lives* (one free revive).
+9. **Knowledge checks** — an optional one-question quiz after a room ("Which simulator did Dayna evaluate at A*STAR?") for bonus chips; reinforces the content.
+10. **Mission ranks & NG+** — S/A/B rank per mission (time, damage taken, fragments, fabricators) and a Hard+ remix after the credits.
+
 ## Improvement backlog (suggested)
 
 ### Performance

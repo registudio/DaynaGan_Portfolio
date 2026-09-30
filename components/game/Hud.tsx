@@ -83,6 +83,14 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
         </div>
       )}
 
+      {hud.area && !hud.banner && !hud.boss && (
+        <div className="g-area" key={hud.area.id}>
+          {hud.area.eyebrow && <small>{hud.area.eyebrow}</small>}
+          <b>{hud.area.title}</b>
+          {hud.area.sub && <span>{hud.area.sub}</span>}
+        </div>
+      )}
+
       {hud.banner && (
         <div className="g-banner" key={hud.banner.id}>
           <b>{hud.banner.title}</b>
