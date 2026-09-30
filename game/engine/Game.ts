@@ -66,15 +66,11 @@ import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
 import { rng } from './rng.ts';
 import { buildSetPiece, type SetPiece } from './setpieces.ts';
-<<<<<<< Updated upstream
 import { buildStarMapTable } from './starmap3d.ts';
 import { TRIAL_INFO, type TrialType } from './trials.ts';
 import { buildPlanet, REGIONS, type PlanetMap, type PlanetPuzzle } from './planet.ts';
 import { buildDecor, buildMonument, buildNatureGate, buildPiece, runeColour } from './nature.ts';
-import { loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
-=======
 import { emptySave, loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
->>>>>>> Stashed changes
 import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
 import { glow, UNIT_BOX } from './voxels.ts';
 import { canStep } from './terrain.ts';
@@ -4215,13 +4211,9 @@ export class Game {
     const level = this.portfolio.levels.find((l) => l.id === id);
     const gear = GEAR.find((g) => g.from === id);
     this.store.set({ banner: { title: 'MISSION CLEARED', sub: level?.meta.mission ?? level?.title ?? '', id: Date.now() } });
-<<<<<<< Updated upstream
     this.shake = Math.max(this.shake, 0.4);
     this.openHomePortal(true);
-    setTimeout(() => this.store.set({ banner: null }), 3800);
-=======
     this.defer(() => this.store.set({ banner: null }), 3800);
->>>>>>> Stashed changes
     this.audio.sfx('build');
     if (gear) this.defer(() => this.store.toast(`NEW GEAR · ${gear.name} — ${gear.desc}`, 'gear', 5000), 1200);
     if (gear?.id === 'firewall') {

@@ -1672,7 +1672,6 @@ div.g-sub {
   }
 }
 
-<<<<<<< Updated upstream
 .g-label.banner {
   padding: 3px 10px 4px;
   max-width: 220px;
@@ -1713,7 +1712,7 @@ div.g-sub {
   padding-left: 18px;
   display: grid;
   gap: 4px;
-=======
+}
 /* Stylized exploration interface: independent text, HUD and panel controls. */
 .g-root { font-family: var(--sans, system-ui), sans-serif; }
 .g-top-left { transform: scale(var(--hud-scale, 1)); transform-origin: top left; }
@@ -1754,5 +1753,4 @@ div.g-sub {
   .g-next-step { max-width: 160px; font-size: 11px; }
   .g-hotbar { max-width: 96vw; }
   .g-panel { border-radius: 10px; }
->>>>>>> Stashed changes
 }

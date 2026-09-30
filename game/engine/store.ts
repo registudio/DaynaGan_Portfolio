@@ -83,16 +83,13 @@ export type SaveData = {
   spawners?: string[];
   /** Lore fragments collected from bots. */
   fragments?: string[];
-<<<<<<< Updated upstream
   /** Trial rooms completed (ids like `about-trial-0`). */
   trials?: string[];
   /** Planet Aurora: landmarks read, puzzles solved, regions discovered. */
   planet?: { seen: string[]; solved: string[]; regions: string[] };
-=======
   trackedProject?: string | null;
   labs?: string[];
   practiced?: string[];
->>>>>>> Stashed changes
 };
 
 export const SAVE_KEY = 'dg-save-v2';
