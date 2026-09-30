@@ -600,6 +600,8 @@ export class Game {
     this.spinners = [];
     this.staticRoots = [];
     this.puzzle = null;
+    this.homeSpot = null;
+    this.homePortals = 0;
     this.assembly = null;
     this.hazards = [];
     this.catBed = null;
@@ -801,6 +803,11 @@ export class Game {
   }
 
   private inter(i: Omit<Inter, 'pos'> & { x: number; z: number }) {
+    // The trigger (and its ring) always sits directly under the object it belongs to.
+    if (i.object && i.object !== this.level) {
+      i.x = i.object.position.x;
+      i.z = i.object.position.z;
+    }
     const h = this.world!.heightAt(i.x, i.z);
     const it: Inter = { ...i, pos: new THREE.Vector3(i.x, h, i.z) };
     // Replace the prop's decorative ring with one that matches the real trigger zone,
@@ -1154,14 +1161,82 @@ export class Game {
         const type = s.type as EnemyType;
         const e = this.addEnemy('spawner', s.x, s.z, s.room, ENEMY[type]?.color);
         e.fab = { type, id: s.id, kids: [], t: 1.5 };
+        // Shield bubble: up whenever Dayna isn't inside the fabricator's room (no sniping from doorways).
+        const shield = new THREE.Mesh(
+          new THREE.BoxGeometry(2.1, 2.2, 2.1),
+          new THREE.MeshBasicMaterial({ color: '#7dd3fc', transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending }),
+        );
+        shield.position.y = 1.1;
+        e.rig.root.add(shield);
+        e.rig.parts.shield = shield;
         break;
       }
       case 'hazard':
         this.spawnHazard(s);
         break;
+      case 'home':
+        this.homeSpot = { x: s.x, z: s.z };
+        if (this.save.cleared.includes(this.sceneId)) this.openHomePortal(false);
+        break;
       case 'hub':
         this.spawnHub(s);
         break;
+    }
+  }
+
+  // ── Portal home ─────────────────────────────────────────────────────────────
+
+  private homeSpot: { x: number; z: number } | null = null;
+  private homePortals = 0;
+
+  /**
+   * A golden portal back to the orbital station: in the level's last room once cleared, and
+   * (right after clearing) one beside Dayna too, so nobody has to walk back to the entrance.
+   */
+  private openHomePortal(besidePlayer: boolean) {
+    if (this.sceneId === 'hub' || this.homePortals >= 2) return;
+    const spots: { x: number; z: number }[] = [];
+    if (this.homeSpot && !this.inters.some((i) => i.id === 'home:0')) spots.push(this.homeSpot);
+    if (besidePlayer) {
+      const p = this.player.pos;
+      for (let a = 0; a < 8; a++) {
+        const x = Math.floor(p.x + Math.cos(a * 0.8) * 2.2) + 0.5;
+        const z = Math.floor(p.z + Math.sin(a * 0.8) * 2.2) + 0.5;
+        if (!this.world!.solid(x, z) && !this.world!.solid(x + 0.6, z) && !this.world!.solid(x, z + 0.6)) {
+          spots.push({ x, z });
+          break;
+        }
+      }
+    }
+    for (const sp of spots) {
+      const n = this.homePortals++;
+      const obj = buildExitPad('#fbbf24');
+      this.place(obj, sp.x, sp.z, 0, false);
+      this.bursts.spawn(new THREE.Vector3(sp.x, this.world!.heightAt(sp.x, sp.z) + 0.8, sp.z), '#fde68a', 24, 3.5);
+      let armed = false;
+      this.inter({
+        id: `home:${n}`,
+        kind: 'exit',
+        x: sp.x,
+        z: sp.z,
+        radius: 0.9,
+        verb: 'Teleport',
+        label: 'Portal home',
+        object: obj,
+        auto: true,
+        done: () => false,
+        // Only fires once you've stepped off and back on, so it never whisks you away as it opens.
+        enabled: () => {
+          const d = Math.hypot(this.player.pos.x - sp.x, this.player.pos.z - sp.z);
+          if (d > 1.6) armed = true;
+          return armed && !this.touring;
+        },
+        use: () => this.travel('hub'),
+      });
+    }
+    if (besidePlayer && spots.length) {
+      this.shake = Math.max(this.shake, 0.3);
+      setTimeout(() => this.say('A portal home just opened — step in when you are ready!', 3500), 1800);
     }
   }
 
@@ -1316,7 +1391,7 @@ export class Game {
     switch (s.what) {
       case 'starmap': {
         const obj = this.place(buildStarMap(), s.x, s.z);
-        this.inter({ id: 'starmap', kind: 'starmap', x: s.x, z: s.z + 1.4, radius: 1.8, verb: 'Open', label: 'Star map', sub: 'Choose a mission', object: obj, accent: '#a78bfa', done: () => false, use: () => this.openStarMap() });
+        this.inter({ id: 'starmap', kind: 'starmap', x: s.x, z: s.z, radius: 2.3, verb: 'Open', label: 'Star map', sub: 'Choose a mission', object: obj, accent: '#a78bfa', done: () => false, use: () => this.openStarMap() });
         break;
       }
       case 'pad': {
@@ -1331,7 +1406,7 @@ export class Game {
           kind: 'bunk',
           x: s.x + 0.6,
           z: s.z + 1.4,
-          radius: 1.4,
+          radius: 1.9,
           verb: 'Read',
           label: "Dayna's bunk",
           sub: 'Résumé on the desk',
@@ -1415,7 +1490,7 @@ export class Game {
           kind: 'vendor',
           x: s.x - 1.2,
           z: s.z,
-          radius: 1.4,
+          radius: 1.9,
           verb: 'Browse',
           label: 'Vendor stall',
           sub: 'Closed — coming soon',
@@ -1930,6 +2005,14 @@ export class Game {
   }
 
   private damageEnemy(e: Enemy, dmg: number, dir?: THREE.Vector3, knock = 0.3) {
+    if (e.fab && this.world!.roomAt(this.player.pos.x, this.player.pos.z) !== e.room) {
+      this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), '#7dd3fc', 6, 2);
+      if (!this.cooldowns.shieldHint) {
+        this.cooldowns.shieldHint = 6;
+        this.say("It's shielded from out here — we have to go inside that room!", 3000);
+      }
+      return;
+    }
     e.hp -= dmg;
     e.flash = 0.12;
     this.audio.sfx('hit');
@@ -2043,6 +2126,7 @@ export class Game {
       const left = this.enemies.filter((x) => x.fab).length;
       this.store.toast(left ? `Fabricator destroyed — ${left} left in this mission` : 'All fabricators in this mission destroyed', 'info');
       this.pulse(e.spec.color, 2.5);
+      this.shake = Math.max(this.shake, 0.35);
     } else if (e.carry) {
       this.spawnPart(e.carry.projectId, e.carry.partId, Math.floor(e.pos.x) + 0.5, Math.floor(e.pos.z) + 0.5);
       this.say('It dropped a part! Grab it.', 2500);
@@ -2151,6 +2235,11 @@ export class Game {
   /** Run a wound-up attack. */
   private attack(e: Enemy, kind: string) {
     const p = this.player;
+    // Heavy boss moves rattle the camera (scaled by distance).
+    if (e.boss && (kind === 'ring' || kind === 'lunge' || kind === 'summon' || kind === 'blink')) {
+      const near = Math.max(0, 1 - e.pos.distanceTo(p.pos) / 14);
+      this.shake = Math.max(this.shake, (kind === 'ring' ? 0.35 : 0.22) * (0.4 + near));
+    }
     const toP = p.pos.clone().sub(e.pos).setY(0).normalize();
     const d = this.difficulty();
     switch (kind) {
@@ -2232,6 +2321,11 @@ export class Game {
       if (e.fab) {
         e.rig.root.scale.setScalar(e.flash > 0 ? 1.08 : 1);
         const d2 = e.pos.distanceToSquared(p.pos);
+        const shield = e.rig.parts.shield;
+        if (shield) {
+          shield.visible = playerRoom !== e.room;
+          shield.rotation.y += dt * 0.6;
+        }
         this.updateSpawner(e, dt, p.dead <= 0 && !this.touring && (e.room === playerRoom || d2 < e.spec.aggro * e.spec.aggro));
         continue;
       }
@@ -2349,6 +2443,7 @@ export class Game {
       if (bossPlate) {
         this.audio.sfx('emp');
         this.say(`Careful — the ${bossPlate.name}! Watch for the red warnings and dodge.`, 3500, true);
+        this.shake = Math.max(this.shake, 0.55);
       }
     }
   }
@@ -3358,6 +3453,8 @@ export class Game {
     const level = this.portfolio.levels.find((l) => l.id === id);
     const gear = GEAR.find((g) => g.from === id);
     this.store.set({ banner: { title: 'MISSION CLEARED', sub: level?.meta.mission ?? level?.title ?? '', id: Date.now() } });
+    this.shake = Math.max(this.shake, 0.4);
+    this.openHomePortal(true);
     setTimeout(() => this.store.set({ banner: null }), 3800);
     this.audio.sfx('build');
     if (gear) setTimeout(() => this.store.toast(`NEW GEAR · ${gear.name} — ${gear.desc}`, 'gear', 5000), 1200);
@@ -3452,11 +3549,28 @@ export class Game {
     if (!this.player) return;
     const p = this.player.pos;
     const near = this.nearestInter();
+    // Only label what belongs to the room you're in (or is right next to you), nearest first,
+    // capped so labels never pile up or float over other rooms and floors.
+    const here = this.world!.roomAt(p.x, p.z);
+    const shown = new Set<Inter>();
+    const cands = this.inters
+      .filter((i) => {
+        if (i.kind === 'cat' || i.kind === 'pad' || i.kind === 'exit') return false;
+        const d = Math.hypot(i.pos.x - p.x, i.pos.z - p.z);
+        if (Math.abs(i.pos.y - p.y) > 1.6) return false;
+        if (i.auto) return d < 2.5;
+        const sameRoom = here >= 0 && this.world!.roomAt(i.pos.x, i.pos.z) === here;
+        if (i === near || d < 3.2) return true;
+        if (!sameRoom && !(this.scannerT > 0 && d < 14)) return false;
+        return d < (i.stat ? 11 : 4.5);
+      })
+      .sort((a, b) => a.pos.distanceToSquared(p) - b.pos.distanceToSquared(p));
+    for (const i of cands.slice(0, 3)) shown.add(i);
+    for (const i of cands) if (i.stat) shown.add(i);
     for (const i of this.inters) {
       if (i.kind === 'cat' || i.kind === 'pad' || i.kind === 'exit') continue;
       const d = i.pos.distanceTo(p);
-      const show = d < (i.stat ? 11 : 6.5) || (this.scannerT > 0 && d < 14);
-      if (!show) {
+      if (!shown.has(i)) {
         if (i.el) i.el.hidden = true;
         continue;
       }

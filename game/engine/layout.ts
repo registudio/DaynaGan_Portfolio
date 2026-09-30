@@ -52,6 +52,7 @@ export type Spawn =
   | { kind: 'dish'; x: number; z: number }
   | { kind: 'transmitter'; x: number; z: number }
   | { kind: 'exit'; x: number; z: number }
+  | { kind: 'home'; x: number; z: number }
   | { kind: 'enemy'; x: number; z: number; type: string; room: number }
   | { kind: 'boss'; x: number; z: number; room: number; type: string }
   | { kind: 'spawner'; id: string; x: number; z: number; room: number; type: string }
@@ -327,8 +328,9 @@ function enemyTypes(level: Level): string[] {
 }
 
 function roomSize(parts: number): { w: number; d: number } {
-  const w = Math.min(19, Math.max(11, 7 + Math.ceil(parts / 2) * 3));
-  return { w, d: parts > 6 ? 13 : 11 };
+  // Roomy enough that terminals, their rings and a fight all fit without crowding.
+  const w = Math.min(23, Math.max(13, 9 + Math.ceil(parts / 2) * 3));
+  return { w, d: parts > 6 ? 15 : 13 };
 }
 
 function spawnEnemies(b: Builder, level: Level, rand: () => number, peaceful: boolean, rooms: RoomRect[], count = 2) {
@@ -368,10 +370,10 @@ export function buildLevel(
   const b = new Builder();
   const climb = BIOMES[biome]?.climb ?? 0;
 
-  const specs: RoomSpec[] = [{ w: 11, d: 11, kind: 'entry', title: level.title }];
+  const specs: RoomSpec[] = [{ w: 12, d: 12, kind: 'entry', title: level.title }];
   if (levelId === 'projects') {
-    specs.push({ w: 19, d: 15, kind: 'cavern', title: 'Parts Cavern' });
-    for (const r of level.rooms) specs.push({ w: 11, d: 11, kind: 'vault', roomId: r.id, title: r.title });
+    specs.push({ w: 23, d: 18, kind: 'cavern', title: 'Parts Cavern' });
+    for (const r of level.rooms) specs.push({ w: 14, d: 13, kind: 'vault', roomId: r.id, title: r.title });
   } else if (levelId === 'trophies') {
     const order = ['awards', 'skill-matrix', 'shelves'];
     for (const id of order) {
@@ -379,8 +381,8 @@ export function buildLevel(
       if (r) specs.push({ ...roomSize(id === 'awards' ? r.parts.length : 6), kind: 'content', roomId: r.id, title: r.title });
     }
   } else if (levelId === 'contact') {
-    specs.push({ w: 15, d: 15, kind: 'content', roomId: 'relays', title: 'Relay Field' });
-    for (const r of level.rooms) specs.push({ w: 13, d: 13, kind: 'content', roomId: r.id, title: r.title });
+    specs.push({ w: 17, d: 17, kind: 'content', roomId: 'relays', title: 'Relay Field' });
+    for (const r of level.rooms) specs.push({ w: 14, d: 14, kind: 'content', roomId: r.id, title: r.title });
   } else {
     for (const r of level.rooms) specs.push({ ...roomSize(r.parts.length), kind: 'content', roomId: r.id, title: r.title });
   }
@@ -431,6 +433,13 @@ export function buildLevel(
     placeSpawners(b, level, levelId, rooms, rand);
   } else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
   placeHazards(b, levelId, rooms, rand);
+  // Portal home in the last room (opens once the mission is cleared).
+  const last = [...rooms].reverse().find((r) => r.kind !== 'secret' && r.kind !== 'entry');
+  const hp = last && (b.randomFree(last, rand, 1, 2) ?? b.randomFree(last, rand, 0, 2));
+  if (hp) {
+    b.claim(hp.x, hp.z, 1);
+    b.spawns.push({ kind: 'home', x: hp.x, z: hp.z });
+  }
   b.decorate(biome, rand, levelId === 'trophies' ? 0.1 : 0.16);
   return b.result(levelId, biome, spawn);
 }

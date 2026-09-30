@@ -91,7 +91,7 @@ export default function Splash({
             {remembered === 'game' && <small>last played</small>}
           </button>
           <button className="pixel-btn alt" onClick={() => onChoose('pro')}>
-            ☰ VIEW PROFILE
+            PROFESSIONAL MODE
           </button>
           <button className="pixel-btn alt tour" onClick={() => onChoose('game', 'tour')} title="Xiao Hu walks you through every mission">
             ⏱ QUICK TOUR <small>~4 min, hands-free</small>

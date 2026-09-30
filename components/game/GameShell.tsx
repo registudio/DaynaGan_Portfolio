@@ -61,7 +61,7 @@ export default function GameShell({
       <div className="g-root g-error">
         <p>{error}</p>
         <button className="pixel-btn" onClick={() => onExit('pro')}>
-          ☰ View profile instead
+          Professional Mode instead
         </button>
       </div>
     );

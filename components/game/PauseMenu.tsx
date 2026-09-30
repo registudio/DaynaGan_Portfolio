@@ -54,7 +54,7 @@ export default function PauseMenu({ game, hud }: { game: Game; hud: Hud }) {
               ⏱ Quick tour
             </button>
             <button className="g-btn" onClick={() => game.exit('pro')}>
-              ☰ Professional mode
+              Professional Mode
             </button>
           </div>
         </div>
@@ -117,7 +117,7 @@ function Codex({ game, hud }: { game: Game; hud: Hud }) {
                   game.exit('pro', proAnchor(id));
                 }}
               >
-                Profile ↗
+                Professional Mode ↗
               </button>
             </summary>
             <ul>
