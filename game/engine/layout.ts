@@ -736,6 +736,12 @@ function buildHub(): LevelMap {
     }
   };
   put('starmap', cx, cz - 1);
+  // The holo-table is ~3×3: make its whole footprint solid.
+  for (let dx = -1; dx <= 1; dx++)
+    for (let dz = -1; dz <= 1; dz++) {
+      const c = b.cell(Math.floor(cx) + dx, Math.floor(cz - 1) + dz);
+      if (c) c.solid = true;
+    }
   put('pad', cx, cz + 3, false);
   put('bunk', room.x + 2, room.z + 2);
   put('catbed', room.x + 4.5, room.z + 1.5);

@@ -5,6 +5,9 @@ import { biomeFor } from '@/game/engine/biomes';
 import type { Game } from '@/game/engine/Game';
 import { chips, clearedCount, contactUnlocked, MISSION_ORDER } from '@/game/engine/missions';
 import type { Hud } from '@/game/engine/store';
+import type { Biome } from '@/game/engine/biomes';
+import type { LevelMap } from '@/game/engine/layout';
+import { memo } from 'react';
 
 /** Isometric "world map" of floating mission islands around the station (MC Dungeons-style). */
 
@@ -88,11 +91,7 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
                 onKeyDown={(e) => e.key === 'Enter' && setFocus(id)}
                 aria-label={`${l.title}${cleared ? ', cleared' : ''}${isLocked ? ', locked' : ''}`}
               >
-                <polygon points={`${-w},0 0,${h} 0,${h + 26} ${-w},26`} fill={shade(b.cliff, 1.6)} />
-                <polygon points={`${w},0 0,${h} 0,${h + 26} ${w},26`} fill={shade(b.cliff, 1.1)} />
-                <polygon points={`0,${-h} ${w},0 0,${h} ${-w},0`} fill={top} stroke={b.light} strokeWidth={focus === id ? 3 : 1.5} />
-                <rect x={-6} y={-h * 0.4 - 16} width={12} height={16} fill={b.light} opacity={0.9} />
-                <rect x={-3} y={-h * 0.4 - 24} width={6} height={8} fill="#fff" opacity={0.85} />
+                <IslandLayout map={game.levelPreview(id)} biome={b} locked={isLocked} focused={focus === id} />
                 {/* Badge */}
                 <g transform={`translate(0 ${-h - 22})`}>
                   <polygon points="0,-13 11,-6 11,6 0,13 -11,6 -11,-6" fill={isLocked ? '#334155' : cleared ? '#fbbf24' : '#1e1b2e'} stroke={b.light} strokeWidth={2} />
@@ -142,3 +141,90 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
     </div>
   );
 }
+
+const FLOOR = 1;
+const WALL = 2;
+
+/**
+ * An isometric miniature of a mission's actual layout: terraces, walls, glowing paths and cliff
+ * sides in the biome's colours, plus markers for the mini-boss, fabricators, the puzzle gate and
+ * the portal home.
+ */
+const IslandLayout = memo(function IslandLayout({ map, biome, locked, focused }: { map: LevelMap; biome: Biome; locked: boolean; focused: boolean }) {
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  map.cells.forEach((c, i) => {
+    if (c.t === 0) return;
+    const x = i % map.w;
+    const z = Math.floor(i / map.w);
+    x0 = Math.min(x0, x);
+    z0 = Math.min(z0, z);
+    x1 = Math.max(x1, x);
+    z1 = Math.max(z1, z);
+  });
+  const W = x1 - x0 + 1;
+  const D = z1 - z0 + 1;
+  const k = 150 / (W + D);
+  const cx = x0 + W / 2;
+  const cz = z0 + D / 2;
+  const P = (x: number, z: number, h: number) => [((x - cx) - (z - cz)) * k, ((x - cx) + (z - cz)) * k * 0.5 - h * k * 0.9] as const;
+  const at = (x: number, z: number) => (x < 0 || z < 0 || x >= map.w || z >= map.d ? undefined : map.cells[z * map.w + x]);
+  const grey = '#3f3f46';
+  const col = (hex: string, f: number) => (locked ? grey : shade(hex, f));
+  const paths = new Map<string, string[]>();
+  const add = (fill: string, pts: (readonly [number, number])[]) => {
+    const d = `M${pts.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join('L')}Z`;
+    (paths.get(fill) ?? paths.set(fill, []).get(fill)!).push(d);
+  };
+  // Painter's order: back (low x+z) to front.
+  const cells: { x: number; z: number; t: number; h: number; surf: string }[] = [];
+  map.cells.forEach((c, i) => {
+    if (c.t !== FLOOR && c.t !== WALL) return;
+    cells.push({ x: i % map.w, z: Math.floor(i / map.w), t: c.t, h: c.h + (c.t === WALL ? 1.6 : 0), surf: c.surf });
+  });
+  cells.sort((a, b) => a.x + a.z - (b.x + b.z) || a.h - b.h);
+  const DEPTH = 2.2;
+  for (const c of cells) {
+    const top = c.t === WALL ? col(biome.wall.color, 1.5) : c.surf === 'path' || c.surf === 'glow' ? (locked ? '#52525b' : biome.light) : col(c.surf === 'alt' ? biome.floorAlt.color : biome.floor.color, 1.9 + c.h * 0.08);
+    const { x, z, h } = c;
+    const ex = at(x + 1, z);
+    const sz = at(x, z + 1);
+    // Right (+x) and front (+z) faces down to the neighbour or the island base.
+    const drop = (n: ReturnType<typeof at>) => (!n || n.t === 0 ? -DEPTH : n.h + (n.t === WALL ? 1.6 : 0));
+    const dx = drop(ex);
+    if (dx < h) add(col(c.t === WALL ? biome.wall.color : biome.cliff, c.t === WALL ? 1.0 : 1.3), [P(x + 1, z, h), P(x + 1, z + 1, h), P(x + 1, z + 1, dx), P(x + 1, z, dx)]);
+    const dz = drop(sz);
+    if (dz < h) add(col(c.t === WALL ? biome.wall.color : biome.cliff, c.t === WALL ? 0.75 : 0.9), [P(x, z + 1, h), P(x + 1, z + 1, h), P(x + 1, z + 1, dz), P(x, z + 1, dz)]);
+    add(top, [P(x, z, h), P(x + 1, z, h), P(x + 1, z + 1, h), P(x, z + 1, h)]);
+  }
+  const marks = map.spawns.flatMap((s) => {
+    if (s.kind !== 'boss' && s.kind !== 'spawner' && s.kind !== 'barrier' && s.kind !== 'home') return [];
+    const c = at(Math.floor(s.x), Math.floor(s.z));
+    const [mx, my] = P(s.x, s.z, (c?.h ?? 0) + 0.2);
+    return [{ kind: s.kind, x: mx, y: my }];
+  });
+  return (
+    <g className={`g-island${focused ? ' on' : ''}`}>
+      <ellipse cx={0} cy={k * (W + D) * 0.28} rx={k * (W + D) * 0.42} ry={k * (W + D) * 0.12} fill="#000" opacity={0.35} />
+      {[...paths.entries()].map(([fill, ds]) => (
+        <path key={fill} d={ds.join('')} fill={fill} />
+      ))}
+      {marks.map((m, i) =>
+        m.kind === 'boss' ? (
+          <g key={i} transform={`translate(${m.x} ${m.y - 6})`}>
+            <circle r={5} fill="#7f1d1d" stroke="#fca5a5" strokeWidth={1} />
+            <text y={3} textAnchor="middle" fontSize={7} fill="#fecaca">☠</text>
+          </g>
+        ) : m.kind === 'spawner' ? (
+          <rect key={i} x={m.x - 2.5} y={m.y - 5} width={5} height={5} fill="#f43f5e" transform={`rotate(45 ${m.x} ${m.y - 2.5})`} />
+        ) : m.kind === 'barrier' ? (
+          <rect key={i} x={m.x - 4} y={m.y - 3} width={8} height={3} fill="#ef4444" />
+        ) : (
+          <circle key={i} cx={m.x} cy={m.y - 1} r={3} fill="none" stroke="#fbbf24" strokeWidth={1.4} />
+        ),
+      )}
+    </g>
+  );
+});

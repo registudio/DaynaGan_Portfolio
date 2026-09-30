@@ -47,7 +47,6 @@ import {
   buildProp,
   buildRelay,
   buildRepoRack,
-  buildStarMap,
   buildTerminal,
   buildVendor,
   contributionTile,
@@ -60,6 +59,7 @@ import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
 import { rng } from './rng.ts';
 import { buildSetPiece, type SetPiece } from './setpieces.ts';
+import { buildStarMapTable } from './starmap3d.ts';
 import { loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
 import { glow } from './voxels.ts';
@@ -627,6 +627,13 @@ export class Game {
   private levelCache = new Map<string, LevelMap>();
 
   /** Level layouts are deterministic; build once per session and hand out copies (secrets mutate cells). */
+  /** Read-only layout for previews (star map). Don't mutate the result. */
+  levelPreview(id: string): LevelMap {
+    const key = `${id}|${this.settings.peaceful}`;
+    if (!this.levelCache.has(key)) this.cachedLevel(id);
+    return this.levelCache.get(key)!;
+  }
+
   private cachedLevel(id: string): LevelMap {
     const key = `${id}|${this.settings.peaceful}`;
     let map = this.levelCache.get(key);
@@ -1390,8 +1397,14 @@ export class Game {
     const name = this.portfolio.site.companion.name;
     switch (s.what) {
       case 'starmap': {
-        const obj = this.place(buildStarMap(), s.x, s.z);
-        this.inter({ id: 'starmap', kind: 'starmap', x: s.x, z: s.z, radius: 2.3, verb: 'Open', label: 'Star map', sub: 'Choose a mission', object: obj, accent: '#a78bfa', done: () => false, use: () => this.openStarMap() });
+        const islands = MISSION_ORDER.flatMap((id) => {
+          const l = this.portfolio.levels.find((x) => x.id === id);
+          if (!l) return [];
+          return [{ id, map: this.levelPreview(id), biome: biomeFor(l.meta.biome, l.meta.light), cleared: this.save.cleared.includes(id), locked: id === 'contact' && !contactUnlocked(this.portfolio, this.save) }];
+        });
+        const hubSpec = { id: 'hub', map: this.levelPreview('hub'), biome: biomeFor('orbital-station', '#a78bfa'), cleared: false, locked: false };
+        const obj = this.place(buildStarMapTable(islands, hubSpec), s.x, s.z, 0, false);
+        this.inter({ id: 'starmap', kind: 'starmap', x: s.x, z: s.z, radius: 2.6, verb: 'Open', label: 'Star map', sub: 'Choose a mission', object: obj, accent: '#a78bfa', done: () => false, use: () => this.openStarMap() });
         break;
       }
       case 'pad': {
