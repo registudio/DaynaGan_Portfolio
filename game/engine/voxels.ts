@@ -8,6 +8,7 @@ const unit = new RoundedBoxGeometry(1, 1, 1, 1, 0.035);
 /** Shared unit cube used by every voxel box (lets static props be batched). */
 export const UNIT_BOX = unit;
 const mats = new Map<string, THREE.Material>();
+export const RELIEF = new Set<Pattern>(['plate', 'grate', 'panel', 'vent', 'tread', 'server', 'stone', 'tile', 'hex']);
 
 export type MatOpts = { emissive?: string | number; intensity?: number; pattern?: Pattern; accent?: string; metal?: number; rough?: number; transparent?: number; res?: 8 | 16 };
 
@@ -30,6 +31,11 @@ export function mat(color: string, o: MatOpts = {}): THREE.Material {
   const m = o.metal != null || o.rough != null
     ? new THREE.MeshStandardMaterial({ ...options, metalness: o.metal ?? 0.15, roughness: o.rough ?? 0.65 })
     : new THREE.MeshLambertMaterial(options);
+  // Selective relief: engineered surfaces get a subtle bump from their own pattern.
+  if (o.pattern && RELIEF.has(o.pattern) && !o.transparent) {
+    (m as THREE.MeshLambertMaterial).bumpMap = options.map;
+    (m as THREE.MeshLambertMaterial).bumpScale = 1.4;
+  }
   m.userData.shared = true;
   mats.set(key, m);
   return m;

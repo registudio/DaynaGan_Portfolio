@@ -7,6 +7,9 @@ import { rng } from './rng.ts';
  * nature puzzle (vine bridge, rune order, glow-spores, lava levers, pearls, ice chimes, sun mirrors).
  */
 
+/** Sky-island height: high enough to feel afloat, low enough to reach by half-block stairs. */
+const SKY_H = 4;
+
 export type PlanetPuzzleKind = 'toggle' | 'sequence' | 'collect' | 'rotate';
 export type GateKind = 'bridge' | 'wall' | 'lava';
 
@@ -45,7 +48,7 @@ export const REGIONS: RegionDef[] = [
   },
   {
     id: 'sky', name: 'Floating Sky Islands', blurb: 'Grassy islands adrift above the sea, waterfalls pouring off their edges.',
-    sections: ['hobbies'], terrain: 'sky', angle: 0, radius: 58, base: 6, light: '#7dd3fc',
+    sections: ['hobbies'], terrain: 'sky', angle: 0, radius: 58, base: SKY_H, light: '#7dd3fc',
     puzzle: { kind: 'toggle', n: 3, piece: 'sprout', name: 'Vine Bridge', hint: 'Water the three sprouts on the cliff edge and the vines will grow a bridge.', gate: 'bridge', gateMat: 'bridge' },
     decor: [['oak', 0.02], ['flowers', 0.08], ['bush', 0.02]],
   },
@@ -196,7 +199,7 @@ export function buildPlanet(): PlanetMap {
         c.t = FLOOR;
         c.room = skyI;
         c.mat = 'sky';
-        c.h = 6;
+        c.h = SKY_H;
         c.surf = (x + z) % 2 ? 'alt' : 'floor';
         sky.push({ x, z });
       }
@@ -223,8 +226,8 @@ export function buildPlanet(): PlanetMap {
     }
     return out;
   };
-  walk(islets[0].x, islets[0].z, islets[1].x, islets[1].z, 'bridge', 6, skyI);
-  walk(islets[0].x, islets[0].z, islets[2].x, islets[2].z, 'bridge', 6, skyI);
+  walk(islets[0].x, islets[0].z, islets[1].x, islets[1].z, 'bridge', SKY_H, skyI);
+  walk(islets[0].x, islets[0].z, islets[2].x, islets[2].z, 'bridge', SKY_H, skyI);
 
   // ── Paths from the meadow to every region's landmark (cobbled, 3 wide).
   const meadow = centres[0];
@@ -244,6 +247,7 @@ export function buildPlanet(): PlanetMap {
           if (!inside(x, z)) continue;
           const c = cells[idx(x, z)];
           if (c.t !== FLOOR) continue;
+          if (c.mat === 'mesa') c.h = REGIONS[c.room]?.base ?? c.h;
           if (c.mat !== 'lava') c.mat = REGIONS[c.room]?.id === 'tundra' ? 'ice' : 'path';
           c.surf = 'path';
           paths.add(idx(x, z));
@@ -255,6 +259,7 @@ export function buildPlanet(): PlanetMap {
   const landmarks: PlanetLandmark[] = [];
   const puzzles: PlanetPuzzle[] = [];
   const reserved = new Set<number>();
+  const stairs = new Set<number>();
   const flatten = (cx: number, cz: number, r: number, h: number, mat: string, room: number) => {
     for (let z = cz - r; z <= cz + r; z++)
       for (let x = cx - r; x <= cx + r; x++) {
@@ -270,7 +275,7 @@ export function buildPlanet(): PlanetMap {
   REGIONS.forEach((reg, i) => {
     const cx = centres[i].x;
     const cz = centres[i].z;
-    const h = reg.id === 'volcano' ? 4.5 : reg.id === 'sky' ? 6 : Math.max(reg.base, cells[idx(cx, cz)].h);
+    const h = reg.id === 'volcano' ? 4.5 : reg.id === 'sky' ? SKY_H : Math.max(reg.base, cells[idx(cx, cz)].h);
     const plazaMat = reg.id === 'meadow' ? 'path' : reg.id === 'garden' ? 'terrace' : reg.id === 'volcano' ? 'basalt' : reg.id === 'ruins' ? 'ruin' : reg.id === 'ocean' ? 'sand' : reg.terrain;
     if (reg.id === 'meadow') {
       // About at the centre, Contact beacon a little south-east of the landing pad.
@@ -294,28 +299,45 @@ export function buildPlanet(): PlanetMap {
       // Bridge from the main island's east coast to the big islet: void until the vines grow.
       let sx = cx - 8;
       while (sx > C && cells[idx(sx, cz)].t !== FLOOR) sx--;
-      const h0 = cells[idx(sx, cz)].h;
-      const span = cx - 6 - (sx + 1);
-      for (let x = sx + 1; x < cx - 6; x++)
+      const end = cx - 6; // first islet column
+      // Bridge (void until the vines grow) climbs half a block per cell to the islet…
+      for (let x = sx + 1; x < end; x++)
         for (let dz = -1; dz <= 1; dz++) {
           const c = cells[idx(x, cz + dz)];
           if (c.t === FLOOR) continue;
-          // A ramp up to the islet (cells stay void until the vines grow).
-          c.h = Math.round((h0 + ((6 - h0) * (x - sx)) / (span + 1)) * 2) / 2;
+          c.h = SKY_H - 0.5 * (end - x);
           c.mat = 'bridge';
           c.room = i;
           gateCells.push({ x, z: cz + dz });
         }
+      // …and a stepped causeway on the mainland continues the stairs down to the ground.
+      let causeway = 0;
+      for (let x = sx; x > C; x--) {
+        const h = SKY_H - 0.5 * (end - x);
+        const ground = cells[idx(x, cz)];
+        if (ground.t === FLOOR && h <= ground.h + 1e-6) break;
+        for (let dz = -1; dz <= 1; dz++) {
+          const c = cells[idx(x, cz + dz)];
+          c.t = FLOOR;
+          c.h = h;
+          c.mat = 'bridge';
+          c.room = i;
+          stairs.add(idx(x, cz + dz));
+          reserved.add(idx(x, cz + dz));
+        }
+        causeway++;
+      }
+      const foot = sx - causeway;
       const gx = sx + 1;
       puzzles.push({
         id: `planet-${reg.id}`,
         region: i,
         def: pz,
-        pieces: [-3, 0, 3].map((dz, k) => ({ x: sx - 2 + 0.5, z: cz + dz + 0.5, index: k })),
+        pieces: [-3, 0, 3].map((dz, k) => ({ x: foot - 2 + 0.5, z: cz + dz + 0.5, index: k })),
         gate: { x: gx + 0.5, z: cz + 0.5, cells: gateCells },
-        hint: { x: sx - 3 + 0.5, z: cz + 5 + 0.5 },
+        hint: { x: foot - 3 + 0.5, z: cz + 5 + 0.5 },
       });
-      for (const p of [-3, 0, 3]) for (let ox = -1; ox <= 1; ox++) reserved.add(idx(sx - 2 + ox, cz + p));
+      for (const p of [-3, 0, 3]) for (let ox = -1; ox <= 1; ox++) reserved.add(idx(foot - 2 + ox, cz + p));
       return;
     }
     for (let z = cz - R; z <= cz + R; z++)
@@ -377,7 +399,7 @@ export function buildPlanet(): PlanetMap {
       const z = Math.round(cz + Math.sin(a) * dist);
       if (!inside(x, z)) continue;
       const c = cells[idx(x, z)];
-      if (c.t !== FLOOR || c.room !== i || c.solid || c.mat === 'lava' || reserved.has(idx(x, z))) continue;
+      if (c.t !== FLOOR || c.room !== i || c.solid || c.mat === 'lava' || c.mat === 'mesa' || reserved.has(idx(x, z))) continue;
       if (pieces.some((p) => Math.hypot(p.x - x, p.z - z) < 5)) continue;
       pieces.push({ x: x + 0.5, z: z + 0.5, index: pieces.length });
       for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) reserved.add(idx(x + ox, z + oz));
@@ -399,6 +421,32 @@ export function buildPlanet(): PlanetMap {
       cells[k].mat = 'lava';
       cells[k].solid = true;
     }
+  }
+
+  // ── Walkability: no step taller than half a block between neighbours (mesas stay as cliffs).
+  // Lowering-only relaxation converges and keeps every hill, just as a slope instead of a wall.
+  const STEP = 0.5;
+  for (let pass = 0, changed = true; changed && pass < 60; pass++) {
+    changed = false;
+    for (let z = 0; z < SIZE; z++)
+      for (let x = 0; x < SIZE; x++) {
+        const c = cells[idx(x, z)];
+        if (c.t !== FLOOR || c.mat === 'mesa' || stairs.has(idx(x, z))) continue;
+        for (const [dx, dz] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ]) {
+          if (!inside(x + dx, z + dz)) continue;
+          const n = cells[idx(x + dx, z + dz)];
+          if (n.t !== FLOOR || n.mat === 'mesa') continue;
+          if (c.h > n.h + STEP + 1e-6) {
+            c.h = n.h + STEP;
+            changed = true;
+          }
+        }
+      }
   }
 
   // ── Decor scatter (deterministic; not on paths, plazas or next to puzzle pieces).

@@ -3,6 +3,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { DepthEdgePass } from './edgepass.ts';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GitHubFeed } from '@/lib/github';
 import type { Portfolio, Room } from '../../lib/portfolio.ts';
@@ -200,6 +203,8 @@ export class Game {
   private events: GameEvents;
   private renderer!: THREE.WebGLRenderer;
   private composer!: EffectComposer;
+  private edges!: DepthEdgePass;
+  private fxaa: ShaderPass | null = null;
   private bloom!: UnrealBloomPass;
   private scene = new THREE.Scene();
   private camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
@@ -449,18 +454,26 @@ export class Game {
     this.basePixelRatio = Math.min(devicePixelRatio, this.quality === 'high' ? 1.5 : 1);
     this.renderer.setPixelRatio(this.basePixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = this.quality === 'high';
     this.renderer.info.autoReset = false;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.composer = new EffectComposer(this.renderer);
+    // Render targets carry a depth texture so the edge pass can draw contours from depth.
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(1, 1) });
+    this.composer = new EffectComposer(this.renderer, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.edges = new DepthEdgePass(this.camera);
+    this.composer.addPass(this.edges);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.15, 0.9);
     // Bloom is a blur: computing it at half resolution looks the same for a quarter of the fill cost.
     const bloomSize = this.bloom.setSize.bind(this.bloom);
     this.bloom.setSize = (w: number, h: number) => bloomSize(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2)));
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    if (this.quality === 'high') {
+      this.fxaa = new ShaderPass(FXAAShader);
+      this.composer.addPass(this.fxaa);
+    }
 
     this.scene.add(this.hemi, this.sun, this.sun.target, this.level, this.bursts.group, this.suit);
     this.sun.castShadow = this.quality === 'high';
@@ -522,6 +535,9 @@ export class Game {
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
     this.bloom.resolution.set(w / 2, h / 2);
+    const pr = this.renderer.getPixelRatio();
+    this.edges.setSize(w * pr, h * pr);
+    this.fxaa?.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
     const aspect = w / h;
     const half = aspect >= 1 ? 5.6 : Math.min(9, 5.6 / Math.max(aspect, 0.6));
     this.camera.left = -half * aspect;
@@ -817,9 +833,9 @@ export class Game {
     this.scene.fog = new THREE.Fog(b.fog, 52, 95);
     this.hemi.color.set(b.ambient);
     this.hemi.groundColor.set(b.background);
-    this.hemi.intensity = b.ambientIntensity * (this.settings.depthReadability ? 1.05 : 1.4);
+    this.hemi.intensity = b.ambientIntensity * (this.settings.depthReadability ? 0.8 : 1.05);
     this.sun.color.set(b.sun);
-    this.sun.intensity = b.sunIntensity * 1.65;
+    this.sun.intensity = b.sunIntensity * 2.1;
 
     // Room lights in the biome's dominant colour.
     for (const room of this.map.rooms) {
@@ -828,7 +844,7 @@ export class Game {
       this.addLight(
         new THREE.Vector3(room.x + room.w / 2, room.h + 3.2, room.z + room.d / 2),
         backroom ? '#fef08a' : b.light,
-        7,
+        4.5,
         Math.max(room.w, room.d) * 1.1,
         backroom ? 0.7 : 0,
       );
@@ -4520,8 +4536,9 @@ export class Game {
     root?.style.setProperty('--hud-scale', String(this.settings.hudScale));
     root?.style.setProperty('--g-panel', `rgb(16 18 32 / ${this.settings.panelOpacity})`);
     root?.classList.toggle('g-depth', this.settings.depthReadability);
-    if (this.bloom) this.bloom.strength = this.settings.depthReadability ? 0.2 : 0.4;
-    if (this.biome) this.hemi.intensity = this.biome.ambientIntensity * (this.settings.depthReadability ? 1.05 : 1.4);
+    if (this.bloom) this.bloom.strength = this.settings.depthReadability ? 0.18 : 0.32;
+    if (this.biome) this.hemi.intensity = this.biome.ambientIntensity * (this.settings.depthReadability ? 0.8 : 1.05);
+    if (this.edges) this.edges.material.uniforms.strength.value = this.settings.depthReadability ? 1 : 0.75;
   }
 
   resetProgress() {

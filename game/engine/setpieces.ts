@@ -288,7 +288,7 @@ function planetSea(map: LevelMap, quality: 'low' | 'high'): SetPiece {
   for (let z = 0; z < d; z++)
     for (let x = 0; x < w; x++) {
       const c = cells[z * w + x];
-      if (c.t !== FLOOR || c.h < 5) continue;
+      if (c.t !== FLOOR || (c.mat !== 'sky' && c.mat !== 'bridge') || c.h < 3) continue;
       const e = at(x + 1, z);
       const s2 = at(x, z + 1);
       if (!e || e.t === 0) edges.push({ x: x + 1, z: z + 0.5, h: c.h, dx: 1, dz: 0 });

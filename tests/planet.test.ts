@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPlanet, REGIONS } from '../game/engine/planet.ts';
 import { FLOOR } from '../game/engine/layout.ts';
+import { MAX_STEP } from '../game/engine/terrain.ts';
 
 const map = buildPlanet();
 
@@ -24,6 +25,8 @@ function reach(openGates: boolean) {
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const j = (z + dz) * map.w + x + dx;
       if (x + dx < 0 || z + dz < 0 || x + dx >= map.w || z + dz >= map.d || seen.has(j) || !ok(j)) continue;
+      // Same step rule the player moves by.
+      if (Math.abs(map.cells[j].h - map.cells[i].h) > MAX_STEP + 1e-6) continue;
       seen.add(j);
       q.push(j);
     }

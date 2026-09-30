@@ -10,9 +10,9 @@ import { partKey } from '../lib/skills.ts';
 const cell=(h=0):Cell=>({t:1,h,room:0,surf:'floor'});
 test('terrain omits internal faces and exposes fractional stair risers',()=>{
   const map={w:2,d:1,cells:[cell(),cell()]} as LevelMap;
-  assert.equal(terrainFaces(map).length,8); // two tops and six outer sides
+  assert.equal(terrainFaces(map).filter(f=>f.surface!=='lip'&&f.surface!=='seam').length,8); // two tops and six outer sides
   map.cells[1].h=0.3;
-  const faces=terrainFaces(map);
+  const faces=terrainFaces(map).filter(f=>f.surface!=='lip'&&f.surface!=='seam');
   assert.equal(faces.length,9);
   const riser=faces.find(f=>f.surface==='side'&&f.points.every(p=>p[0]===1));
   assert.ok(riser);
@@ -49,4 +49,11 @@ test('engineering experiments report physical failure and disconnected signals',
   assert.equal(signalPath([1,3,2],[1,3,2]),3);
   assert.ok(matchesTopic('robotics','Isaac Sim × Nav2'));
   assert.equal(matchesTopic('embedded','Volunteer outreach'),false);
+});
+
+test('every ledge gets a lip on its edge and a seam at its foot', () => {
+  const cells=[{t:1,h:0,room:0,surf:'floor'},{t:1,h:1,room:0,surf:'floor'}] as never;
+  const faces=terrainFaces({id:'t',biome:'b',w:2,d:1,cells,rooms:[],spawn:{x:0,z:0},spawns:[]} as never);
+  assert.ok(faces.some(f=>f.surface==='lip'&&f.x===1));
+  assert.ok(faces.some(f=>f.surface==='seam'&&f.x===1));
 });

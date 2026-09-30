@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Biome, Surface } from './biomes.ts';
 import { computeWalls, FLOOR, VOID, WALL, type Cell, type LevelMap } from './layout.ts';
 import { glowTexture, pixelTexture } from './textures.ts';
+import { RELIEF } from './voxels.ts';
 import { canStep, CHUNK_SIZE, terrainFaces } from './terrain.ts';
 
 /** Renders a LevelMap as instanced voxel blocks and answers collision/height queries. */
@@ -17,6 +18,10 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshLambertMaterial {
     map: pixelTexture(s.pattern, `#${color.getHexString()}`, s.accent ?? s.color),
   });
   m.userData.shared = true;
+  if (RELIEF.has(s.pattern)) {
+    m.bumpMap = m.map;
+    m.bumpScale = 1.2;
+  }
   if (s.glow) {
     m.emissiveMap = glowTexture(s.pattern, s.accent ?? s.color);
     m.emissive = new THREE.Color('#ffffff');
@@ -26,6 +31,22 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshLambertMaterial {
       m.emissive = new THREE.Color(s.color);
       m.emissiveMap = null;
     }
+  }
+  return m;
+}
+
+const edgeCache = new Map<string, THREE.Material>();
+/** Ledge lip (light, slightly tinted by the biome light) and foot-of-ledge seam (dark). */
+function edgeMaterial(kind: 'lip' | 'seam', light: string) {
+  const key = `${kind}|${light}`;
+  let m = edgeCache.get(key);
+  if (!m) {
+    m =
+      kind === 'lip'
+        ? new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').lerp(new THREE.Color(light), 0.25), transparent: true, opacity: 0.55, depthWrite: false })
+        : new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.38, depthWrite: false });
+    m.userData.shared = true;
+    edgeCache.set(key, m);
   }
   return m;
 }
@@ -124,6 +145,8 @@ export class World {
             : part === 'wall'
               ? surfaceMaterial({ ...t.top, glow: false }, 0.82)
               : surfaceMaterial(part === 'alt' ? (t.alt ?? t.top) : t.top);
+        (m as THREE.MeshLambertMaterial).vertexColors = true;
+        m.userData.shared = true;
         terrainCache.set(`${this.biome.id}|${k}`, m);
       }
       tcache.set(k, m);
@@ -135,15 +158,8 @@ export class World {
         if (this.hidden(c)) continue;
         const cx = x + 0.5;
         const cz = z + 0.5;
-        if (c.t === FLOOR && terr && c.mat) {
-          add(tmat(c.mat, c.surf === 'alt' ? 'alt' : 'top'), cx, c.h - 0.5, cz);
-          // Fill down to the lowest neighbour (terraces) or a deep cliff at the coast.
-          const ns = [at(x + 1, z), at(x - 1, z), at(x, z + 1), at(x, z - 1)];
-          const low = ns.some((n) => open(n)) ? c.h - CLIFF_DEPTH - 1 : Math.min(...ns.map((n) => (n && n.t !== VOID ? n.h : c.h)));
-          const side = tmat(c.mat, 'side');
-          for (let y = c.h - 1; y > low - 0.01; y--) add(side, cx, y - 0.5, cz);
-          continue;
-        }
+        // Planet floors are meshed below with the other terrain (exposed faces only).
+        if (c.t === FLOOR && terr && c.mat) continue;
         if (c.t === WALL && terr && c.mat) {
           // Low garden/ruin walls (2 blocks) so the monuments inside stay visible from the camera.
           for (let k = 0; k < 2; k++) add(tmat(c.mat, 'wall'), cx, c.h + k + 0.5, cz);
@@ -154,11 +170,6 @@ export class World {
           const m = c.surf === 'path' ? path : c.surf === 'alt' ? alt : floor;
           // Tops and exposed risers are emitted below as chunked face geometry.
           void m;
-          for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-            const n = at(x + dx, z + dz);
-            if (!open(n) && n?.t === FLOOR && n.h < c.h - 0.01)
-              add(bolt, cx + dx * 0.47, c.h + 0.012, cz + dz * 0.47, dx ? 0.06 : 1, 0.024, dz ? 0.06 : 1);
-          }
           // Clutter where floor meets a back wall: bolted plates and cable runs.
           const hh = ((x * 2654435761) ^ (z * 40503)) >>> 0;
           if (at(x - 1, z)?.t === WALL && hh % 5 === 0) add(bolt, x + 0.12, c.h + 0.03, cz, 0.16, 0.06, 0.7);
@@ -204,9 +215,25 @@ export class World {
       }
 
     const chunks = new Map<string, { material: THREE.Material; positions: number[]; colors: number[]; uvs: number[] }>();
+    const lipMat = edgeMaterial('lip', this.biome.light);
+    const seamMat = edgeMaterial('seam', this.biome.light);
     for (const face of terrainFaces(this.map, this.hiddenRoom)) {
-      const material = face.surface === 'side' ? cliff : face.surface === 'path' ? path : face.surface === 'alt' ? alt : floor;
-      const key = `${Math.floor(face.x / CHUNK_SIZE)}:${Math.floor(face.z / CHUNK_SIZE)}:${face.surface}`;
+      const planet = terr && face.mat;
+      const material =
+        face.surface === 'lip'
+          ? lipMat
+          : face.surface === 'seam'
+            ? seamMat
+            : planet
+              ? tmat(face.mat!, face.surface === 'side' ? 'side' : face.surface === 'alt' ? 'alt' : 'top')
+              : face.surface === 'side'
+                ? cliff
+                : face.surface === 'path'
+                  ? path
+                  : face.surface === 'alt'
+                    ? alt
+                    : floor;
+      const key = `${Math.floor(face.x / CHUNK_SIZE)}:${Math.floor(face.z / CHUNK_SIZE)}:${material.uuid}`;
       let chunk = chunks.get(key);
       if (!chunk) chunks.set(key, chunk = {material, positions: [], colors: [], uvs: []});
       for (const i of [0,1,2,0,2,3]) {
