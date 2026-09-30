@@ -46,7 +46,8 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
             ❚❚
           </button>
           <button className="g-pro" onClick={() => game.exit('pro')} title="Switch to Professional mode">
-            Professional Mode
+            <span className="full">Professional Mode</span>
+            <span className="short">Pro</span>
           </button>
         </div>
         <canvas ref={mini} className="g-minimap" width={300} height={300} aria-label="Minimap" />

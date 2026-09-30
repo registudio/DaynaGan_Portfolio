@@ -16,6 +16,13 @@ export default function ProHeader({
   const { setMode } = useMode();
   const [active, setActive] = useState(sections[0]?.id);
   const bar = useRef<HTMLDivElement>(null);
+  const nav = useRef<HTMLElement>(null);
+
+  // Keep the active section's link in view when the nav has to scroll.
+  useEffect(() => {
+    const a = nav.current?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (a && nav.current) nav.current.scrollTo({ left: a.offsetLeft - nav.current.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' });
+  }, [active]);
 
   useEffect(() => {
     const els = sections.map((s) => document.getElementById(s.id)).filter(Boolean) as HTMLElement[];
@@ -47,7 +54,7 @@ export default function ProHeader({
           </span>
           {name}
         </a>
-        <nav className="pro-nav" aria-label="Sections">
+        <nav ref={nav} className="pro-nav" aria-label="Sections">
           {sections.map((s) => (
             <a key={s.id} href={`#${s.id}`} aria-current={active === s.id}>
               {s.label}

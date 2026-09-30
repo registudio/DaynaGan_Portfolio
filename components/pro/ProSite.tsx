@@ -276,6 +276,32 @@ function Leadership({ portfolio, level }: { portfolio: Portfolio; level: Level }
   );
 }
 
+/** Hobbies / Future goals: a compact card grid (TODO-only items hidden until written). */
+function CardGrid({ level }: { level: Level }) {
+  return (
+    <section id={level.id} className="section">
+      <SectionHead level={level} />
+      <div className="grid-3">
+        {visible(level.rooms).map((room) => (
+          <article className="card" key={room.id} id={`${level.id}-${room.id}`} data-reveal>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>{room.title}</h3>
+            <Html html={room.html} />
+            {!!list(room.meta.tags).length && (
+              <ul className="chips" style={{ marginTop: 12 }}>
+                {list(room.meta.tags).map((t) => (
+                  <li className="chip" key={t}>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const form = level.rooms.find((r) => r.id === 'form');
   return (
@@ -333,6 +359,9 @@ export default function ProSite({ portfolio, github }: { portfolio: Portfolio; g
         );
       case 'contact':
         return <Contact key={level.id} portfolio={portfolio} level={level} />;
+      case 'hobbies':
+      case 'future':
+        return <CardGrid key={level.id} level={level} />;
       default:
         return (
           <section id={level.id} key={level.id} className="section">

@@ -11,7 +11,7 @@ const schema = z.object({
   reason: z.string().trim().max(60).optional().default(''),
   message: z.string().trim().min(5).max(5000),
   /** Honeypot — real visitors never see or fill this. */
-  website: z.string().max(0).optional().default(''),
+  website: z.string().max(500).optional().default(''),
 });
 
 // Best-effort per-instance rate limit: 5 messages / 10 min / IP.

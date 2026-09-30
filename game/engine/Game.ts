@@ -357,6 +357,9 @@ export class Game {
     this.lights = new LightPool(this.scene, this.quality === 'high' ? 6 : 4);
 
     this.input = new Input(this.canvas, this.settings.keys);
+    // Phones and tablets start with touch glyphs (the controls card, prompts) until another device is used.
+    if (touch) this.input.device = 'touch';
+    this.store.set({ device: this.input.device });
     this.bubble = document.createElement('div');
     this.bubble.className = 'g-bubble';
     this.bubble.hidden = true;
@@ -4219,7 +4222,8 @@ export class Game {
       const w = this.canvas.clientWidth;
       const half = Math.min(150, w * 0.35);
       const x = Math.max(half + 8, Math.min(w - half - 8, s.x));
-      const y = Math.max(this.bubble.offsetHeight + 70, s.y);
+      // Keep clear of the top bar, and of the minimap on narrow screens.
+      const y = Math.max(this.bubble.offsetHeight + (w < 700 ? 170 : 70), s.y);
       this.bubble.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
     }
     this.minimapT -= 1 / 60;

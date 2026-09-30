@@ -189,6 +189,8 @@ button {
   gap: 16px;
 }
 .brand {
+  white-space: nowrap;
+  flex-shrink: 0;
   font-weight: 700;
   text-decoration: none;
   color: var(--ink);
@@ -210,10 +212,23 @@ button {
 }
 .pro-nav {
   display: flex;
-  gap: 2px;
+  gap: 0;
   margin-left: auto;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  /* Soft edges hint that the section list scrolls when it doesn't fit. */
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  padding: 0 8px;
+}
+.header-actions {
+  flex-shrink: 0;
+}
+@media (max-width: 1360px) {
+  .pro-nav a {
+    padding: 6px 8px !important;
+    font-size: 13.5px !important;
+  }
 }
 .pro-nav a {
   color: var(--ink-2);
@@ -718,7 +733,20 @@ main.pro {
     grid-template-columns: 1fr;
   }
 }
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.grid-3 .card p:last-child {
+  margin-bottom: 0;
+}
+.gh-grid > *,
+.card {
+  min-width: 0;
+}
 .heat {
+  max-width: 100%;
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(7, 1fr);
