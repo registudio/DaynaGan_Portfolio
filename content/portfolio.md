@@ -23,6 +23,9 @@
 #   status    complete | in-progress | todo
 #   biome / light / enemies   (levels only) game world settings
 #   profile   (levels only) replaces the intro text in Professional mode
+#   metrics   impact numbers shown in Professional mode, e.g. `metrics: 80+ | volunteers led; 3 | robots built`
+#   repo / demo  (projects) GitHub and live-demo links
+#   filters   (Projects level) the tech/skill filter chips
 #
 # Anything marked TODO is a placeholder for Dayna to fill in.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -215,6 +218,7 @@ id: sp
 short: SP
 qualification: Diploma in Mechatronics and Robotics, with Merit
 period: Apr 2022 – May 2025
+metrics: 3.97 | GPA out of 4.00
 grants: python +1, cpp +1, soldering +1, arduino +1, esp32 +1, stm32 +1, cad +1, inventor +1, 3d-printing +1
 
 ### Valedictorian, Class of 2025
@@ -285,6 +289,7 @@ id: otsaw
 role: Robotics Intern
 period: Jan 2022 – Mar 2022
 tags: Autodesk Inventor, Soldering, Hands-on Assembly
+metrics: 3 | TREX robots assembled
 
 Hands-on robotics production, electrical design and field deployment.
 
@@ -311,6 +316,7 @@ short: A*STAR I²R
 role: Robotics Intern
 period: Sep 2024 – Feb 2025
 tags: ROS 2, NVIDIA Isaac Sim, Nav2, LangChain
+metrics: 100+ | Nav2 simulation runs
 
 Robotics simulation, autonomy and natural-language interaction.
 
@@ -339,6 +345,7 @@ short: DSO
 role: Software Engineer Intern
 period: May 2026 – Jul 2026
 tags: Python, Reinforcement learning, SMAClite
+metrics: 55.6% | best validation win rate; 59.25% | blind-compositional win rate
 
 A three-month research project in model-based reinforcement learning for multi-agent mission planning.
 
@@ -364,6 +371,7 @@ id: ecovolt
 role: Hardware Engineer Intern
 period: Jan 2026 – Present
 tags: Embedded firmware, Sensor fusion, IoT, Field testing
+metrics: 1 week | on-site customer validation
 
 Hardware, firmware, environmental sensing and real-world deployment.
 
@@ -399,7 +407,8 @@ biome: circuit-caverns
 light: #22d3ee
 enemies: short-circuit-bugs
 mission: Recover the parts and build every project
-profile: Each build, taken apart — what it is, what I did and what I learnt. Drag to rotate, slide to explode, hover a part to identify it.
+filters: Embedded, ROS 2, Isaac Sim, Python, Reinforcement learning, ESP32, Soldering, CAD
+profile: Each build, taken apart — what it is, what I did and what I learnt. Drag the model to rotate it, explode it into parts, and tap a numbered hotspot to see what each part does.
 
 Each project's components are scattered through the caverns. Find them, bring them to the project's blueprint room, and build it.
 
@@ -776,6 +785,7 @@ Led the school robotics club and supported members in robotics training, project
 id: robocup
 role: Chairperson
 period: Oct 2022 – Apr 2023
+metrics: 80+ | volunteers led
 grants: leadership +1
 
 ### Led 80+ volunteers
@@ -928,6 +938,6 @@ Great systems start with a conversation. Let's talk robotics, embedded systems, 
 
 ## Transmission Console
 id: form
-reasons: Internship / job, Project collaboration, Research, Just saying hi
+reasons: Internship / job, Project collaboration, Mentorship / advice, Just saying hi
 
 TRANSMISSION RECEIVED — thanks for reaching out. I'll reply soon.

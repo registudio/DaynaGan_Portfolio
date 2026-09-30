@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/latin-500.css';
 import '@fontsource/pixelify-sans/latin-400.css';
 import '@fontsource/pixelify-sans/latin-600.css';
 import './globals.css';
+import './pro.css';
 import { loadPortfolio } from '@/lib/load';
 
 const site = loadPortfolio().site;

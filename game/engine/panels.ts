@@ -1,4 +1,5 @@
 import type { GitHubFeed } from '@/lib/github';
+import { activityLog } from '../../lib/activity.ts';
 import { list, parseLink, type Part, type Portfolio, type Room } from '../../lib/portfolio.ts';
 import { checkBuild, partKey, roomKey, type BuildCheck } from '../../lib/skills.ts';
 import type { Panel, PanelAction, SaveData } from './store.ts';
@@ -173,13 +174,10 @@ export function githubConsole(p: Portfolio, room: Room, feed: GitHubFeed, save: 
   } else if (room.id === 'repos') {
     html = `<p>Each server rack is a repository. Walk up to one to read it.</p>${chips(feed.languageStats.map((l) => `${l.name} ${Math.round(l.share * 100)}%`))}`;
   } else if (room.id === 'commits') {
-    const commits = feed.events
-      .filter((e) => e.type === 'PushEvent')
-      .flatMap((e) => (e.payload?.commits ?? []).map((c) => ({ repo: e.repo.name.split('/')[1], msg: c.message.split('\n')[0], at: e.created_at.slice(0, 10) })))
-      .slice(0, 8);
+    const commits = activityLog(feed.events, 8).map((c) => ({ repo: c.repo, msg: c.message, at: c.at.slice(0, 10) }));
     html = commits.length
       ? `<ul class="g-feed">${commits.map((c) => `<li><code>${esc(c.repo)}</code> ${esc(c.msg)} <span>${c.at}</span></li>`).join('')}</ul>`
-      : '<p>No recent public commits.</p>';
+      : '<p>No recent public activity.</p>';
   }
   return { ...base, html: `${room.html ?? ''}${html}`, actions: [{ id: 'link', label: 'View GitHub profile ↗', href: p.site.github }, ...(base.actions ?? [])] };
 }

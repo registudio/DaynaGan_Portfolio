@@ -394,6 +394,20 @@ Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand
 - Big "Let's build something" CTA + form with floating labels and a send animation.
 - Copy-email button, inquiry chips (Internship / job · Project collaboration · Mentorship / advice · Just saying hi) that prefill the subject, "Usually replies within 2 days".
 
+### Round 6 — what shipped
+- **Bug check / gameplay test:** interactable sweep over all 10 scenes (0 errors), respawn, every pause tab, the 26-stop tour, melee and zap (the one miss traced to a wall in the line of fire — correct), every trial type, all 7 planet puzzles with every landmark reachable, stars, golden screws and the assembly faults, relay and overclock — all pass.
+- **Fixes found on the way:** GitHub's events API stopped including commit lists in push events (2025), which emptied both commit feeds — they now fall back to "pushed to branch" / "created branch" lines (shared `lib/activity.ts`); the hidden inquiry radio buttons caused horizontal scroll; plain-text snippets now decode HTML entities.
+- **Site-wide:** animated purple aurora backdrop, cursor spotlight, 3-px scroll progress bar, side rail of section dots (≥1240 px), floating glass pill nav with sliding highlight that shrinks on scroll, theme toggle + Play; phones get a numbered slide-up sheet. Name draw-in intro once per session (skippable, off for reduced motion). Footer with socials, Play, back to top and the build date.
+- **Hero:** horizontal carousel of all six project blueprints sliding along the x-axis on glowing turntables (auto-advances, arrows, dots, pauses on hover); plain headline; rotating "Currently" pill; Download résumé + Contact me.
+- **Education & Experience:** scroll-drawn gradient line whose nodes light up as they're reached; cards slide in; count-up `metrics`; tech chips that filter Projects.
+- **Projects:** pinned stage — the 3D viewer stays put while each project's story scrolls past (sticky mini-stage on phones). Drag to rotate, pinch / ⌘-scroll / buttons to zoom (plain scrolling still scrolls the page), exploded view, numbered hotspots with notes, idle auto-rotate, camera auto-fit. Filter chips (`filters:`), status badges, GitHub/demo links (`repo:`/`demo:`). CAD exports load automatically from `public/models/`.
+- **Skills & awards:** grouped skills with animated level bars; hover lights up the roles/projects that used a skill, click filters Projects; awards as flip cards.
+- **Leadership:** role cards, most recent first, staggered rise, count-up impact numbers.
+- **GitHub (compact):** counters, wave-in heatmap (scrolls to the latest weeks on phones), pinned repos (GraphQL with `GITHUB_TOKEN`; otherwise top repos) with language bars, terminal-style activity log that types in.
+- **Hobbies:** bento grid, Xiao Hu as the big tile; each icon has its own micro-animation. **Future goals:** trajectory arc with a scroll-driven marker; hover/tap a goal for its plan (vertical timeline on phones).
+- **Contact:** big gradient headline, copy-email button with toast, "Usually replies within 2 days", inquiry chips (Internship / job · Project collaboration · Mentorship / advice · Just saying hi) that set the email subject, floating labels, paper-plane send animation.
+- **Waiting on Dayna:** CAD exports, a hero headline animation, award stories (a body under each award shows on the flip side), Next-few-years / Long-term goals, hobby details.
+
 ## Improvement backlog (suggested)
 
 ### Performance

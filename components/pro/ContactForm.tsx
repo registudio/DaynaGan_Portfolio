@@ -27,15 +27,19 @@ export default function ContactForm({
   email,
   onSent,
   submitLabel = 'Send message',
+  variant = 'game',
 }: {
   reasons: string[];
   success: string;
   email: string;
   onSent?: () => void;
   submitLabel?: string;
+  /** `pro` = inquiry chips, floating labels and a send animation. */
+  variant?: 'game' | 'pro';
 }) {
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState<ContactResult | null>(null);
+  const [reason, setReason] = useState(reasons[0] ?? '');
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,6 +54,65 @@ export default function ContactForm({
       setError(result);
     }
   };
+
+  if (status === 'sent' && variant === 'pro')
+    return (
+      <div role="status" className="sent-card">
+        <svg className="plane-send" viewBox="0 0 64 64" aria-hidden>
+          <path d="M6 30 58 8 44 56 30 38z" />
+          <path d="M30 38 58 8" />
+        </svg>
+        <b>Message sent.</b>
+        <p>{success || 'Thanks — message received.'}</p>
+        <button className="btn small" onClick={() => setStatus('idle')}>
+          Send another
+        </button>
+      </div>
+    );
+
+  if (variant === 'pro')
+    return (
+      <form className={`form pro-form${status === 'sending' ? ' sending' : ''}`} onSubmit={submit}>
+        <fieldset className="inquiry">
+          <legend>What&apos;s it about?</legend>
+          <div className="chips">
+            {reasons.map((r) => (
+              <label key={r} className={`fchip${reason === r ? ' on' : ''}`}>
+                <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} />
+                {r}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="row">
+          <Float name="name" label="Name" required maxLength={100} autoComplete="name" />
+          <Float name="email" label="Email" type="email" required maxLength={200} autoComplete="email" />
+        </div>
+        <div className="row">
+          <Float name="company" label="Company (optional)" maxLength={120} autoComplete="organization" />
+          <Float name="role" label="Role (optional)" maxLength={120} autoComplete="organization-title" />
+        </div>
+        <label className="float">
+          <textarea name="message" required minLength={5} maxLength={5000} placeholder=" " />
+          <span>Message</span>
+        </label>
+        <label className="hp" aria-hidden>
+          Website
+          <input name="website" tabIndex={-1} autoComplete="off" />
+        </label>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn primary send-btn" disabled={status === 'sending'}>
+            <span>{status === 'sending' ? 'Sending…' : `${submitLabel} ↗`}</span>
+          </button>
+          {status === 'error' && error && !error.ok && (
+            <span className="form-status err" role="alert">
+              {error.error}{' '}
+              <a href={error.fallback || `mailto:${email}`}>Email instead</a>
+            </span>
+          )}
+        </div>
+      </form>
+    );
 
   if (status === 'sent')
     return (
@@ -108,5 +171,14 @@ export default function ContactForm({
         )}
       </div>
     </form>
+  );
+}
+
+function Float({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+  return (
+    <label className="float">
+      <input {...props} placeholder=" " />
+      <span>{label}</span>
+    </label>
   );
 }

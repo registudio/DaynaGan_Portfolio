@@ -60,3 +60,27 @@ export function loadRenderedPortfolio(): Portfolio {
     })),
   };
 }
+
+const MODEL_EXT = ['.glb', '.gltf', '.stl', '.obj'];
+
+/**
+ * CAD exports dropped into public/models/ as `<project-id>.<glb|gltf|stl|obj>`, keyed by
+ * project id. Projects without one show their wireframe blueprint.
+ */
+export function cadModels(): Record<string, string> {
+  const dir = path.join(process.cwd(), 'public', 'models');
+  let files: string[] = [];
+  try {
+    files = fs.readdirSync(dir);
+  } catch {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const ext of MODEL_EXT)
+    for (const f of files)
+      if (f.toLowerCase().endsWith(ext)) {
+        const id = f.slice(0, -ext.length);
+        out[id] ??= `/models/${f}`;
+      }
+  return out;
+}

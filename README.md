@@ -2,7 +2,7 @@
 
 Two ways to explore the same content:
 
-- **Professional mode**: a single-page, résumé-style site in purple, with light and dark themes, scroll reveals, voxel 3D project viewers, a live GitHub panel, a print stylesheet and a contact form.
+- **Professional mode**: a single-page, résumé-style site in purple, with animated gradients, light and dark themes, a floating pill nav (bottom sheet on phones), scroll progress and a section rail, a once-per-session name intro, a 3D hero carousel of every project, a pinned projects showcase (drag, zoom, exploded view, hotspots, filters), scroll-drawn timelines with impact metrics, skill bars that light up where each skill was used, flip-card awards, a compact live GitHub panel, a hobby bento, a goals trajectory, a print stylesheet and a contact form.
 - **Game mode**: an isometric voxel action-RPG in the style of Minecraft Dungeons. You play as Dayna with Xiao Hu the cat, deploying from an orbital station to eight mission biomes, each with trial rooms (locked dungeons with small tasks and hazard gauntlets), a mini-boss and bot fabricators. The prize at the end is the Comms Core contact form.
 - **Planet Aurora**: a combat-free open world (nine biomes: meadow, supertree garden, crystal ruins, sky islands, volcano, lighthouse coast, canyon, glowroot jungle, tundra) where every portfolio section — including Hobbies and Future Goals — is a landmark, some behind nature puzzles.
 - **Quick tour**: Xiao Hu walks you through everything hands-free (full, or by interest: robotics, embedded systems, AI).
@@ -40,7 +40,9 @@ learned: What I learnt
 - New rooms and parts appear in both modes automatically. The game builds its levels from the headings.
 - `npm test` validates the file: unknown skills, broken links, duplicate ids, and projects that could never be built all fail the tests.
 
-Project 3D models are voxel builds defined in `game/models/geometry.ts`, keyed by part id. A CAD export can replace them later.
+Project 3D models come from the part descriptions in `game/models/geometry.ts`, keyed by part id: voxel builds in the game, wireframe blueprints in Professional mode. To show a real CAD model in Professional mode, drop `public/models/<project-id>.glb` (or `.gltf`, `.stl`, `.obj`) — see `public/models/README.md`. Name objects after part ids to get the exploded view and hotspots.
+
+Extra keys used by Professional mode: `metrics: 80+ | volunteers led; 3 | robots built` (count-up impact numbers on a role), `repo:` / `demo:` (project links) and `filters:` on the Projects level (the filter chips).
 
 ## Develop
 
@@ -77,7 +79,9 @@ npm run build
 | `lib/skills.ts` | Skill levels, sources and build checks (shared by both modes) |
 | `lib/github.ts` | GitHub feed with offline fallback |
 | `app/api/contact/route.ts` | Contact form → Resend (honeypot + rate limit) |
-| `components/pro/*` | Professional mode |
+| `components/pro/*` | Professional mode (`ProSite` layout, `HeroCarousel`, `ProjectShowcase` + `ProjectViewer`, `RevealRoot` motion, `ProHeader` nav) |
+| `components/pro/three/*` | Professional-mode 3D: wireframe blueprints, CAD loader, render stage |
+| `app/pro.css` | Professional-mode Round 6 styles |
 | `components/game/*` | Game UI: HUD, panels, star map, pause menu, touch controls |
 | `game/engine/Game.ts` | Game loop, scenes, combat, interactions, HUD state |
 | `game/engine/layout.ts`, `trials.ts` | Mission level generator (rooms, corridors, trial rooms, hazards, fabricators) |
