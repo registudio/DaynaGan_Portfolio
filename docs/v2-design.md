@@ -416,6 +416,14 @@ Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand
 - **Touch:** hero dots and hotspots meet the 24-px target size; phone eyebrow shortened to one line; award flip cards in two compact columns on phones; tablet carousel taller; chevron icons on the carousel arrows.
 - **Overflow:** the last Future-goal popover no longer pushes the page sideways on tablets.
 
+### Round 8 — plain headings + scroll-story transitions
+- **Headings are just the section name** ("Projects", "Experience", "Skills & Awards"…) with the section number above; the taglines/kickers are gone from headers (intro paragraphs stay).
+- **`ScrollStory` (components/pro/ScrollStory.tsx):** a pinned, scroll-driven opener. Phase 1 — the title builds letter by letter (rise, un-blur, outline → fill) over a huge outlined echo of the word drifting sideways; phase 2 — it shrinks and glides into the normal heading position under the nav; phase 3 (horizontal mode) — the content scrolls sideways.
+  - **Experience:** "My Experience" → horizontal timeline, one milestone per company (oldest → newest, sorted by start date) on a line that fills as you travel, ending with "See what I built →".
+  - **Projects:** "My Projects" → docks, then the showcase rises underneath it.
+  - **Contact:** "Contact" → docks, then the form rises underneath.
+- The build starts while the stage scrolls into view, so nav jumps never land on a blank screen. Full-bleed stage; `html { overflow-x: clip }` keeps the page from scrolling sideways. Reduced motion / no JS: plain heading + vertical list. axe: still 0 violations.
+
 ## Improvement backlog (suggested)
 
 ### Performance

@@ -10,6 +10,12 @@
   transition-delay: calc(var(--i, 0) * 70ms);
 }
 
+/* Full-bleed story stages use 100vw; clip (not hidden, which would break sticky) the
+   scrollbar-width sliver so the page never scrolls sideways. */
+html {
+  overflow-x: clip;
+}
+
 /* ── Animated gradient backdrop ─────────────────────────────────────────── */
 .aurora {
   position: fixed;
@@ -2048,9 +2054,12 @@ button.skill:focus-visible {
 }
 
 /* Live: pinned, scroll-driven. --a reveal, --b dock, --c horizontal travel (0–1). */
+/* Full-bleed stage (breaks out of the content column so the giant title isn't clipped). */
 .story.live .story-stage {
   position: sticky;
   top: 0;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
   height: 100vh;
   height: 100svh;
   padding: 0;
@@ -2067,7 +2076,7 @@ button.skill:focus-visible {
 }
 .story.live .story-num {
   font-size: clamp(14px, 1.4vw, 20px);
-  opacity: calc(0.4 + var(--a, 0) * 0.6);
+  opacity: calc((0.4 + var(--a, 0) * 0.6) * (1 - var(--b, 0)));
 }
 .story.live .story-word {
   margin: 0;
@@ -2086,8 +2095,11 @@ button.skill:focus-visible {
   transform: translateY(calc((1 - var(--l)) * 0.45em)) rotate(calc((1 - var(--l)) * 8deg)) scale(calc(0.85 + var(--l) * 0.15));
   filter: blur(calc((1 - var(--l)) * 10px));
 }
-/* The first word ("My") picks up the brand gradient once built. */
-.story.live .story-ch:nth-child(-n + 3) {
+/* "My" picks up the brand colour once built (static and live). */
+.story-ch.accent {
+  color: var(--violet);
+}
+.story.live .story-ch.accent {
   color: color-mix(in srgb, var(--violet) calc(var(--l) * 100%), transparent);
 }
 .story.live .story-ghost {
@@ -2112,10 +2124,11 @@ button.skill:focus-visible {
   position: absolute;
   left: 0;
   right: 0;
-  top: clamp(150px, 22vh, 190px);
+  top: calc(var(--dock, 180px) + 12px);
   bottom: 20px;
-  opacity: var(--b, 0);
-  transform: translateY(calc((1 - var(--b, 0)) * 60px));
+  /* Fades in over the last 40% of the dock, so the line never crosses the moving title. */
+  opacity: clamp(0, calc((var(--b, 0) - 0.6) * 2.5), 1);
+  transform: translateY(calc((1 - var(--b, 0)) * 80px));
 }
 .story.live .story-window::before,
 .story.live .story-window::after {
@@ -2211,9 +2224,6 @@ button.skill:focus-visible {
   z-index: 3;
 }
 @media (max-width: 700px) {
-  .story.live .story-window {
-    top: 138px;
-  }
   .story.live .mile-card {
     font-size: 14.5px;
     padding: 16px;

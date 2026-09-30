@@ -63,7 +63,9 @@ export default function ScrollStory({
       // Intro-only mode: once docked, the heading stays pinned while the following content rises
       // underneath it; the pin releases exactly as that content reaches the heading.
       const docked = target.y + hh * target.k + 28;
-      const pinned = reveal + dock + (horizontal ? vh * 0.15 + travel : Math.max(0, vh - docked));
+      st.style.setProperty('--dock', `${docked}px`);
+      // (Intro-only: the content starts rising during the last 40% of the dock.)
+      const pinned = horizontal ? reveal + dock + vh * 0.15 + travel : reveal + dock * 0.6 + Math.max(0, vh - docked);
       w.style.height = `${vh + pinned}px`;
       if (!horizontal && after.current) after.current.style.marginTop = `${-(vh - docked)}px`;
       update();
@@ -114,6 +116,8 @@ export default function ScrollStory({
   }, [horizontal]);
 
   const letters = [...title];
+  // "My …" titles: the possessive picks up the brand colour.
+  const accent = title.startsWith('My ') ? 2 : 0;
   return (
     <>
       <div className={`story${horizontal ? ' story-h' : ''}`} ref={wrap}>
@@ -126,7 +130,7 @@ export default function ScrollStory({
             <h2 className="story-word" style={{ '--n': letters.length } as React.CSSProperties}>
               <span className="sr-only">{title}</span>
               {letters.map((ch, i) => (
-                <span key={i} className="story-ch" aria-hidden style={{ '--i': i } as React.CSSProperties}>
+                <span key={i} className={`story-ch${i < accent ? ' accent' : ''}`} aria-hidden style={{ '--i': i } as React.CSSProperties}>
                   {ch === ' ' ? ' ' : ch}
                 </span>
               ))}
