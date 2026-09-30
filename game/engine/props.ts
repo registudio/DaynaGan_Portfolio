@@ -712,3 +712,101 @@ export function buildEmpPad() {
   g.userData.core = core;
   return g;
 }
+
+// ── Trial pieces ─────────────────────────────────────────────────────────────
+
+/** Door release: a wall-mounted panel with a big red push button (`userData.cap` lights up). */
+export function buildReleaseButton() {
+  const g = new THREE.Group();
+  box(0.5, 0.08, 0.5, mat('#1c1c22', { pattern: 'plate' }), 0, 0.04, 0, g);
+  box(0.34, 0.8, 0.28, mat('#34343d', { pattern: 'plate' }), 0, 0.48, 0, g);
+  box(0.4, 0.3, 0.06, mat('#15151a', { pattern: 'hazard', accent: '#f59e0b' }), 0, 0.72, 0.16, g);
+  const cap = box(0.16, 0.08, 0.16, glow('#ef4444', 1.4), 0, 0.93, 0, g);
+  g.userData.cap = cap;
+  return g;
+}
+
+/** Heavy pushable crate with steel banding. */
+export function buildHeavyCrate() {
+  const g = new THREE.Group();
+  const wood = mat('#6b4a2b', { pattern: 'plate' });
+  const band = mat('#3b3f4a', { pattern: 'metal' });
+  box(0.92, 0.86, 0.92, wood, 0, 0.43, 0, g);
+  for (const y of [0.12, 0.74]) box(0.96, 0.08, 0.96, band, 0, y, 0, g);
+  box(0.96, 0.86, 0.08, band, 0, 0.43, 0, g);
+  box(0.3, 0.12, 0.02, mat('#15151a', { pattern: 'hazard', accent: '#fbbf24' }), 0, 0.5, 0.47, g);
+  return g;
+}
+
+/** Pressure plate (`userData.lamp` turns green when weighed down). */
+export function buildPressurePlate() {
+  const g = new THREE.Group();
+  box(0.98, 0.05, 0.98, mat('#23262f', { pattern: 'plate' }), 0, 0.025, 0, g);
+  box(0.78, 0.04, 0.78, mat('#2f3440', { pattern: 'grate' }), 0, 0.07, 0, g);
+  const lamp = box(0.84, 0.02, 0.84, glow('#f59e0b', 0.9), 0, 0.055, 0, g);
+  g.userData.lamp = lamp;
+  return g;
+}
+
+/** Breaker box with a lever (`userData.lever`, `userData.lamp`). */
+export function buildBreaker() {
+  const g = new THREE.Group();
+  box(0.6, 0.08, 0.5, mat('#1c1c22', { pattern: 'plate' }), 0, 0.04, 0, g);
+  box(0.5, 1.0, 0.36, mat('#3b4150', { pattern: 'plate' }), 0, 0.58, 0, g);
+  box(0.4, 0.3, 0.02, mat('#0a0e16', { pattern: 'vent' }), 0, 0.42, 0.19, g);
+  const lamp = box(0.1, 0.1, 0.04, glow('#ef4444', 1.6), -0.14, 0.92, 0.19, g);
+  const lever = group(g, 0.12, 0.8, 0.22);
+  box(0.06, 0.26, 0.06, mat('#9ca3af'), 0, 0.12, 0, lever);
+  box(0.1, 0.08, 0.1, mat('#ef4444'), 0, 0.26, 0, lever);
+  lever.rotation.x = -0.6;
+  g.userData.lamp = lamp;
+  g.userData.lever = lever;
+  return g;
+}
+
+/** Portable power cell. */
+export function buildPowerCell() {
+  const g = new THREE.Group();
+  const body = group(g, 0, 0.45, 0);
+  box(0.26, 0.42, 0.26, mat('#1f2937', { pattern: 'plate' }), 0, 0, 0, body);
+  box(0.2, 0.3, 0.28, glow('#34d399', 1.3), 0, 0, 0, body);
+  box(0.14, 0.06, 0.14, mat('#9ca3af'), 0, 0.24, 0, body);
+  body.userData.spin = 1.2;
+  body.userData.hover = true;
+  return g;
+}
+
+/** Wall socket beside a locked door (`userData.lamp`). */
+export function buildSocket() {
+  const g = new THREE.Group();
+  box(0.56, 0.08, 0.56, mat('#1c1c22', { pattern: 'plate' }), 0, 0.04, 0, g);
+  box(0.44, 0.9, 0.44, mat('#34343d', { pattern: 'plate' }), 0, 0.53, 0, g);
+  box(0.3, 0.34, 0.3, mat('#0b0d12'), 0, 1.05, 0, g);
+  const lamp = box(0.34, 0.04, 0.34, glow('#ef4444', 1.2), 0, 1.24, 0, g);
+  g.userData.lamp = lamp;
+  return g;
+}
+
+/**
+ * Locked door across a corridor slice `span` cells wide, oriented along x (`alongX`) or z.
+ * `userData.panel` slides down to open; laser gates show red beams instead of a panel.
+ */
+export function buildGateDoor(span: number, alongX: boolean, laser: boolean) {
+  const g = new THREE.Group();
+  const steel = mat('#2e3340', { pattern: 'plate' });
+  const w = span + 0.2;
+  const post = (o: number) => box(alongX ? 0.3 : 0.4, 2.6, alongX ? 0.4 : 0.3, steel, alongX ? o : 0, 1.3, alongX ? 0 : o, g);
+  post(-w / 2);
+  post(w / 2);
+  box(alongX ? w + 0.3 : 0.4, 0.34, alongX ? 0.4 : w + 0.3, steel, 0, 2.6, 0, g);
+  box(alongX ? w : 0.42, 0.06, alongX ? 0.42 : w, mat('#15151a', { pattern: 'hazard', accent: laser ? '#ef4444' : '#f59e0b' }), 0, 2.42, 0, g);
+  const panel = group(g, 0, 0, 0);
+  if (laser) {
+    for (let k = 0; k < 5; k++) box(alongX ? w - 0.1 : 0.05, 0.05, alongX ? 0.05 : w - 0.1, glow('#ff4d4d', 1.8), 0, 0.35 + k * 0.42, 0, panel);
+  } else {
+    box(alongX ? w - 0.1 : 0.16, 2.3, alongX ? 0.16 : w - 0.1, mat('#3a4150', { pattern: 'plate' }), 0, 1.2, 0, panel);
+    box(alongX ? w - 0.3 : 0.18, 0.08, alongX ? 0.18 : w - 0.3, glow('#f59e0b', 1.1), 0, 1.2, 0, panel);
+  }
+  g.userData.panel = panel;
+  return g;
+}

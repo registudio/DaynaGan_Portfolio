@@ -79,6 +79,8 @@ export type SaveData = {
   spawners?: string[];
   /** Lore fragments collected from bots. */
   fragments?: string[];
+  /** Trial rooms completed (ids like `about-trial-0`). */
+  trials?: string[];
 };
 
 export const SAVE_KEY = 'dg-save-v2';

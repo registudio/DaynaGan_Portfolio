@@ -54,12 +54,20 @@ import {
   buildConveyor,
   buildEmpPad,
   buildLaserPost,
+  buildBreaker,
+  buildGateDoor,
+  buildHeavyCrate,
+  buildPowerCell,
+  buildPressurePlate,
+  buildReleaseButton,
+  buildSocket,
 } from './props.ts';
 import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
 import { rng } from './rng.ts';
 import { buildSetPiece, type SetPiece } from './setpieces.ts';
 import { buildStarMapTable } from './starmap3d.ts';
+import { TRIAL_INFO, type TrialType } from './trials.ts';
 import { loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
 import { glow } from './voxels.ts';
@@ -600,6 +608,10 @@ export class Game {
     this.spinners = [];
     this.staticRoots = [];
     this.puzzle = null;
+    this.gates.clear();
+    this.trials.clear();
+    this.carrying = null;
+    this.pushT = 0;
     this.homeSpot = null;
     this.homePortals = 0;
     this.assembly = null;
@@ -1181,6 +1193,9 @@ export class Game {
       case 'hazard':
         this.spawnHazard(s);
         break;
+      case 'trial':
+        this.spawnTrial(s);
+        break;
       case 'home':
         this.homeSpot = { x: s.x, z: s.z };
         if (this.save.cleared.includes(this.sceneId)) this.openHomePortal(false);
@@ -1189,6 +1204,308 @@ export class Game {
         this.spawnHub(s);
         break;
     }
+  }
+
+  // ── Trial rooms ─────────────────────────────────────────────────────────────
+
+  private gates = new Map<string, { cells: { x: number; z: number }[]; door: THREE.Object3D; open: boolean }>();
+  private trials = new Map<
+    string,
+    {
+      id: string;
+      type: TrialType;
+      room: number;
+      gate: string;
+      entryGate?: string;
+      entryCells?: { x: number; z: number }[];
+      entry?: { x: number; z: number };
+      flipped: number;
+      crate?: { obj: THREE.Object3D; x: number; z: number; it: Inter };
+      plate?: { x: number; z: number; obj: THREE.Object3D };
+      cellHome?: { x: number; z: number };
+      wave: number;
+      waveBots: Enemy[];
+      started: boolean;
+    }
+  >();
+  private carrying: { trial: string; mesh: THREE.Object3D } | null = null;
+  private pushT = 0;
+
+  private trialDone(id: string) {
+    return !!this.save.trials?.includes(id);
+  }
+
+  /** A door across a corridor: every corridor cell is solid until it opens. */
+  private createGate(id: string, cells: { x: number; z: number }[], laser: boolean, near: { x: number; z: number }) {
+    const xs = new Set(cells.map((c) => c.x));
+    const zs = new Set(cells.map((c) => c.z));
+    const alongX = zs.size > xs.size; // corridor runs along z → door spans x
+    const axisVals = [...(alongX ? zs : xs)].sort((a, b) => a - b);
+    // Put the door on the slice nearest the room it guards.
+    const slice = axisVals.reduce((best, v) => (Math.abs(v - (alongX ? near.z : near.x)) < Math.abs(best - (alongX ? near.z : near.x)) ? v : best), axisVals[0]);
+    const across = cells.filter((c) => (alongX ? c.z : c.x) === slice);
+    const cx = across.reduce((a, c) => a + c.x, 0) / across.length + 0.5;
+    const cz = across.reduce((a, c) => a + c.z, 0) / across.length + 0.5;
+    const door = buildGateDoor(across.length, alongX, laser);
+    this.place(door, cx, cz, 0, false);
+    for (const c of cells) {
+      const cell = this.world!.cell(c.x + 0.5, c.z + 0.5);
+      if (cell) cell.solid = true;
+    }
+    this.gates.set(id, { cells, door, open: false });
+    this.addLight(new THREE.Vector3(cx, this.world!.heightAt(cx, cz) + 2.4, cz), laser ? '#ef4444' : '#f59e0b', 2, 4);
+  }
+
+  private openGate(id: string) {
+    const g = this.gates.get(id);
+    if (!g || g.open) return;
+    g.open = true;
+    for (const c of g.cells) {
+      const cell = this.world!.cell(c.x + 0.5, c.z + 0.5);
+      if (cell) cell.solid = false;
+    }
+    const panel = g.door.userData.panel as THREE.Object3D;
+    const t0 = performance.now();
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - t0) / 700);
+      panel.position.y = -2.4 * k * k;
+      panel.visible = k < 1;
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    this.bursts.spawn(g.door.position.clone().add(new THREE.Vector3(0, 1.2, 0)), '#fde68a', 16, 3);
+    this.audio.sfx('build');
+    this.shake = Math.max(this.shake, 0.3);
+  }
+
+  private spawnTrial(s: Extract<Spawn, { kind: 'trial' }>) {
+    const done = this.trialDone(s.id);
+    const rt = { id: s.id, type: s.type, room: s.room, gate: `${s.id}:gate`, flipped: 0, wave: 0, waveBots: [] as Enemy[], started: false } as Parameters<typeof this.trials.set>[1];
+    this.trials.set(s.id, rt);
+    if (!done) this.createGate(rt.gate, s.gate.cells, s.type === 'lasers', s.gate);
+    const complete = () => this.completeTrial(s.id);
+    for (const pt of s.points) {
+      if (pt.role === 'cover') {
+        this.place(buildHeavyCrate(), pt.x, pt.z, Math.random() * 0.2);
+      } else if (pt.role === 'button') {
+        const obj = this.place(buildReleaseButton(), pt.x, pt.z, 0, false);
+        if (done) (obj.userData.cap as THREE.Mesh).material = glow('#4ade80', 1.4);
+        this.inter({ id: `${s.id}:button`, kind: 'trial', x: pt.x, z: pt.z, radius: 1.3, verb: 'Press', label: 'Door release', object: obj, accent: '#f59e0b', done: () => this.trialDone(s.id), enabled: () => !this.trialDone(s.id), use: () => {
+          (obj.userData.cap as THREE.Mesh).material = glow('#4ade80', 1.4);
+          complete();
+        } });
+      } else if (pt.role === 'plate') {
+        const obj = this.place(buildPressurePlate(), pt.x, pt.z, 0, false);
+        rt.plate = { x: pt.x, z: pt.z, obj };
+        if (done) (obj.userData.lamp as THREE.Mesh).material = glow('#4ade80', 1.2);
+      } else if (pt.role === 'crate') {
+        const at = done && rt.plate ? rt.plate : pt;
+        const obj = this.place(buildHeavyCrate(), at.x, at.z, 0, false);
+        const cell = this.world!.cell(at.x, at.z);
+        if (cell) cell.solid = true;
+        const it = this.inter({ id: `${s.id}:crate`, kind: 'trial', x: at.x, z: at.z, radius: 1.45, verb: 'Pull', label: 'Heavy crate', sub: 'Walk into it to push', object: obj, accent: '#fbbf24', done: () => this.trialDone(s.id), enabled: () => !this.trialDone(s.id), use: () => this.pullCrate(rt) });
+        rt.crate = { obj, x: at.x, z: at.z, it };
+      } else if (pt.role === 'breaker') {
+        const obj = this.place(buildBreaker(), pt.x, pt.z, 0, false);
+        let off = done;
+        const look = () => {
+          (obj.userData.lamp as THREE.Mesh).material = glow(off ? '#4ade80' : '#ef4444', 1.6);
+          (obj.userData.lever as THREE.Object3D).rotation.x = off ? 0.6 : -0.6;
+        };
+        look();
+        this.inter({ id: `${s.id}:breaker:${pt.x},${pt.z}`, kind: 'trial', x: pt.x, z: pt.z, radius: 1.5, verb: 'Switch off', label: 'Breaker', object: obj, accent: '#ef4444', done: () => off, enabled: () => !off, use: () => {
+          off = true;
+          look();
+          rt.flipped++;
+          this.audio.sfx('chip');
+          if (rt.flipped >= 3) complete();
+          else this.store.toast(`Breaker ${rt.flipped}/3 off`, 'info', 1800);
+        } });
+      } else if (pt.role === 'cell' && !done) {
+        rt.cellHome = { x: pt.x, z: pt.z };
+        this.spawnPowerCell(rt);
+      } else if (pt.role === 'socket') {
+        const obj = this.place(buildSocket(), pt.x, pt.z, 0, false);
+        if (done) (obj.userData.lamp as THREE.Mesh).material = glow('#4ade80', 1.2);
+        this.inter({ id: `${s.id}:socket`, kind: 'trial', x: pt.x, z: pt.z, radius: 1.5, verb: 'Insert', label: 'Power socket', sub: 'Needs a power cell', object: obj, accent: '#34d399', done: () => this.trialDone(s.id), enabled: () => !this.trialDone(s.id), use: () => {
+          if (this.carrying?.trial !== s.id) {
+            this.say("It needs a power cell — there's one somewhere in this room.", 2600, true);
+            return;
+          }
+          this.player.rig.root.remove(this.carrying.mesh);
+          this.carrying = null;
+          (obj.userData.lamp as THREE.Mesh).material = glow('#4ade80', 1.2);
+          const cellObj = buildPowerCell();
+          cellObj.position.set(0, 0.7, 0);
+          obj.add(cellObj);
+          complete();
+        } });
+      }
+    }
+    if (s.entry && !done) {
+      rt.entryGate = `${s.id}:entry`;
+      rt.entryCells = s.entry.cells;
+      rt.entry = { x: s.entry.x, z: s.entry.z };
+    }
+  }
+
+  private spawnPowerCell(rt: { id: string; cellHome?: { x: number; z: number } }) {
+    const h = rt.cellHome;
+    if (!h) return;
+    const obj = this.place(buildPowerCell(), h.x, h.z, 0, false);
+    obj.traverse((o) => o.userData.spin && this.spinners.push(o));
+    const it = this.inter({ id: `${rt.id}:cell`, kind: 'trial', x: h.x, z: h.z, radius: 1.2, verb: 'Pick up', label: 'Power cell', object: obj, accent: '#34d399', done: () => false, use: () => {
+      this.removeInter(it);
+      this.level.remove(obj);
+      const mesh = buildPowerCell();
+      mesh.scale.setScalar(0.7);
+      mesh.position.set(0, 0.55, -0.3);
+      this.player.rig.root.add(mesh);
+      this.carrying = { trial: rt.id, mesh };
+      this.audio.sfx('pickup');
+      this.say('Got it! Now to the socket by the door — careful with those lasers.', 3000, true);
+    } });
+  }
+
+  private completeTrial(id: string) {
+    const rt = this.trials.get(id);
+    if (!rt || this.trialDone(id)) return;
+    this.save.trials = [...(this.save.trials ?? []), id];
+    this.markDirty();
+    this.openGate(rt.gate);
+    if (rt.entryGate) this.openGate(rt.entryGate);
+    const info = TRIAL_INFO[rt.type];
+    this.store.toast(`🔓 TRIAL COMPLETE · ${info.name} — ${info.done}`, 'gear', 3600);
+    this.say(info.done, 2800, true);
+    if ((this.save.trials?.length ?? 0) >= 5) this.award('trailblazer');
+    this.refreshHud();
+  }
+
+  /** E on the crate: drag it one cell towards Dayna (she steps back). */
+  private pullCrate(rt: NonNullable<ReturnType<typeof this.trials.get>>) {
+    const c = rt.crate;
+    if (!c) return;
+    const p = this.player.pos;
+    const dx = p.x - c.x;
+    const dz = p.z - c.z;
+    const [ax, az] = Math.abs(dx) > Math.abs(dz) ? [Math.sign(dx), 0] : [0, Math.sign(dz)];
+    const back = { x: c.x + ax * 2, z: c.z + az * 2 };
+    if (this.world!.solid(back.x, back.z)) {
+      this.say('No room to pull it this way.', 1800, true);
+      return;
+    }
+    p.x = back.x;
+    p.z = back.z;
+    this.moveCrate(rt, ax, az);
+  }
+
+  private moveCrate(rt: NonNullable<ReturnType<typeof this.trials.get>>, ax: number, az: number) {
+    const c = rt.crate;
+    if (!c) return false;
+    const nx = c.x + ax;
+    const nz = c.z + az;
+    const cell = this.world!.cell(nx, nz);
+    if (!cell || cell.t !== 1 || cell.solid || this.world!.roomAt(nx, nz) !== rt.room) return false;
+    const old = this.world!.cell(c.x, c.z);
+    if (old) old.solid = false;
+    cell.solid = true;
+    const from = c.obj.position.clone();
+    c.x = nx;
+    c.z = nz;
+    const to = new THREE.Vector3(nx, this.world!.heightAt(nx, nz), nz);
+    c.it.pos.set(nx, to.y, nz);
+    c.it.ring?.position.set(nx, to.y + 0.05, nz);
+    const t0 = performance.now();
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - t0) / 180);
+      c.obj.position.lerpVectors(from, to, k);
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    this.audio.sfx('swing');
+    if (rt.plate && Math.abs(nx - rt.plate.x) < 0.1 && Math.abs(nz - rt.plate.z) < 0.1) {
+      (rt.plate.obj.userData.lamp as THREE.Mesh).material = glow('#4ade80', 1.2);
+      this.completeTrial(rt.id);
+    }
+    return true;
+  }
+
+  private updateTrials(dt: number, mv: { x: number; y: number }) {
+    const p = this.player;
+    const here = this.world!.roomAt(p.pos.x, p.pos.z);
+    for (const rt of this.trials.values()) {
+      if (this.trialDone(rt.id)) continue;
+      // Pushing: walk into the crate along an axis for a moment and it slides one cell.
+      if (rt.crate && here === rt.room) {
+        const dir = new THREE.Vector3().addScaledVector(SCREEN_RIGHT, mv.x).addScaledVector(SCREEN_UP, mv.y);
+        let pushing = false;
+        if (dir.lengthSq() > 0.25) {
+          const [ax, az] = Math.abs(dir.x) > Math.abs(dir.z) ? [Math.sign(dir.x), 0] : [0, Math.sign(dir.z)];
+          const rx = rt.crate.x - p.pos.x;
+          const rz = rt.crate.z - p.pos.z;
+          const along = rx * ax + rz * az;
+          const side = Math.abs(rx * az - rz * ax);
+          if (along > 0.4 && along < 1.05 && side < 0.5) {
+            pushing = true;
+            this.pushT += dt;
+            if (this.pushT > 0.22) {
+              this.pushT = 0;
+              this.moveCrate(rt, ax, az);
+            }
+          }
+        }
+        if (!pushing) this.pushT = 0;
+      }
+      // Lockdown arenas: doors seal behind you, two waves, then release.
+      if (rt.type === 'arena' && here === rt.room && !this.touring) {
+        if (!rt.started) {
+          rt.started = true;
+          if (rt.entryCells && rt.entryGate && rt.entry) this.createGate(rt.entryGate, rt.entryCells, false, rt.entry);
+          this.shake = Math.max(this.shake, 0.5);
+          this.audio.sfx('emp');
+          this.store.set({ banner: { title: 'LOCKDOWN', sub: TRIAL_INFO.arena.task, id: Date.now() } });
+          setTimeout(() => this.store.set({ banner: null }), 2600);
+        }
+        rt.waveBots = rt.waveBots.filter((e) => this.enemies.includes(e));
+        if (!rt.waveBots.length) {
+          if (rt.wave >= 2) this.completeTrial(rt.id);
+          else this.spawnArenaWave(rt, rt.wave++ === 0 ? 4 : 6);
+        }
+      }
+    }
+  }
+
+  private spawnArenaWave(rt: NonNullable<ReturnType<typeof this.trials.get>>, n: number) {
+    const level = this.portfolio.levels.find((l) => l.id === this.sceneId);
+    const types = (this.sceneId === 'projects' ? ['bug', 'drone'] : this.levelEnemyTypes(level)) as EnemyType[];
+    const r = this.map.rooms[rt.room];
+    const p = this.player.pos;
+    for (let k = 0, tries = 0; k < n && tries < 60; tries++) {
+      const x = r.x + 1.5 + Math.random() * (r.w - 3);
+      const z = r.z + 1.5 + Math.random() * (r.d - 3);
+      if (this.world!.solid(x, z) || Math.hypot(x - p.x, z - p.z) < 4) continue;
+      const e = this.addEnemy(types[k % types.length] ?? 'wisp', x, z, rt.room);
+      e.summoned = true;
+      e.cd = 1 + Math.random();
+      rt.waveBots.push(e);
+      this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), e.spec.color, 8, 2);
+      k++;
+    }
+    if (rt.wave === 2) this.say('Second wave! Hang in there!', 2200, true);
+  }
+
+  private levelEnemyTypes(level: Portfolio['levels'][number] | undefined): string[] {
+    const map: Record<string, string[]> = {
+      'spark-wisps': ['wisp'],
+      'welder-arms, scrap-crawlers': ['welder', 'crawler'],
+      'short-circuit-bugs': ['bug'],
+      'malware-packets': ['packet'],
+      'static-drones': ['drone'],
+      'pop-quiz-drones': ['drone', 'wisp'],
+      'dust-bots': ['crawler', 'packet'],
+      'pest-bugs': ['bug', 'crawler'],
+    };
+    return map[level?.meta.enemies ?? ''] ?? ['wisp'];
   }
 
   // ── Portal home ─────────────────────────────────────────────────────────────
@@ -1285,7 +1602,7 @@ export class Game {
       );
       beam.position.copy(a.clone().add(b).multiplyScalar(0.5)).add(new THREE.Vector3(0, 0.72, 0));
       this.level.add(beam);
-      this.hazards.push({ kind: 'laser', a, b, dir: along, obj: p1, t: Math.random() * 3, on: false, beam, hit: new Map() });
+      this.hazards.push({ kind: 'laser', a, b, dir: along, obj: p1, t: s.phase ?? Math.random() * 3, on: false, beam, hit: new Map() });
     } else {
       const obj = buildEmpPad();
       this.place(obj, s.x, s.z, 0, false);
@@ -1644,7 +1961,7 @@ export class Game {
     const mv = this.tour ? { x: 0, y: 0 } : this.input.move();
     const dir = new THREE.Vector3().addScaledVector(SCREEN_RIGHT, mv.x).addScaledVector(SCREEN_UP, mv.y);
     this.slowT = Math.max(0, this.slowT - dt);
-    const speed = this.tour ? tourSpeed : dir.length() * PLAYER_SPEED * (this.slowT > 0 ? 0.5 : 1);
+    const speed = this.tour ? tourSpeed : dir.length() * PLAYER_SPEED * (this.slowT > 0 ? 0.5 : 1) * (this.carrying ? 0.85 : 1);
     if (dir.lengthSq() > 0.001) {
       p.facing = Math.atan2(dir.x, dir.z);
       p.idle = 0;
@@ -1684,6 +2001,7 @@ export class Game {
       p.checkpoint.copy(p.pos);
       const r = this.map.rooms[room];
       if (r?.title && r.kind !== 'entry' && r.kind !== 'hub') this.enterArea(r);
+      if (this.trials.size) this.refreshHud();
     }
 
     // Combat
@@ -1708,6 +2026,7 @@ export class Game {
 
     this.updateCat(dt, speed);
     this.updateEnemies(dt);
+    this.updateTrials(dt, mv);
     this.updateHazards(dt);
     this.updateAssembly(dt);
     this.updateProjectiles(dt);
@@ -2045,6 +2364,16 @@ export class Game {
     const room = level?.rooms.find((x) => x.id === r.roomId);
     if (this.announced.has(r.i)) return;
     this.announced.add(r.i);
+    if (r.kind === 'trial') {
+      const rt = [...this.trials.values()].find((t) => t.room === r.i);
+      if (rt && !this.trialDone(rt.id)) {
+        const info = TRIAL_INFO[rt.type];
+        this.store.set({ area: { eyebrow: 'TRIAL ROOM · EXIT LOCKED', title: info.name, sub: info.task, id: Date.now() } });
+        if (!this.tour) this.say(info.hint, 4200, true);
+      }
+      this.refreshHud();
+      return;
+    }
     const intro = room ? roomIntro(room) : null;
     const area = { eyebrow: intro?.eyebrow ?? '', title: r.title ?? '', sub: intro?.sub ?? '', id: Date.now() };
     this.store.set({ area });
@@ -2211,6 +2540,12 @@ export class Game {
       p.hp = 0;
       p.dead = 1.3;
       this.cancelAssembly('The assembly was interrupted — the parts are safe. Try again from the station.');
+      if (this.carrying) {
+        const rt = this.trials.get(this.carrying.trial);
+        p.rig.root.remove(this.carrying.mesh);
+        this.carrying = null;
+        if (rt) this.spawnPowerCell(rt);
+      }
       this.store.set({ dead: true });
       this.say('Dayna! …Rebooting suit systems. Meow.', 2500);
     }
@@ -3513,8 +3848,13 @@ export class Game {
     const id = this.sceneId;
     const obj = objective(this.portfolio, this.save, id, this.settings.peaceful);
     const level = this.portfolio.levels.find((l) => l.id === id);
+    // Inside an unsolved trial room the objective is the trial's task.
+    const here = this.player && this.world ? this.world.roomAt(this.player.pos.x, this.player.pos.z) : -1;
+    const trial = [...this.trials.values()].find((t) => t.room === here && !this.trialDone(t.id));
     this.store.set({
-      objective: { mission: id === 'hub' ? 'Station Hub' : level?.meta.mission ?? level?.title ?? '', text: obj.text, done: obj.done },
+      objective: trial
+        ? { mission: `Trial · ${TRIAL_INFO[trial.type].name}`, text: TRIAL_INFO[trial.type].task, done: false }
+        : { mission: id === 'hub' ? 'Station Hub' : level?.meta.mission ?? level?.title ?? '', text: obj.text, done: obj.done },
       chips: id === 'hub' ? null : chips(this.portfolio, this.save, id),
       save: { ...this.save },
       rev: this.store.get().rev + 1,

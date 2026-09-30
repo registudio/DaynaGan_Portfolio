@@ -3,6 +3,7 @@ import type { GitHubFeed } from '@/lib/github';
 import { BIOMES, type PropKind } from './biomes.ts';
 import { rng } from './rng.ts';
 import { BOSSES, PUZZLES } from './missions.ts';
+import { TRIAL_INFO, trialSlots, trialType, type TrialType } from './trials.ts';
 
 /**
  * Turns a content level into a tile map + spawn list. Rooms are laid out as a
@@ -31,12 +32,13 @@ export type RoomRect = {
   w: number;
   d: number;
   h: number;
-  kind: 'entry' | 'content' | 'cavern' | 'vault' | 'secret' | 'hub';
+  kind: 'entry' | 'content' | 'cavern' | 'vault' | 'secret' | 'hub' | 'trial';
   roomId?: string;
   title?: string;
 };
 
 export type HazardKind = 'conveyor' | 'laser' | 'capacitor' | 'emp';
+export type TrialPoint = 'button' | 'cover' | 'crate' | 'plate' | 'breaker' | 'cell' | 'socket';
 
 export type Spawn =
   | { kind: 'console'; x: number; z: number; roomId: string }
@@ -56,7 +58,18 @@ export type Spawn =
   | { kind: 'enemy'; x: number; z: number; type: string; room: number }
   | { kind: 'boss'; x: number; z: number; room: number; type: string }
   | { kind: 'spawner'; id: string; x: number; z: number; room: number; type: string }
-  | { kind: 'hazard'; type: HazardKind; x: number; z: number; dir: 0 | 1; len: number; room: number }
+  | { kind: 'hazard'; type: HazardKind; x: number; z: number; dir: 0 | 1; len: number; room: number; phase?: number; push?: 1 | -1 }
+  | {
+      kind: 'trial';
+      id: string;
+      type: TrialType;
+      room: number;
+      x: number;
+      z: number;
+      gate: { x: number; z: number; cells: { x: number; z: number }[] };
+      entry: { x: number; z: number; cells: { x: number; z: number }[] } | null;
+      points: { role: TrialPoint; x: number; z: number }[];
+    }
   | { kind: 'barrier'; id: string; cells: { x: number; z: number }[]; x: number; z: number }
   | { kind: 'pnode'; id: string; index: number; x: number; z: number }
   | { kind: 'phint'; id: string; x: number; z: number }
@@ -386,6 +399,14 @@ export function buildLevel(
   } else {
     for (const r of level.rooms) specs.push({ ...roomSize(r.parts.length), kind: 'content', roomId: r.id, title: r.title });
   }
+  // Trial rooms (locked dungeons with a task + hazard gauntlet) between some content rooms.
+  const contentIdx = specs.map((sp, i) => (sp.kind === 'entry' ? -1 : i)).filter((i) => i >= 0);
+  // The door into the final room is already the puzzle gate on puzzle missions.
+  const slots = levelId === 'hub' ? [] : trialSlots(contentIdx.length).filter((sl) => !(PUZZLES[levelId] && sl === contentIdx.length - 2));
+  for (const [n, slot] of [...slots.entries()].reverse()) {
+    const type = trialType(levelId, n, opts.peaceful);
+    specs.splice(contentIdx[slot] + 1, 0, { w: 16, d: 14, kind: 'trial', title: `Trial · ${TRIAL_INFO[type].name}`, roomId: `trial-${n}` });
+  }
   const rooms = b.chain(specs, climb);
   const secret =
     levelId === 'trophies'
@@ -394,7 +415,7 @@ export function buildLevel(
   b.finalize();
 
   const spawn = entryRoom(b, rooms[0], biome);
-  const contentRooms = rooms.filter((r) => r.kind !== 'entry' && r.kind !== 'secret');
+  const contentRooms = rooms.filter((r) => r.kind !== 'entry' && r.kind !== 'secret' && r.kind !== 'trial');
 
   // Puzzle nodes get first pick of floor space.
   placePuzzle(b, levelId, rooms, rand);
@@ -433,6 +454,7 @@ export function buildLevel(
     placeSpawners(b, level, levelId, rooms, rand);
   } else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
   placeHazards(b, levelId, rooms, rand);
+  buildTrials(b, level, levelId, rooms, rand, opts.peaceful);
   // Portal home in the last room (opens once the mission is cleared).
   const last = [...rooms].reverse().find((r) => r.kind !== 'secret' && r.kind !== 'entry');
   const hp = last && (b.randomFree(last, rand, 1, 2) ?? b.randomFree(last, rand, 0, 2));
@@ -534,6 +556,175 @@ function placeHazards(b: Builder, levelId: string, rooms: RoomRect[], rand: () =
       k++;
     }
   }
+}
+
+/**
+ * Fills each trial room: a hazard gauntlet between the entrance and the exit (staggered laser
+ * sweeps, conveyors in the Forge, EMP pads, capacitors by the bots) plus the pieces of its task.
+ * The exit corridor becomes the locked gate.
+ */
+function buildTrials(b: Builder, level: Level, levelId: string, rooms: RoomRect[], rand: () => number, peaceful: boolean) {
+  const types = levelId === 'projects' ? ['bug'] : enemyTypes(level);
+  rooms
+    .filter((r) => r.kind === 'trial')
+    .forEach((room, n) => {
+      const type = trialType(levelId, n, peaceful);
+      const exit = b.corridors.find((c) => c.a === room.i);
+      const into = b.corridors.find((c) => c.b === room.i);
+      if (!exit || !into) return;
+      const x0 = room.x;
+      const z0 = room.z;
+      const x1 = room.x + room.w - 1;
+      const z1 = room.z + room.d - 1;
+      // Exit is on the +x wall or the +z wall (the chain alternates).
+      const exitOnX = exit.cells[0].x > x1;
+      const mid = (a: { x: number; z: number }[]) => a[Math.floor(a.length / 2)];
+      const gateC = mid(exit.cells);
+      const entryC = mid(into.cells);
+      const free = (x: number, z: number, pad = 0) => b.isFree(x + 0.5, z + 0.5, pad) && !b.nearDoor(x + 0.5, z + 0.5, 1.6);
+      const claimCell = (x: number, z: number, pad = 0) => b.claim(x + 0.5, z + 0.5, pad);
+      const points: { role: TrialPoint; x: number; z: number }[] = [];
+      // ── Gauntlet: two laser sweeps parallel to the exit wall, out of phase.
+      for (const [k, off] of [3, 7].entries()) {
+        if (exitOnX) {
+          const lx = x1 - off;
+          if (lx <= x0 + 1) continue;
+          const zA = z0 + 1;
+          const len = room.d - 2;
+          const cells = Array.from({ length: len }, (_, i) => ({ x: lx, z: zA + i }));
+          if (!cells.every((c) => b.isFree(c.x + 0.5, c.z + 0.5, 0))) continue;
+          cells.forEach((c) => claimCell(c.x, c.z));
+          for (const c of [cells[0], cells[len - 1]]) {
+            const cell = b.cell(c.x, c.z);
+            if (cell) cell.solid = true;
+          }
+          b.spawns.push({ kind: 'hazard', type: 'laser', x: lx + 0.5, z: zA + 0.5, dir: 1, len, room: room.i, phase: k * 2 });
+        } else {
+          const lz = z1 - off;
+          if (lz <= z0 + 1) continue;
+          const xA = x0 + 1;
+          const len = room.w - 2;
+          const cells = Array.from({ length: len }, (_, i) => ({ x: xA + i, z: lz }));
+          if (!cells.every((c) => b.isFree(c.x + 0.5, c.z + 0.5, 0))) continue;
+          cells.forEach((c) => claimCell(c.x, c.z));
+          for (const c of [cells[0], cells[len - 1]]) {
+            const cell = b.cell(c.x, c.z);
+            if (cell) cell.solid = true;
+          }
+          b.spawns.push({ kind: 'hazard', type: 'laser', x: xA + 0.5, z: lz + 0.5, dir: 0, len, room: room.i, phase: k * 2 });
+        }
+      }
+      // Between the sweeps: a conveyor in the Forge (shoves you sideways), EMP pads elsewhere.
+      const between = exitOnX ? { x: x1 - 5, z: z0 + 3 } : { x: x0 + 3, z: z1 - 5 };
+      if (levelId === 'experience') {
+        const len = 4;
+        const ok = Array.from({ length: len }, (_, i) => (exitOnX ? { x: between.x, z: between.z + i } : { x: between.x + i, z: between.z })).every((c) => free(c.x, c.z));
+        if (ok) {
+          for (let i = 0; i < len; i++) claimCell(exitOnX ? between.x : between.x + i, exitOnX ? between.z + i : between.z);
+          b.spawns.push({ kind: 'hazard', type: 'conveyor', x: between.x + 0.5, z: between.z + 0.5, dir: exitOnX ? 1 : 0, len, room: room.i });
+        }
+      } else if (free(between.x, between.z, 1) && free(between.x + 1, between.z + 1, 0)) {
+        claimCell(between.x, between.z, 1);
+        b.spawns.push({ kind: 'hazard', type: 'emp', x: between.x + 0.5, z: between.z + 0.5, dir: 0, len: 2, room: room.i });
+      }
+      // Task pieces.
+      const spot = (pred: (x: number, z: number) => boolean, pad = 1) => {
+        for (let t = 0; t < 120; t++) {
+          const x = x0 + 1 + Math.floor(rand() * (room.w - 2));
+          const z = z0 + 1 + Math.floor(rand() * (room.d - 2));
+          if (free(x, z, pad) && pred(x, z)) return { x, z };
+        }
+        return null;
+      };
+      const farFromGate = (x: number, z: number) => Math.hypot(x - gateC.x, z - gateC.z) > 7;
+      const farFromEntry = (x: number, z: number) => Math.hypot(x - entryC.x, z - entryC.z) > 5;
+      if (type === 'button') {
+        // In a corner away from both doors, half-hidden by crate stacks.
+        const corners = [
+          { x: x0 + 1, z: z0 + 1, cx: 1, cz: 1 },
+          { x: x1 - 1, z: z0 + 1, cx: -1, cz: 1 },
+          { x: x0 + 1, z: z1 - 1, cx: 1, cz: -1 },
+          { x: x1 - 1, z: z1 - 1, cx: -1, cz: -1 },
+        ].filter((c) => free(c.x, c.z) && farFromGate(c.x, c.z) && farFromEntry(c.x, c.z));
+        const c = corners[Math.floor(rand() * corners.length)] ?? spot((x, z) => farFromGate(x, z));
+        if (c) {
+          claimCell(c.x, c.z, 1);
+          points.push({ role: 'button', x: c.x + 0.5, z: c.z + 0.5 });
+          const cx = 'cx' in c ? c.cx : 1;
+          const cz = 'cz' in c ? c.cz : 1;
+          for (const [dx, dz] of [
+            [cx * 2, 0],
+            [cx * 2, cz],
+            [0, cz * 2],
+          ]) {
+            const cell = b.cell(c.x + dx, c.z + dz);
+            if (!cell || cell.t !== FLOOR) continue;
+            cell.solid = true;
+            points.push({ role: 'cover', x: c.x + dx + 0.5, z: c.z + dz + 0.5 });
+          }
+        }
+      } else if (type === 'push') {
+        // Plate in the open; crate three cells away on the same row with room to push from behind.
+        for (let t = 0; t < 80; t++) {
+          const p = spot(() => true, 1);
+          if (!p) break;
+          const horiz = rand() < 0.5;
+          const sgn = rand() < 0.5 ? 1 : -1;
+          const cr = horiz ? { x: p.x + 3 * sgn, z: p.z } : { x: p.x, z: p.z + 3 * sgn };
+          const behind = horiz ? { x: cr.x + sgn, z: cr.z } : { x: cr.x, z: cr.z + sgn };
+          const lane = [1, 2].map((k) => (horiz ? { x: p.x + k * sgn, z: p.z } : { x: p.x, z: p.z + k * sgn }));
+          if (![cr, behind, ...lane].every((c) => free(c.x, c.z))) continue;
+          for (const c of [p, cr, behind, ...lane]) claimCell(c.x, c.z);
+          points.push({ role: 'plate', x: p.x + 0.5, z: p.z + 0.5 }, { role: 'crate', x: cr.x + 0.5, z: cr.z + 0.5 });
+          break;
+        }
+      } else if (type === 'lasers') {
+        const got: { x: number; z: number }[] = [];
+        for (let t = 0; t < 3; t++) {
+          const p = spot((x, z) => got.every((g) => Math.hypot(g.x - x, g.z - z) > 4) && Math.hypot(x - gateC.x, z - gateC.z) > 3);
+          if (!p) continue;
+          claimCell(p.x, p.z, 1);
+          const cell = b.cell(p.x, p.z);
+          if (cell) cell.solid = true;
+          got.push(p);
+          points.push({ role: 'breaker', x: p.x + 0.5, z: p.z + 0.5 });
+        }
+      } else if (type === 'battery') {
+        const sock = exitOnX ? { x: x1, z: gateC.z - 2 } : { x: gateC.x - 2, z: z1 };
+        const cellP = spot((x, z) => farFromGate(x, z));
+        if (cellP && b.cell(sock.x, sock.z)?.t === FLOOR) {
+          claimCell(cellP.x, cellP.z, 1);
+          claimCell(sock.x, sock.z);
+          points.push({ role: 'cell', x: cellP.x + 0.5, z: cellP.z + 0.5 }, { role: 'socket', x: sock.x + 0.5, z: sock.z + 0.5 });
+        }
+      }
+      // A few bots and a capacitor or two for them to be blown up with (arenas bring their own waves).
+      if (!peaceful && type !== 'arena' && types.length) {
+        for (let k = 0; k < 3; k++) {
+          const p = b.randomFree(room, rand, 0, 3);
+          if (p) b.spawns.push({ kind: 'enemy', x: p.x, z: p.z, type: types[k % types.length], room: room.i });
+        }
+      }
+      for (let k = 0; k < 2; k++) {
+        const p = spot(() => true, 1);
+        if (!p) continue;
+        claimCell(p.x, p.z, 1);
+        const cell = b.cell(p.x, p.z);
+        if (cell) cell.solid = true;
+        b.spawns.push({ kind: 'hazard', type: 'capacitor', x: p.x + 0.5, z: p.z + 0.5, dir: 0, len: 1, room: room.i });
+      }
+      b.spawns.push({
+        kind: 'trial',
+        id: `${levelId}-trial-${n}`,
+        type,
+        room: room.i,
+        x: room.x + room.w / 2,
+        z: room.z + room.d / 2,
+        gate: { x: gateC.x + 0.5, z: gateC.z + 0.5, cells: exit.cells },
+        entry: type === 'arena' ? { x: entryC.x + 0.5, z: entryC.z + 0.5, cells: into.cells } : null,
+        points,
+      });
+    });
 }
 
 /** Energy barrier across the corridor into the final room, puzzle nodes + hint console in the room before. */
