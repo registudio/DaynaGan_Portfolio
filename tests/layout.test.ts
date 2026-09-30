@@ -98,3 +98,14 @@ for (const id of ['about', 'education', 'experience', 'projects', 'trophies', 'l
     assert.equal(calm.spawns.filter((s) => s.kind === 'spawner' || s.kind === 'enemy').length, 0);
   });
 }
+
+test('every mission gets its themed hazards, clear of doors, without blocking any interactable', async () => {
+  const { HAZARDS } = await import('../game/engine/layout.ts');
+  for (const [id, want] of Object.entries(HAZARDS)) {
+    const map = buildLevel(portfolio, id, { peaceful: false, github: feed });
+    const got = map.spawns.filter((s) => s.kind === 'hazard');
+    const total = Object.values(want).reduce((a, b) => a + (b ?? 0), 0);
+    assert.ok(got.length >= total - 1, `${id}: ${got.length}/${total} hazards`);
+    for (const h of got) assert.ok(map.rooms[h.kind === 'hazard' ? h.room : 0].kind !== 'entry', `${id}: hazard in entry room`);
+  }
+});

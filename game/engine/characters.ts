@@ -258,7 +258,7 @@ export function buildCat(): Rig {
 
 // ── Enemies ──────────────────────────────────────────────────────────────────
 
-export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss' | 'core' | 'arm' | 'queen' | 'swarm' | 'spawner';
+export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss' | 'core' | 'arm' | 'queen' | 'swarm' | 'spawner' | 'capacitor';
 
 /** Box with a stepped top edge, so silhouettes read as chamfered rather than cubic. */
 function bevel(w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D, cap = 0.05) {
@@ -548,6 +548,21 @@ export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
         const d = box(0.24, 0.1, 0.24, mat('#d4d0e8', { emissive: '#a78bfa', intensity: 1.2 }), 0, 0, 0, core);
         d.userData.orbit = i;
       }
+      parts.core = core;
+      break;
+    }
+    case 'capacitor': {
+      // Explosive capacitor: a fat electrolytic can with a hazard band and a charge light (`parts.core`).
+      blobShadow(0.4, root);
+      box(0.56, 0.1, 0.56, mat('#1c1c22', { pattern: 'plate' }), 0, 0.05, 0, body);
+      box(0.48, 0.8, 0.48, mat('#1f3a8a', { pattern: 'metal' }), 0, 0.5, 0, body);
+      box(0.5, 0.08, 0.5, mat('#15151a', { pattern: 'hazard', accent: '#facc15' }), 0, 0.62, 0, body);
+      box(0.44, 0.06, 0.44, mat('#c9ccd6', { pattern: 'plate' }), 0, 0.93, 0, body);
+      box(0.1, 0.12, 0.1, mat('#9ca3af'), -0.12, 1.02, 0, body);
+      box(0.1, 0.12, 0.1, mat('#9ca3af'), 0.12, 1.02, 0, body);
+      box(0.04, 0.5, 0.02, mat('#e5e7eb'), 0.18, 0.5, 0.245, body);
+      const core = group(body, 0, 0.3, 0.245);
+      box(0.12, 0.06, 0.02, glow('#facc15', 1.4), 0, 0, 0, core);
       parts.core = core;
       break;
     }

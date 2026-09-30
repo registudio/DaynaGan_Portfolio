@@ -17,6 +17,8 @@ import {
   ACHIEVEMENTS,
   allChipsCollected,
   BOSSES,
+  CAT_TRICKS,
+  catTricks,
   chips,
   contactUnlocked,
   COOLDOWNS,
@@ -50,6 +52,9 @@ import {
   buildVendor,
   contributionTile,
   buildFragment,
+  buildConveyor,
+  buildEmpPad,
+  buildLaserPost,
 } from './props.ts';
 import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
@@ -84,6 +89,8 @@ const ENEMY: Record<EnemyType, EnemySpec> = {
   swarm: { hp: 34, speed: 1.6, dmg: 2, radius: 0.9, shoot: 2.4, range: 12, color: '#c4b5fd', aggro: 12 },
   // Bot fabricator: static, prints bots until destroyed.
   spawner: { hp: 14, speed: 0, dmg: 0, radius: 0.8, color: '#f43f5e', aggro: 10 },
+  // Explosive capacitor (a hazard, but hittable like a bot).
+  capacitor: { hp: 1, speed: 0, dmg: 0, radius: 0.4, color: '#facc15', aggro: 0 },
 };
 
 const SPAWN_EVERY = 4.5;
@@ -128,6 +135,8 @@ type Enemy = {
   aim: THREE.Vector3 | null;
   lunge: { dir: THREE.Vector3; t: number } | null;
   tele?: THREE.Mesh;
+  /** Capacitors only: seconds until a chain-reaction detonation. */
+  fuse?: number;
   /** Fabricators only: what they print, their live bots, and their save id. */
   fab?: { type: EnemyType; id: string; kids: Enemy[]; t: number };
 };
@@ -287,6 +296,7 @@ export class Game {
       panel: null,
       card: null,
       area: null,
+      assembly: null,
       banner: null,
       menu: null,
       toasts: [],
@@ -522,6 +532,8 @@ export class Game {
   private buffered = new Set<Action>();
   private dwell: { target: Inter | null; t: number } = { target: null, t: 0 };
   private announced = new Set<number>();
+  private nineLivesUsed = false;
+  private slowT = 0;
   private fragments: Fragment[] = [];
 
   /** Teleport light column. `arriving` grows the rigs back in; otherwise they shrink away. */
@@ -588,6 +600,8 @@ export class Game {
     this.spinners = [];
     this.staticRoots = [];
     this.puzzle = null;
+    this.assembly = null;
+    this.hazards = [];
     this.catBed = null;
     this.relayObjs.clear();
     this.dish = null;
@@ -625,13 +639,14 @@ export class Game {
     this.clearScene();
     this.bubbleQueue = [];
     this.bubbleT = 0;
-    this.store.set({ boss: null });
+    this.store.set({ boss: null, assembly: null });
     this.sceneId = id;
     const level = this.portfolio.levels.find((l) => l.id === id);
     this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : biomeFor(level?.meta.biome, level?.meta.light);
     const b = this.biome;
     this.map = this.cachedLevel(id);
     this.announced.clear();
+    this.nineLivesUsed = false;
     this.fragments = level ? levelFragments(level) : [];
     const secret = this.map.rooms.find((r) => r.kind === 'secret');
     const hidden = secret && !this.save.backroom ? secret.i : null;
@@ -777,7 +792,9 @@ export class Game {
       if (l) {
         const wp = new THREE.Vector3();
         o.getWorldPosition(wp);
-        this.addLight(wp.add(new THREE.Vector3(0, l.y, 0)), l.color, l.intensity, l.distance, o === obj ? 0 : 0.2);
+        // Hang prop lights well above the prop so nearby surfaces don't blow out (inverse-square near field).
+        const y = Math.max(l.y, 2.4);
+        this.addLight(wp.add(new THREE.Vector3(0, y, 0)), l.color, l.intensity, l.distance + (y - l.y), o === obj ? 0 : 0.2);
       }
     });
     return obj;
@@ -902,7 +919,7 @@ export class Game {
           if (bug && bug.type === 'bug' && !bug.carry && bug.pos.distanceTo(new THREE.Vector3(s.x, bug.pos.y, s.z)) < 0.1) {
             bug.carry = { projectId: s.projectId, partId: s.partId };
             const cargo = bug.rig.parts.cargo;
-            const crate = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), glow('#fde047', 2));
+            const crate = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), glow('#fde047', 1.3));
             cargo?.add(crate);
             break;
           }
@@ -915,7 +932,7 @@ export class Game {
         if (!room) break;
         const color = room.meta.status === 'in-progress' ? '#f59e0b' : b.light;
         const obj = this.place(buildAssembly(color, s.wip), s.x, s.z);
-        const model = buildProjectModel(room.id);
+        const model = buildProjectModel(room.id, { ghostOpacity: 0.06 });
         model.group.scale.setScalar(0.62);
         model.group.position.set(0, 1.9, 0);
         model.setExplode(0.25);
@@ -1139,10 +1156,134 @@ export class Game {
         e.fab = { type, id: s.id, kids: [], t: 1.5 };
         break;
       }
+      case 'hazard':
+        this.spawnHazard(s);
+        break;
       case 'hub':
         this.spawnHub(s);
         break;
     }
+  }
+
+  // ── Hazards ─────────────────────────────────────────────────────────────────
+
+  private hazards: {
+    kind: 'conveyor' | 'laser' | 'emp';
+    a: THREE.Vector3;
+    b: THREE.Vector3;
+    dir: THREE.Vector3;
+    obj: THREE.Object3D;
+    t: number;
+    on: boolean;
+    beam?: THREE.Mesh;
+    hit: Map<unknown, number>;
+  }[] = [];
+
+  private spawnHazard(s: Extract<Spawn, { kind: 'hazard' }>) {
+    const along = new THREE.Vector3(s.dir === 0 ? 1 : 0, 0, s.dir === 1 ? 1 : 0);
+    const a = new THREE.Vector3(s.x, this.world!.heightAt(s.x, s.z), s.z);
+    const b = a.clone().addScaledVector(along, s.len - 1);
+    if (s.type === 'capacitor') {
+      this.addEnemy('capacitor', s.x, s.z, s.room);
+      return;
+    }
+    if (s.type === 'conveyor') {
+      const obj = buildConveyor(s.len, s.dir);
+      this.place(obj, s.x, s.z, 0, false);
+      this.hazards.push({ kind: 'conveyor', a, b, dir: along, obj, t: 0, on: true, hit: new Map() });
+    } else if (s.type === 'laser') {
+      const p1 = buildLaserPost();
+      const p2 = buildLaserPost();
+      this.place(p1, a.x, a.z);
+      this.place(p2, b.x, b.z);
+      const len = s.len - 1;
+      const beam = new THREE.Mesh(
+        new THREE.BoxGeometry(s.dir === 0 ? len : 0.07, 0.07, s.dir === 1 ? len : 0.07),
+        new THREE.MeshBasicMaterial({ color: '#ff4d4d', transparent: true, opacity: 0.9, depthWrite: false }),
+      );
+      beam.position.copy(a.clone().add(b).multiplyScalar(0.5)).add(new THREE.Vector3(0, 0.72, 0));
+      this.level.add(beam);
+      this.hazards.push({ kind: 'laser', a, b, dir: along, obj: p1, t: Math.random() * 3, on: false, beam, hit: new Map() });
+    } else {
+      const obj = buildEmpPad();
+      this.place(obj, s.x, s.z, 0, false);
+      const c = a.clone().add(new THREE.Vector3(0.5, 0, 0.5));
+      this.hazards.push({ kind: 'emp', a: c, b: c, dir: along, obj, t: Math.random() * 2, on: false, hit: new Map() });
+    }
+  }
+
+  private updateHazards(dt: number) {
+    const p = this.player;
+    const movers: { pos: THREE.Vector3; r: number; hurt: (dmg: number, from: THREE.Vector3) => void; stun: (s: number) => void; key: unknown }[] = [
+      { pos: p.pos, r: 0.3, hurt: (d, f) => !this.settings.peaceful && this.hurtPlayer(d, f), stun: (s) => (this.slowT = Math.max(this.slowT, s)), key: p },
+      ...this.enemies
+        .filter((e) => e.spec.speed > 0 && !e.boss)
+        .map((e) => ({ pos: e.pos, r: e.spec.radius, hurt: (d: number, f: THREE.Vector3) => this.damageEnemy(e, d, e.pos.clone().sub(f).setY(0).normalize()), stun: (s: number) => (e.stun = Math.max(e.stun, s)), key: e })),
+    ];
+    for (const h of this.hazards) {
+      h.t += dt;
+      if (h.kind === 'conveyor') {
+        (h.obj.userData.belt as THREE.Texture).offset.y -= dt * 1.6;
+        for (const m of movers) {
+          const u = m.pos.clone().sub(h.a).dot(h.dir);
+          const side = m.pos.clone().sub(h.a).addScaledVector(h.dir, -u).setY(0).length();
+          if (u > -0.5 && u < h.a.distanceTo(h.b) + 0.5 && side < 0.5) this.world!.move(m.pos, h.dir.x * 2.3 * dt, h.dir.z * 2.3 * dt, m.r);
+        }
+      } else if (h.kind === 'laser') {
+        // 2.2 s on, 1.8 s off; the last 0.5 s of "off" flickers as a warning.
+        const cyc = h.t % 4;
+        h.on = cyc < 2.2;
+        const warn = !h.on && cyc > 3.5;
+        const mat = h.beam!.material as THREE.MeshBasicMaterial;
+        h.beam!.visible = h.on || (warn && Math.floor(h.t * 16) % 2 === 0);
+        mat.opacity = h.on ? 0.9 : 0.3;
+        if (!h.on) continue;
+        const L = h.a.distanceTo(h.b);
+        for (const m of movers) {
+          const rel = m.pos.clone().sub(h.a).setY(0);
+          const u = Math.max(0, Math.min(L, rel.dot(h.dir)));
+          if (rel.addScaledVector(h.dir, -u).length() > m.r + 0.08) continue;
+          const last = h.hit.get(m.key) ?? -9;
+          if (h.t - last < 0.6) continue;
+          h.hit.set(m.key, h.t);
+          m.hurt(m.key === p ? 1 : 2, h.a.clone().addScaledVector(h.dir, u));
+          this.bursts.spawn(m.pos.clone().add(new THREE.Vector3(0, 0.7, 0)), '#ff4d4d', 5, 2);
+        }
+      } else {
+        // EMP pad: charges for 3.5 s (grate glows up), then discharges and stuns whatever stands on it.
+        const core = h.obj.userData.core as THREE.Mesh;
+        const k = (h.t % 4.2) / 3.5;
+        (core.material as THREE.MeshBasicMaterial).opacity = k < 1 ? 0.04 + k * k * 0.3 : 0.6 * (1 - (k - 1) * 5);
+        const fire = h.t % 4.2 >= 3.5 && !h.on;
+        h.on = h.t % 4.2 >= 3.5;
+        if (!fire) continue;
+        this.pulseAt(h.a, '#7dd3fc', 1.6);
+        for (const m of movers) {
+          if (Math.abs(m.pos.x - h.a.x) > 1 || Math.abs(m.pos.z - h.a.z) > 1) continue;
+          m.stun(m.key === p ? 1.6 : 2.4);
+          if (m.key !== p) m.hurt(1, h.a);
+        }
+      }
+    }
+  }
+
+  /** Explosive capacitor: damages bots (and Dayna) nearby and sets off other capacitors. */
+  private explode(e: Enemy) {
+    const at = e.pos.clone();
+    this.bursts.spawn(at.clone().add(new THREE.Vector3(0, 0.6, 0)), '#fde047', 36, 5);
+    this.pulseAt(at, '#f59e0b', 2.6);
+    this.audio.sfx('emp');
+    this.shake = Math.max(this.shake, 0.45);
+    const c = this.world!.cell(at.x, at.z);
+    if (c) c.solid = false;
+    for (const o of [...this.enemies]) {
+      if (o === e) continue;
+      const d = o.pos.distanceTo(at);
+      if (d > 2.5 + o.spec.radius) continue;
+      if (o.type === 'capacitor') o.fuse = o.fuse ?? 0.3;
+      else this.damageEnemy(o, o.boss ? 3 : 5, o.pos.clone().sub(at).setY(0).normalize(), 0.9);
+    }
+    if (this.player.pos.distanceTo(at) < 2.2 && !this.settings.peaceful) this.hurtPlayer(2, at);
   }
 
   /** Fabricator tick: while you're in its room it prints a bot every few seconds (capped). */
@@ -1414,7 +1555,8 @@ export class Game {
     const tourSpeed = this.tour ? this.tourStep(dt) : 0;
     const mv = this.tour ? { x: 0, y: 0 } : this.input.move();
     const dir = new THREE.Vector3().addScaledVector(SCREEN_RIGHT, mv.x).addScaledVector(SCREEN_UP, mv.y);
-    const speed = this.tour ? tourSpeed : dir.length() * PLAYER_SPEED;
+    this.slowT = Math.max(0, this.slowT - dt);
+    const speed = this.tour ? tourSpeed : dir.length() * PLAYER_SPEED * (this.slowT > 0 ? 0.5 : 1);
     if (dir.lengthSq() > 0.001) {
       p.facing = Math.atan2(dir.x, dir.z);
       p.idle = 0;
@@ -1478,6 +1620,8 @@ export class Game {
 
     this.updateCat(dt, speed);
     this.updateEnemies(dt);
+    this.updateHazards(dt);
+    this.updateAssembly(dt);
     this.updateProjectiles(dt);
     this.updateBuddy(dt);
     this.updateWorldBits(dt);
@@ -1694,7 +1838,7 @@ export class Game {
       const cos = d.normalize().dot(aim);
       if (cos < (mouse ? 0.92 : minCos)) continue;
       if (needLine && !this.world!.clearLine(p.pos.x, p.pos.z, e.pos.x, e.pos.z)) continue;
-      const score = len * (2 - cos) * (e.type === 'spawner' ? 1.4 : 1);
+      const score = len * (2 - cos) * (e.type === 'spawner' ? 1.4 : e.type === 'capacitor' ? 1.8 : 1);
       if (score < bestScore) {
         bestScore = score;
         best = d;
@@ -1795,6 +1939,10 @@ export class Game {
     if (e.hp <= 0) this.killEnemy(e);
   }
 
+  private tricks() {
+    return catTricks(this.portfolio, this.save);
+  }
+
   /** First time into a room this visit: a title card, and Xiao Hu tells you what it's about. */
   private enterArea(r: LevelMap['rooms'][number]) {
     const level = this.portfolio.levels.find((l) => l.id === this.sceneId);
@@ -1874,6 +2022,10 @@ export class Game {
   private killEnemy(e: Enemy) {
     this.enemies = this.enemies.filter((x) => x !== e);
     this.level.remove(e.rig.root);
+    if (e.type === 'capacitor') {
+      this.explode(e);
+      return;
+    }
     if (e.tele) this.level.remove(e.tele);
     this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), e.spec.color, e.boss ? 60 : 16, e.boss ? 6 : 3);
     this.audio.sfx('die');
@@ -1946,9 +2098,22 @@ export class Game {
     this.audio.sfx('hurt');
     const push = p.pos.clone().sub(from).setY(0).normalize().multiplyScalar(0.6);
     this.world!.move(p.pos, push.x, push.z, 0.3);
+    if (p.hp <= 0 && this.tricks()['nine-lives'] && !this.nineLivesUsed) {
+      // Nine Lives: Xiao Hu drags Dayna back up once per mission.
+      this.nineLivesUsed = true;
+      p.hp = Math.ceil(this.maxHp() / 2);
+      p.invuln = 2.2;
+      this.pulseAt(p.pos, '#fcd34d', 3);
+      this.bursts.spawn(p.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#fde68a', 30, 4);
+      for (const o of this.enemies) if (o.pos.distanceTo(p.pos) < 3.5 && !o.fab) o.stun = Math.max(o.stun, 1.5);
+      this.audio.meow(1.4);
+      this.say('Nine lives! …eight left. Meow.', 2600, true);
+      this.store.toast('NINE LIVES — Xiao Hu revived Dayna', 'achievement', 3000);
+    }
     if (p.hp <= 0) {
       p.hp = 0;
       p.dead = 1.3;
+      this.cancelAssembly('The assembly was interrupted — the parts are safe. Try again from the station.');
       this.store.set({ dead: true });
       this.say('Dayna! …Rebooting suit systems. Meow.', 2500);
     }
@@ -2056,6 +2221,14 @@ export class Game {
       if (far) continue;
       e.cd -= dt;
       e.flash = Math.max(0, e.flash - dt);
+      if (e.type === 'capacitor') {
+        if (e.fuse != null) {
+          e.fuse -= dt;
+          e.rig.parts.core.visible = Math.floor(this.time * 20) % 2 === 0;
+          if (e.fuse <= 0) this.killEnemy(e);
+        }
+        continue;
+      }
       if (e.fab) {
         e.rig.root.scale.setScalar(e.flash > 0 ? 1.08 : 1);
         const d2 = e.pos.distanceToSquared(p.pos);
@@ -2287,12 +2460,17 @@ export class Game {
   }
 
   private pulse(color: string, radius: number) {
+    this.pulseAt(this.player.pos, color, radius);
+  }
+
+  /** Expanding ground ring (EMP, hiss, explosions). */
+  private pulseAt(at: THREE.Vector3, color: string, radius: number) {
     const m = new THREE.Mesh(
       new THREE.RingGeometry(0.8, 1, 32),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }),
     );
     m.rotation.x = -Math.PI / 2;
-    m.position.copy(this.player.pos).add(new THREE.Vector3(0, 0.1, 0));
+    m.position.copy(at).add(new THREE.Vector3(0, 0.1, 0));
     this.level.add(m);
     let s = 0.2;
     const grow = () => {
@@ -2529,7 +2707,7 @@ export class Game {
     if (c.mode !== 'follow') return;
     c.sleeping = false;
     const enemy = this.enemies
-      .filter((e) => e.pos.distanceTo(p.pos) < 8 && this.world!.clearLine(c.pos.x, c.pos.z, e.pos.x, e.pos.z))
+      .filter((e) => e.type !== 'capacitor' && e.pos.distanceTo(p.pos) < 8 && this.world!.clearLine(c.pos.x, c.pos.z, e.pos.x, e.pos.z))
       .sort((a, b) => a.pos.distanceTo(p.pos) - b.pos.distanceTo(p.pos))[0];
     if (enemy) {
       c.mode = 'pounce';
@@ -2539,13 +2717,14 @@ export class Game {
       this.say('MRRRAOW!', 1400, true);
       return;
     }
+    const long = this.tricks()['long-fetch'];
     const part = this.inters
-      .filter((i) => i.kind === 'part' && i.pos.distanceTo(p.pos) < 14)
+      .filter((i) => (i.kind === 'part' || (long && i.kind === 'fragment')) && i.pos.distanceTo(p.pos) < (long ? 28 : 14))
       .sort((a, b) => a.pos.distanceTo(p.pos) - b.pos.distanceTo(p.pos))[0];
     if (part) {
       c.mode = 'fetch';
       c.fetch = part;
-      this.cooldowns.cat = COOLDOWNS.cat;
+      this.cooldowns.cat = COOLDOWNS.cat * (long ? 0.7 : 1);
       this.audio.meow(1.1);
       this.say(`I'll get the ${part.label}!`, 1800, true);
       return;
@@ -2584,6 +2763,17 @@ export class Game {
         this.clearTelegraph(e);
         this.damageEnemy(e, 1);
         this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.8, 0)), '#fcd34d', 10, 2.5);
+        if (this.tricks().hiss) {
+          // Hiss: a shockwave that stuns every bot around the target.
+          this.pulseAt(e.pos, '#fcd34d', 2.6);
+          this.audio.meow(0.7);
+          for (const o of this.enemies)
+            if (o !== e && !o.fab && o.pos.distanceTo(e.pos) < 2.6 + o.spec.radius) {
+              o.stun = Math.max(o.stun, o.boss ? 0.6 : 1.6);
+              o.windup = 0;
+              this.clearTelegraph(o);
+            }
+        }
         this.catAssist();
         c.mode = 'follow';
         c.target = null;
@@ -2878,9 +3068,100 @@ export class Game {
   /** Called from the panel's Assemble button. */
   buildProject(id: string) {
     const room = this.projectRooms().find((r) => r.id === id);
-    if (!room || this.save.built.includes(id)) return;
+    if (!room || this.save.built.includes(id) || this.assembly) return;
     const { check, missingParts } = projectPanel(this.portfolio, room, this.save, this.skillsCache);
     if (!check.ok || missingParts.length) return;
+    if (this.settings.peaceful || this.touring) this.completeBuild(room);
+    else this.startAssembly(room);
+  }
+
+  // ── Hold the line: assembling a project is a timed defence ─────────────────
+
+  private assembly: {
+    room: Room;
+    t: number;
+    dur: number;
+    vault: number;
+    station: THREE.Vector3;
+    spawnT: number;
+    wave: Enemy[];
+    state: 'ok' | 'jammed' | 'away';
+    shown: number;
+  } | null = null;
+
+  private startAssembly(room: Room) {
+    const station = this.inters.find((i) => i.id === `assembly:${room.id}`);
+    if (!station) return this.completeBuild(room);
+    const dur = { story: 30, normal: 45, hard: 55 }[this.settings.difficulty ?? 'normal'];
+    this.assembly = { room, t: 0, dur, vault: this.world!.roomAt(station.pos.x, station.pos.z), station: station.pos.clone(), spawnT: 1.5, wave: [], state: 'ok', shown: -1 };
+    this.store.set({ panel: null });
+    this.audio.sfx('emp');
+    this.shake = 0.25;
+    this.say(`Assembling ${room.title}! Keep the bugs off the station for ${dur} seconds!`, 3800, true);
+    this.syncAssemblyHud();
+  }
+
+  private updateAssembly(dt: number) {
+    const a = this.assembly;
+    if (!a) return;
+    const p = this.player;
+    const away = this.world!.roomAt(p.pos.x, p.pos.z) !== a.vault;
+    const jammed = this.enemies.some((e) => e.spec.speed > 0 && e.pos.distanceTo(a.station) < 1.9 + e.spec.radius);
+    a.state = away ? 'away' : jammed ? 'jammed' : 'ok';
+    if (a.state === 'ok') a.t += dt;
+    const k = Math.min(1, a.t / a.dur);
+    // The blueprint visibly pulls itself together as the bar fills.
+    this.blueprints.get(a.room.id)?.setExplode(0.6 * (1 - k));
+    if (a.state === 'ok' && Math.random() < dt * 6) this.bursts.spawn(a.station.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 1.6, -1.3)), '#22d3ee', 2, 1.5);
+    // Waves: bugs pour in from the edges of the vault, faster as the build nears completion.
+    a.spawnT -= dt;
+    a.wave = a.wave.filter((e) => this.enemies.includes(e));
+    if (a.spawnT <= 0 && a.wave.length < 6) {
+      a.spawnT = (k > 0.6 ? 2.4 : 3.2) * this.difficulty().cooldown;
+      const count = 1 + (k > 0.5 ? 1 : 0) + (this.difficulty().extra ? 1 : 0);
+      const r = this.map.rooms[a.vault];
+      for (let n = 0, tries = 0; n < count && tries < 30; tries++) {
+        const x = r.x + 1.5 + Math.random() * (r.w - 3);
+        const z = r.z + 1.5 + Math.random() * (r.d - 3);
+        if (this.world!.solid(x, z) || Math.hypot(x - a.station.x, z - a.station.z) < 4.5 || Math.hypot(x - p.pos.x, z - p.pos.z) < 2.5) continue;
+        const e = this.addEnemy(k > 0.6 && n === 0 ? 'drone' : 'bug', x, z, a.vault);
+        e.summoned = true;
+        e.cd = 1;
+        a.wave.push(e);
+        this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), e.spec.color, 8, 2);
+        n++;
+      }
+    }
+    this.syncAssemblyHud();
+    if (a.t >= a.dur) {
+      this.assembly = null;
+      for (const e of a.wave) if (this.enemies.includes(e)) this.killEnemy(e);
+      this.store.set({ assembly: null });
+      this.completeBuild(a.room);
+    }
+  }
+
+  private syncAssemblyHud() {
+    const a = this.assembly;
+    if (!a) return;
+    const p = Math.floor((a.t / a.dur) * 100);
+    const cur = this.store.get().assembly;
+    if (cur && a.shown === p && cur.state === a.state) return;
+    a.shown = p;
+    this.store.set({ assembly: { title: a.room.title, p, state: a.state, left: Math.ceil(a.dur - a.t) } });
+  }
+
+  private cancelAssembly(why: string) {
+    if (!this.assembly) return;
+    const room = this.assembly.room;
+    this.assembly = null;
+    this.store.set({ assembly: null });
+    this.syncBlueprint(room.id);
+    this.say(why, 3500);
+  }
+
+  private completeBuild(room: Room) {
+    const id = room.id;
     this.save.built.push(id);
     this.markDirty();
     this.audio.sfx('build');
@@ -2893,6 +3174,7 @@ export class Game {
     this.store.toast(`⚙ BUILT · ${room.title} — stored in your collection`, 'gear', 4000);
     this.say(`We built ${room.title}! It's in the collection locker now.`, 3500);
     this.afterProgress();
+    if (!this.touring && !this.settings.peaceful) return;
     this.store.set({ panel: projectPanel(this.portfolio, room, this.save, this.skillsCache).panel });
   }
 
@@ -3062,7 +3344,16 @@ export class Game {
     const id = this.sceneId;
     if (id === 'hub' || this.save.cleared.includes(id)) return;
     if (!isCleared(this.portfolio, this.save, id, this.settings.peaceful)) return;
+    const knew = catTricks(this.portfolio, this.save);
     this.save.cleared.push(id);
+    const knows = catTricks(this.portfolio, this.save);
+    for (const t of CAT_TRICKS)
+      if (knows[t.id] && !knew[t.id])
+        setTimeout(() => {
+          this.store.toast(`XIAO HU LEARNED ${t.name.toUpperCase()} — ${t.desc}`, 'achievement', 6000);
+          this.audio.meow(1.2);
+          this.say(`Mrrp! I learned ${t.name}!`, 3000);
+        }, 2400);
     this.markDirty();
     const level = this.portfolio.levels.find((l) => l.id === id);
     const gear = GEAR.find((g) => g.from === id);

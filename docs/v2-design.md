@@ -256,17 +256,27 @@ Owner feedback: combat not fully working, low fps, interacting only "from the fr
 5. *Data fragments* — bots sometimes drop a shard with one fact from the mission (saved; collect all in a mission for *Archivist*).
 All text is derived from `portfolio.md` (`game/engine/lore.ts`, unit-tested), so editing the markdown updates every channel.
 
-### Gameplay ideas — round 2 (suggested, not built)
-1. **Mod chips** — bots/fabricators drop chips that upgrade the wrench and solder beam (chain arc, wider swing, faster cooldown), named after Dayna's real skills; slot 3 at a time (Minecraft Dungeons-style enchantments).
-2. **Hold-the-line assembly** — building a project in its vault starts a 45 s defence wave while the assembly bar fills.
-3. **Elite bots** — rare overclocked variants with an affix (shielded, splitting, haste, magnetic) and better drops.
-4. **Interactive hazards** — conveyor belts, timed laser grids, explosive capacitors you can knock into mobs, EMP floor tiles.
-5. **Parry** — a well-timed wrench swing reflects projectiles back at the shooter.
-6. **Daily Circuit** — a seeded daily remix of rooms with a modifier (glass cannon, double speed, no beam) and a local best time.
-7. **Golden screws** — 3 hidden collectibles per mission behind breakable crates/false walls; unlock a cosmetic.
-8. **Xiao Hu upgrades** — clearing missions teaches her new tricks: a hiss that stuns a group, bigger fetch radius, *nine lives* (one free revive).
-9. **Knowledge checks** — an optional one-question quiz after a room ("Which simulator did Dayna evaluate at A*STAR?") for bonus chips; reinforces the content.
-10. **Mission ranks & NG+** — S/A/B rank per mission (time, damage taken, fragments, fabricators) and a Hard+ remix after the credits.
+### Gameplay ideas — round 2
+Owner picked **2, 4, 8** (built in round 3, below). The rest are kept as future ideas (see *Future update*).
+
+## Round 3 — picked ideas + fidelity pass (done)
+
+**Hold the line (idea 2).** Pressing *Assemble* at a vault starts a timed defence (Story 30 s / Normal 45 s / Hard 55 s). Bugs pour in from the vault's edges (drones join past 60%, faster waves near the end, capped at 6 alive). The bar only fills while Dayna is in the vault and no bot is touching the station — otherwise it reads *JAMMED* or *PAUSED*. The project's hologram pulls itself together as the bar fills; on completion the remaining wave fizzles and the project is built. Dying cancels it (parts are kept). Peaceful mode and Tour build instantly.
+
+**Interactive hazards (idea 4)** — biome-themed, placed on clear floor in content rooms (`HAZARDS` in `layout.ts`):
+- *Conveyor belts* (Forge): push Dayna and bots along the belt.
+- *Laser grids* (Spires, Caverns, Trophy Hall, Mainframe): 2.2 s on / 1.8 s off with a flicker warning; hurt Dayna (1) and bots (2).
+- *Explosive capacitors* (Reactor, Forge, Caverns, Trophy Hall, Commons, Comms): hit one and it blows — 5 damage to nearby bots, 2 to Dayna if she's too close, and it sets off neighbouring capacitors (chain reactions). Don't count as kills.
+- *EMP pads* (Reactor, Spires, Commons, Mainframe, Comms): charge for 3.5 s then discharge — bots on the pad are stunned and damaged, Dayna is only slowed. Lure bots onto them.
+Hazards never hurt Dayna in Peaceful mode or on the Tour.
+
+**Xiao Hu's tricks (idea 8)** — learned as missions are cleared (listed under Pause → Gear): *Hiss* (2 cleared) — her pounce ends in a shockwave that stuns every bot around the target; *Long Fetch* (4) — fetches parts and data fragments from twice as far and recovers faster; *Nine Lives* (6) — once per mission, when Dayna goes down she's revived at half health.
+
+**Design check & fidelity pass.**
+- Mobs rebuilt with far more detail: bevelled armour plating (new 16 px `plate` texture), jointed legs, visors, antennae, rotors, tanks, treads, mandibles, glitch shards; dimmer, smaller glow accents so silhouettes read instead of blooming.
+- Information interactives made subtler and richer: terminals are now kiosks (slanted readout screen with a `screen` texture, vent, status LED, small holo emitter); consoles have twin monitors and a keyboard; plinths, the Skill Matrix, repo racks, the assembly station and exit pads toned down. Interaction rings are dashed HUD rings that stay dim until targeted. Labels are glassy with a thin accent edge (no neon glow); stat readouts softened.
+- Root cause of "too bright": glow materials were lit *and* emissive, so point lights pushed them to white. `glow()` is now unlit (HDR colour, bloom still works), point lights are softer and hung ≥2.4 above props, and the in-game project hologram is fainter.
+- More world detail: patterned props default to 16 px textures (and the hand-authored tiles); walls get pipes, vents, lamps and conduit runs; bolted plates along back walls.
 
 ## Improvement backlog (suggested)
 
@@ -313,4 +323,5 @@ All text is derived from `portfolio.md` (`game/engine/lore.ts`, unit-tested), so
 5. Professional mode visuals: a rendered voxel hero of Dayna + Xiao Hu, consistent icon set, custom OG image.
 
 ## Future update (not built now)
+- **Round-2 gameplay ideas kept for later:** mod chips (weapon upgrades named after Dayna's skills), elite bots with affixes, parry (reflect projectiles), Daily Circuit (seeded remix + best time), golden screws (hidden collectibles → cosmetics), knowledge checks (optional quiz per room), mission ranks + NG+ remix.
 - Futuristic currency (not emeralds) dropped by bots/crates, spent at the hub vendor on cosmetic skins for Dayna **and cat variants** (orange, British blue, Garfield, striped, white socks…).

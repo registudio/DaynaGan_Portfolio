@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Game } from '@/game/engine/Game';
-import { ACHIEVEMENTS, chips, GEAR, gearUnlocked, MISSION_ORDER } from '@/game/engine/missions';
+import { ACHIEVEMENTS, CAT_TRICKS, catTricks, chips, clearedCount, GEAR, gearUnlocked, MISSION_ORDER } from '@/game/engine/missions';
 import { partPanel, proAnchor, roomPanel } from '@/game/engine/panels';
 import { DEFAULT_KEYS, type Action, type Hud } from '@/game/engine/store';
 import { partKey, roomKey } from '@/lib/skills';
@@ -160,7 +160,26 @@ function Codex({ game, hud }: { game: Game; hud: Hud }) {
 
 function GearList({ game, hud }: { game: Game; hud: Hud }) {
   const got = new Set(gearUnlocked(hud.save).map((g) => g.id));
+  const tricks = catTricks(game.portfolio, hud.save);
+  const cleared = clearedCount(game.portfolio, hud.save);
+  const cat = game.portfolio.site.companion.name;
   return (
+    <>
+    <h3 className="g-subhead">{cat}&apos;s tricks</h3>
+    <ul className="g-ach">
+      {CAT_TRICKS.map((t) => (
+        <li key={t.id} className={tricks[t.id] ? 'got' : ''}>
+          <b>
+            {tricks[t.id] ? '◆' : '◇'} {t.name}
+          </b>
+          <span>
+            {t.desc}
+            {tricks[t.id] ? '' : ` — learns it after ${t.need} cleared missions (${cleared}/${t.need})`}
+          </span>
+        </li>
+      ))}
+    </ul>
+    <h3 className="g-subhead">Gear</h3>
     <ul className="g-ach">
       {GEAR.map((g) => {
         const from = game.portfolio.levels.find((l) => l.id === g.from);
@@ -177,6 +196,7 @@ function GearList({ game, hud }: { game: Game; hud: Hud }) {
         );
       })}
     </ul>
+    </>
   );
 }
 

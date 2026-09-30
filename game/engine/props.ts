@@ -326,11 +326,21 @@ export function buildPartPickup(accent: string) {
 }
 
 export function buildAssembly(accent: string, wip: boolean) {
+  // Assembly station: bevelled grate platform, a slow HUD ring, four gantry posts with status lamps.
   const g = new THREE.Group();
-  box(2.2, 0.3, 2.2, mat('#1b2330', { pattern: 'grate' }), 0, 0.15, 0, g);
-  box(2.3, 0.06, 2.3, glow(accent, 1.4), 0, 0.3, 0, g);
-  const r = ring(1.3, 0.03, glow(accent, 2), g);
-  r.position.y = 0.34;
+  const steel = mat('#2b3345', { pattern: 'plate' });
+  box(2.3, 0.12, 2.3, mat('#141a24', { pattern: 'plate' }), 0, 0.06, 0, g);
+  box(2.1, 0.22, 2.1, mat('#1b2330', { pattern: 'grate' }), 0, 0.23, 0, g);
+  // Thin lit edge strips instead of a solid glowing slab (which blows out under the vault light).
+  for (const [x, z, w, d] of [
+    [0, -1.06, 2.14, 0.05],
+    [0, 1.06, 2.14, 0.05],
+    [-1.06, 0, 0.05, 2.14],
+    [1.06, 0, 0.05, 2.14],
+  ])
+    box(w, 0.03, d, glow(accent, 0.9), x, 0.35, z, g);
+  const r = ring(1.3, 0.02, glow(accent, 1.1), g);
+  r.position.y = 0.36;
   r.userData.spin = 0.4;
   for (const [x, z] of [
     [-1, -1],
@@ -338,14 +348,18 @@ export function buildAssembly(accent: string, wip: boolean) {
     [-1, 1],
     [1, 1],
   ]) {
-    box(0.14, 1.4, 0.14, mat('#2b3345'), x, 0.7, z, g);
-    box(0.16, 0.12, 0.16, glow(wip ? '#f59e0b' : accent, 2.4), x, 1.42, z, g);
+    box(0.22, 0.14, 0.22, steel, x, 0.42, z, g);
+    box(0.14, 1.3, 0.14, steel, x, 1.05, z, g);
+    box(0.18, 0.08, 0.18, mat('#161b26'), x, 1.72, z, g);
+    box(0.1, 0.06, 0.1, glow(wip ? '#f59e0b' : accent, 1.3), x, 1.79, z, g);
   }
+  box(2.1, 0.08, 0.08, steel, 0, 1.72, -1, g);
+  box(2.1, 0.08, 0.08, steel, 0, 1.72, 1, g);
   if (wip) {
     // Hazard tape: case file incomplete.
     box(2.2, 0.12, 0.04, mat('#15151a', { pattern: 'hazard', accent: '#f59e0b' }), 0, 0.9, 1.05, g);
   }
-  g.userData.light = { y: 1.8, color: accent, intensity: 4, distance: 6 };
+  g.userData.light = { y: 1.8, color: accent, intensity: 2.2, distance: 5 };
   return g;
 }
 
@@ -608,5 +622,93 @@ export function buildPuzzleNode(type: 'sequence' | 'rotate' | 'pattern', accent:
   g.userData.lamp = lamp;
   g.userData.index = index;
   interactRing(g, accent, 0.6);
+  return g;
+}
+
+// ── Hazards ──────────────────────────────────────────────────────────────────
+
+let chevronTex: THREE.CanvasTexture | null = null;
+/** Scrolling chevrons for conveyor belts (one shared texture; each belt clones it for its own offset). */
+function chevrons() {
+  if (chevronTex) return chevronTex;
+  const c = document.createElement('canvas');
+  c.width = 16;
+  c.height = 16;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#26221e';
+  g.fillRect(0, 0, 16, 16);
+  g.fillStyle = '#3a342e';
+  for (let y = 0; y < 16; y += 4) g.fillRect(0, y, 16, 1);
+  g.fillStyle = '#f59e0b';
+  for (let i = 0; i < 5; i++) {
+    g.fillRect(3 + i, 4 + i, 2, 1);
+    g.fillRect(11 - i, 4 + i, 2, 1);
+  }
+  chevronTex = new THREE.CanvasTexture(c);
+  chevronTex.magFilter = THREE.NearestFilter;
+  chevronTex.minFilter = THREE.NearestFilter;
+  chevronTex.colorSpace = THREE.SRGBColorSpace;
+  chevronTex.wrapS = chevronTex.wrapT = THREE.RepeatWrapping;
+  return chevronTex;
+}
+
+/** Conveyor belt `len` cells long along +x (dir 0) or +z (dir 1); `userData.belt` is the scrolling texture. */
+export function buildConveyor(len: number, dir: 0 | 1) {
+  const g = new THREE.Group();
+  const frame = mat('#3b3530', { pattern: 'plate' });
+  const along = (a: number, b: number) => (dir === 0 ? [a, b] : [b, a]);
+  const [w, d] = along(len, 1);
+  const [cx, cz] = along((len - 1) / 2, 0);
+  box(w, 0.12, d, frame, cx, 0.06, cz, g);
+  const tex = chevrons().clone();
+  tex.needsUpdate = true;
+  tex.repeat.set(1, len);
+  const belt = new THREE.Mesh(new THREE.PlaneGeometry(0.8, len), new THREE.MeshLambertMaterial({ map: tex }));
+  belt.rotation.x = -Math.PI / 2;
+  if (dir === 0) belt.rotation.z = -Math.PI / 2;
+  belt.position.set(cx, 0.125, cz);
+  g.add(belt);
+  for (const s of [-0.46, 0.46]) {
+    const [sx, sz] = along(0, s);
+    const [rw, rd] = along(len, 0.08);
+    box(rw, 0.08, rd, mat('#15151a', { pattern: 'hazard', accent: '#f59e0b' }), cx + sx, 0.16, cz + sz, g);
+  }
+  g.userData.belt = tex;
+  g.userData.dynamic = true;
+  return g;
+}
+
+/** One post of a laser grid: armoured pylon with an emitter lens at beam height. */
+export function buildLaserPost(accent = '#ef4444') {
+  const g = new THREE.Group();
+  box(0.5, 0.12, 0.5, mat('#1c1c22', { pattern: 'plate' }), 0, 0.06, 0, g);
+  box(0.3, 1.3, 0.3, mat('#34343d', { pattern: 'plate' }), 0, 0.77, 0, g);
+  box(0.36, 0.1, 0.36, mat('#15151a', { pattern: 'hazard', accent }), 0, 1.45, 0, g);
+  box(0.16, 0.16, 0.16, mat('#1a0505', { emissive: accent, intensity: 1.2 }), 0, 0.72, 0, g);
+  return g;
+}
+
+/** EMP floor pad (2×2): coils at the corners and a grate that glows as it charges (`userData.core`). */
+export function buildEmpPad() {
+  const g = new THREE.Group();
+  box(1.9, 0.08, 1.9, mat('#1e2433', { pattern: 'plate' }), 0.5, 0.04, 0.5, g);
+  box(1.4, 0.03, 1.4, mat('#0c1220', { pattern: 'grate' }), 0.5, 0.095, 0.5, g);
+  for (const [x, z] of [
+    [-0.3, -0.3],
+    [1.3, -0.3],
+    [-0.3, 1.3],
+    [1.3, 1.3],
+  ]) {
+    box(0.22, 0.34, 0.22, mat('#2c3446', { pattern: 'plate' }), x, 0.2, z, g);
+    for (let k = 0; k < 3; k++) box(0.26, 0.03, 0.26, mat('#b45309'), x, 0.1 + k * 0.09, z, g);
+  }
+  const core = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.36, 1.36),
+    new THREE.MeshBasicMaterial({ color: '#7dd3fc', transparent: true, opacity: 0.05, depthWrite: false, blending: THREE.AdditiveBlending }),
+  );
+  core.rotation.x = -Math.PI / 2;
+  core.position.set(0.5, 0.12, 0.5);
+  g.add(core);
+  g.userData.core = core;
   return g;
 }

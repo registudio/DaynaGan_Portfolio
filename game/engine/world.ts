@@ -265,7 +265,8 @@ export class LightPool {
     for (const l of this.lights) {
       const s = l.userData.src as LightSource | null;
       if (!s) continue;
-      const boost = 4;
+      // Lambert surfaces take point light more directly than the old PBR ones; keep pools soft.
+      const boost = 2.4;
       const flicker = s.flicker ? 1 + Math.sin(time * 13 + s.pos.x) * s.flicker * 0.5 + (Math.random() - 0.5) * s.flicker * 0.3 : 1;
       l.intensity = s.intensity * flicker * boost;
     }

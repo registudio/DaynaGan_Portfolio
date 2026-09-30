@@ -164,3 +164,20 @@ export function objective(p: Portfolio, save: SaveData, levelId: string, peacefu
 export function gearUnlocked(save: SaveData) {
   return GEAR.filter((g) => save.cleared.includes(g.from));
 }
+
+// ── Xiao Hu's tricks ─────────────────────────────────────────────────────────
+
+export type CatTrickId = 'hiss' | 'long-fetch' | 'nine-lives';
+export type CatTrick = { id: CatTrickId; name: string; need: number; desc: string };
+
+/** Xiao Hu learns a trick as missions are cleared (counted like the Comms unlock). */
+export const CAT_TRICKS: CatTrick[] = [
+  { id: 'hiss', name: 'Hiss', need: 2, desc: 'Her pounce ends in a hiss that stuns every bot around the target.' },
+  { id: 'long-fetch', name: 'Long Fetch', need: 4, desc: 'Fetches from twice as far (parts and data fragments), and recovers faster.' },
+  { id: 'nine-lives', name: 'Nine Lives', need: 6, desc: 'Once per mission, when Dayna goes down, Xiao Hu revives her at half health.' },
+];
+
+export function catTricks(p: Portfolio, save: SaveData): Record<CatTrickId, boolean> {
+  const n = clearedCount(p, save);
+  return Object.fromEntries(CAT_TRICKS.map((t) => [t.id, n >= t.need])) as Record<CatTrickId, boolean>;
+}

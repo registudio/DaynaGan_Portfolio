@@ -161,7 +161,7 @@ export function hasModel(projectId: string) {
   return projectId in PROJECT_GEOMETRY;
 }
 
-export function buildProjectModel(projectId: string, opts: { accent?: string } = {}): ProjectModel {
+export function buildProjectModel(projectId: string, opts: { accent?: string; ghostOpacity?: number } = {}): ProjectModel {
   const def = PROJECT_GEOMETRY[projectId];
   const group = new THREE.Group();
   group.name = `project:${projectId}`;
@@ -170,7 +170,7 @@ export function buildProjectModel(projectId: string, opts: { accent?: string } =
   const ghost = new THREE.MeshBasicMaterial({
     color: '#67e8f9',
     transparent: true,
-    opacity: 0.16,
+    opacity: opts.ghostOpacity ?? 0.16,
     depthWrite: false,
   });
   const highlight = new THREE.MeshStandardMaterial({

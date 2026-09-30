@@ -187,6 +187,8 @@ export type Hud = {
   card: { title: string; eyebrow: string; html: string; id: number } | null;
   /** Mission just cleared banner. */
   banner: { title: string; sub: string; id: number } | null;
+  /** Hold-the-line assembly in progress. */
+  assembly: { title: string; p: number; state: 'ok' | 'jammed' | 'away'; left: number } | null;
   /** Area title card shown on first entering a room. */
   area: { eyebrow: string; title: string; sub: string; id: number } | null;
   menu: null | 'pause';

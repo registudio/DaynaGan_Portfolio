@@ -54,3 +54,16 @@ for (const id of Object.keys(BOSSES)) {
     assert.ok(!buildLevel(portfolio, id, { peaceful: true, github: feed }).spawns.some((s) => s.kind === 'boss'));
   });
 }
+
+test('Xiao Hu learns tricks as missions are cleared', async () => {
+  const { catTricks, CAT_TRICKS } = await import('../game/engine/missions.ts');
+  const { emptySave } = await import('../game/engine/store.ts');
+  const save = emptySave();
+  assert.deepEqual(catTricks(portfolio, save), { hiss: false, 'long-fetch': false, 'nine-lives': false });
+  const ids = ['about', 'education', 'experience', 'projects', 'trophies', 'leadership'];
+  for (const [k, id] of ids.entries()) {
+    save.cleared.push(id);
+    const t = catTricks(portfolio, save);
+    for (const trick of CAT_TRICKS) assert.equal(t[trick.id], k + 1 >= trick.need, `${trick.id} after ${k + 1}`);
+  }
+});

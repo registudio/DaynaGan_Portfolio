@@ -83,7 +83,26 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
         </div>
       )}
 
-      {hud.area && !hud.banner && !hud.boss && (
+      {hud.assembly && (
+        <div className={`g-assembly ${hud.assembly.state}`} role="status">
+          <div className="g-assembly-head">
+            <b>ASSEMBLING · {hud.assembly.title}</b>
+            <span>{hud.assembly.state === 'ok' ? `${hud.assembly.left}s` : hud.assembly.state === 'jammed' ? 'JAMMED' : 'PAUSED'}</span>
+          </div>
+          <div className="g-assembly-bar">
+            <i style={{ width: `${hud.assembly.p}%` }} />
+          </div>
+          <small>
+            {hud.assembly.state === 'jammed'
+              ? 'Bots on the station — knock them off!'
+              : hud.assembly.state === 'away'
+                ? 'Get back to the vault to keep building.'
+                : 'Hold the line — keep the bugs off the station.'}
+          </small>
+        </div>
+      )}
+
+      {hud.area && !hud.banner && !hud.boss && !hud.assembly && (
         <div className="g-area" key={hud.area.id}>
           {hud.area.eyebrow && <small>{hud.area.eyebrow}</small>}
           <b>{hud.area.title}</b>

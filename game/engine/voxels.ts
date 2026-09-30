@@ -30,9 +30,22 @@ export function mat(color: string, o: MatOpts = {}): THREE.Material {
   return m;
 }
 
-/** Glowing, unlit-looking material for lights, screens and accents. */
+const glows = new Map<string, THREE.Material>();
+
+/**
+ * Glowing material for lights, screens and accents. Unlit, so nearby point lights can't push it
+ * to white; the colour is HDR-scaled by `intensity` so bloom still picks up the bright ones.
+ */
 export function glow(color: string, intensity = 2.2): THREE.Material {
-  return mat(color, { emissive: color, intensity, rough: 0.4 });
+  const key = `${color}|${intensity}`;
+  const hit = glows.get(key);
+  if (hit) return hit;
+  const m = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(1, 1, 1).multiplyScalar(Math.max(0.35, intensity * 0.72)),
+    map: pixelTexture('noise', color, '#ffffff', 8),
+  });
+  glows.set(key, m);
+  return m;
 }
 
 export function box(

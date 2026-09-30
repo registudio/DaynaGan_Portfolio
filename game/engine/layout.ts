@@ -36,6 +36,8 @@ export type RoomRect = {
   title?: string;
 };
 
+export type HazardKind = 'conveyor' | 'laser' | 'capacitor' | 'emp';
+
 export type Spawn =
   | { kind: 'console'; x: number; z: number; roomId: string }
   | { kind: 'terminal'; x: number; z: number; roomId: string; partId: string }
@@ -53,6 +55,7 @@ export type Spawn =
   | { kind: 'enemy'; x: number; z: number; type: string; room: number }
   | { kind: 'boss'; x: number; z: number; room: number; type: string }
   | { kind: 'spawner'; id: string; x: number; z: number; room: number; type: string }
+  | { kind: 'hazard'; type: HazardKind; x: number; z: number; dir: 0 | 1; len: number; room: number }
   | { kind: 'barrier'; id: string; cells: { x: number; z: number }[]; x: number; z: number }
   | { kind: 'pnode'; id: string; index: number; x: number; z: number }
   | { kind: 'phint'; id: string; x: number; z: number }
@@ -427,6 +430,7 @@ export function buildLevel(
     placeBoss(b, levelId, rooms);
     placeSpawners(b, level, levelId, rooms, rand);
   } else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
+  placeHazards(b, levelId, rooms, rand);
   b.decorate(biome, rand, levelId === 'trophies' ? 0.1 : 0.16);
   return b.result(levelId, biome, spawn);
 }
@@ -473,6 +477,53 @@ function placeSpawners(b: Builder, level: Level, levelId: string, rooms: RoomRec
     if (c) c.solid = true;
     b.spawns.push({ kind: 'spawner', id: `${levelId}-fab-${placed}`, x: p.x, z: p.z, room: room.i, type: types[placed % types.length] });
     placed++;
+  }
+}
+
+/** Which interactive hazards each mission gets (biome-themed). */
+export const HAZARDS: Record<string, Partial<Record<HazardKind, number>>> = {
+  about: { capacitor: 3, emp: 1 },
+  education: { laser: 2, emp: 1 },
+  experience: { conveyor: 2, capacitor: 3 },
+  projects: { laser: 2, capacitor: 2 },
+  trophies: { capacitor: 2, laser: 1 },
+  leadership: { capacitor: 2, emp: 1 },
+  github: { emp: 2, laser: 1 },
+  contact: { emp: 2, capacitor: 2 },
+};
+
+/**
+ * Conveyors, laser grids, explosive capacitors and EMP pads, placed on clear floor in content rooms
+ * (never the entry room, never on a door or anything already placed).
+ */
+function placeHazards(b: Builder, levelId: string, rooms: RoomRect[], rand: () => number) {
+  const want = HAZARDS[levelId];
+  if (!want) return;
+  const pool = rooms.filter((r) => r.kind === 'content' || r.kind === 'cavern' || r.kind === 'vault');
+  if (!pool.length) return;
+  let k = 0;
+  for (const [type, n] of Object.entries(want) as [HazardKind, number][]) {
+    for (let placed = 0, tries = 0; placed < n && tries < 80; tries++) {
+      const room = pool[(k + tries) % pool.length];
+      const dir: 0 | 1 = rand() < 0.5 ? 0 : 1;
+      const len = type === 'conveyor' ? 4 : type === 'laser' ? 4 : type === 'emp' ? 2 : 1;
+      const p = b.randomFree(room, rand, 1, 2);
+      if (!p) continue;
+      const cells: { x: number; z: number }[] = [];
+      for (let i = 0; i < len; i++) cells.push({ x: p.x + (dir === 0 ? i : 0), z: p.z + (dir === 1 ? i : 0) });
+      if (type === 'emp') cells.push({ x: p.x + 1, z: p.z }, { x: p.x + 1, z: p.z + 1 });
+      if (!cells.every((c) => b.isFree(c.x, c.z, 1) && !b.nearDoor(c.x, c.z, 2.5))) continue;
+      for (const c of cells) b.claim(c.x, c.z, 0);
+      // Capacitors and laser posts are solid; conveyors and EMP pads are floor you walk on.
+      const solid = type === 'capacitor' ? [cells[0]] : type === 'laser' ? [cells[0], cells[len - 1]] : [];
+      for (const c of solid) {
+        const cell = b.cell(Math.floor(c.x), Math.floor(c.z));
+        if (cell) cell.solid = true;
+      }
+      b.spawns.push({ kind: 'hazard', type, x: p.x, z: p.z, dir, len, room: room.i });
+      placed++;
+      k++;
+    }
   }
 }
 
