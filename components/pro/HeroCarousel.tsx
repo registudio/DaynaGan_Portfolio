@@ -110,14 +110,14 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       </div>
       <div className="hero-caption">
         <button className="icon-btn" onClick={() => go(-1)} aria-label="Previous model">
-          ‹
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
         </button>
         <div className="hero-caption-text" aria-live="polite">
           <span className="mono">Blueprint {String(index + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span>
           <a href={`#projects-${item.id}`}>{item.title} ↓</a>
         </div>
         <button className="icon-btn" onClick={() => go(1)} aria-label="Next model">
-          ›
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
         </button>
       </div>
       <div className="hero-dots" role="group" aria-label="Choose a model">

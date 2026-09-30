@@ -17,11 +17,12 @@ import CopyEmail from './CopyEmail';
 import GitHubPanel from './GitHubPanel';
 import HeroCarousel from './HeroCarousel';
 import { HobbyIcon } from './HobbyIcon';
-import Intro from './Intro';
+import NameIntro from './Intro';
 import ProFooter from './ProFooter';
 import ProHeader from './ProHeader';
 import ProjectShowcase, { type ShowcaseProject } from './ProjectShowcase';
 import RevealRoot from './RevealRoot';
+import ScrollStory from './ScrollStory';
 
 const Html = ({ html, className = 'prose' }: { html?: string; className?: string }) =>
   html ? <div className={className} dangerouslySetInnerHTML={{ __html: html }} /> : null;
@@ -78,17 +79,23 @@ const uses = (room: Room) =>
     ]),
   ].join(' ');
 
-function SectionHead({ level }: { level: Level }) {
+/** "04 / Projects" → "04". Headings are just the section name; the number sits above it. */
+const sectionNumber = (level: Level) => (level.meta.eyebrow ?? '').split('/')[0].trim();
+
+function Intro({ level }: { level: Level }) {
+  return level.meta.profile ? (
+    <p className="intro">{level.meta.profile}</p>
+  ) : level.html ? (
+    <Html html={level.html} className="prose intro" />
+  ) : null;
+}
+
+function SectionHead({ level, intro = true }: { level: Level; intro?: boolean }) {
   return (
     <header className="section-head" data-reveal>
-      {level.meta.eyebrow && <span className="eyebrow">{level.meta.eyebrow}</span>}
-      <h2>{level.meta.title || level.title}</h2>
-      {level.meta.kicker && <span className="kicker">{level.meta.kicker}</span>}
-      {level.meta.profile ? (
-        <p className="intro">{level.meta.profile}</p>
-      ) : (
-        level.html && <Html html={level.html} className="prose intro" />
-      )}
+      {sectionNumber(level) && <span className="eyebrow">{sectionNumber(level)}</span>}
+      <h2>{level.title}</h2>
+      {intro && <Intro level={level} />}
     </header>
   );
 }
@@ -172,11 +179,12 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
   const stats = level.rooms.find((r) => r.id === 'stats');
   const status = currently?.parts ?? [];
   return (
-    <section id={level.id} className="section" aria-labelledby="hero-title">
+    <section id={level.id} className="section about-section" aria-labelledby="hero-title">
       <div className="hero">
         <div className="hero-copy">
           <span className="eyebrow">
-            {level.meta.eyebrow} · {site.location}
+            {site.location}
+            <span className="eyebrow-extra"> · {level.meta.kicker}</span>
           </span>
           <h1 id="hero-title">
             Hi, I&apos;m <span>{site.displayName}.</span>
@@ -205,7 +213,13 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
           </div>
         </div>
         <HeroCarousel items={carousel} cad={cad} />
+        <a className="scroll-cue no-print" href="#about-more" aria-label="Scroll to the introduction">
+          <span className="mono">Scroll</span>
+          <i aria-hidden />
+        </a>
       </div>
+      <div id="about-more" className="about-more">
+        <SectionHead level={level} intro={false} />
       {stats && (
         <div className="stats">
           {stats.parts.map((s, i) => {
@@ -224,7 +238,7 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
       )}
       <div className="about-grid">
         <div className="card glass" data-reveal>
-          <span className="eyebrow">{level.meta.title}</span>
+          <span className="eyebrow">Who I am</span>
           <div style={{ height: 10 }} />
           <Html html={identity?.html} />
           <div style={{ height: 16 }} />
@@ -243,6 +257,7 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
             </dl>
           </div>
         )}
+      </div>
       </div>
     </section>
   );
@@ -273,6 +288,63 @@ function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) 
   );
 }
 
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+/** Sort key from the start of a period like "Sep 2024 – Feb 2025". */
+const startKey = (p?: string) => {
+  const m = (p ?? '').match(/([A-Za-z]{3})[a-z]*\.?\s+(\d{4})/);
+  if (m) return Number(m[2]) * 12 + Math.max(0, MONTHS.indexOf(m[1].toLowerCase()));
+  const y = (p ?? '').match(/\d{4}/);
+  return y ? Number(y[0]) * 12 : 0;
+};
+
+/**
+ * Experience: a pinned opener ("My Experience" builds, then docks as the heading), followed by
+ * a horizontal timeline — one milestone per company, oldest to newest.
+ */
+function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
+  const rooms = [...level.rooms].sort((a, b) => startKey(a.meta.period) - startKey(b.meta.period));
+  return (
+    <section id={level.id} className="section section-story">
+      <ScrollStory title={`My ${level.title}`} number={sectionNumber(level)} horizontal>
+        <div className="mile mile-intro">
+          <Intro level={level} />
+          <p className="mile-hint mono" aria-hidden>
+            Keep scrolling →
+          </p>
+        </div>
+        {rooms.map((room, i) => (
+          <article className="mile" key={room.id} id={`${level.id}-${room.id}`} data-uses={uses(room)}>
+            <div className="mile-node" aria-hidden>
+              <i />
+              <span className="mono">{(room.meta.period ?? '').match(/\d{4}/)?.[0]}</span>
+            </div>
+            <div className="mile-card card glass">
+              <span className="mono mile-count">
+                {String(i + 1).padStart(2, '0')} / {String(rooms.length).padStart(2, '0')}
+              </span>
+              <div className="t-head">
+                <h3>{room.title}</h3>
+              </div>
+              <p className="t-sub">
+                {room.meta.role} {period(room) && <span className="t-period">· {period(room)}</span>}
+              </p>
+              <Metrics value={room.meta.metrics} />
+              {room.html && <Html html={room.html} />}
+              <PartList portfolio={portfolio} parts={visible(room.parts)} />
+              <TechChips tags={list(room.meta.tags)} />
+            </div>
+          </article>
+        ))}
+        <div className="mile mile-end">
+          <a className="btn" href="#projects">
+            See what I built →
+          </a>
+        </div>
+      </ScrollStory>
+    </section>
+  );
+}
+
 function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
   const skillName = (id: string) => portfolio.site.skills.find((s) => s.id === id)?.name ?? id;
   return level.rooms
@@ -298,9 +370,13 @@ function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
 
 function Projects({ portfolio, level, cad }: { portfolio: Portfolio; level: Level; cad: Record<string, string> }) {
   return (
-    <section id={level.id} className="section section-wide">
-      <SectionHead level={level} />
-      <ProjectShowcase projects={showcase(portfolio, level)} filters={list(level.meta.filters)} cad={cad} />
+    <section id={level.id} className="section section-wide section-story">
+      <ScrollStory title={`My ${level.title}`} number={sectionNumber(level)}>
+        <div className="section-head">
+          <Intro level={level} />
+        </div>
+        <ProjectShowcase projects={showcase(portfolio, level)} filters={list(level.meta.filters)} cad={cad} />
+      </ScrollStory>
     </section>
   );
 }
@@ -487,12 +563,10 @@ function Goals({ level }: { level: Level }) {
 function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const form = level.rooms.find((r) => r.id === 'form');
   return (
-    <section id={level.id} className="section contact-section">
-      <div className="contact-cta" data-reveal>
-        {level.meta.eyebrow && <span className="eyebrow">{level.meta.eyebrow}</span>}
-        <h2 className="mega">{level.meta.title || level.title}</h2>
-        {level.meta.kicker && <span className="kicker">{level.meta.kicker}</span>}
-        <Html html={level.html} className="prose intro" />
+    <section id={level.id} className="section contact-section section-story">
+      <ScrollStory title={level.title} number={sectionNumber(level)}>
+      <div className="section-head">
+        <Intro level={level} />
       </div>
       <div className="contact-grid">
         <div data-reveal>
@@ -516,6 +590,7 @@ function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
           <ContactForm variant="pro" reasons={list(form?.meta.reasons)} success={form?.body ?? ''} email={portfolio.site.email} />
         </div>
       </div>
+      </ScrollStory>
     </section>
   );
 }
@@ -539,8 +614,9 @@ export default function ProSite({
       case 'about':
         return <About key={level.id} portfolio={portfolio} level={level} carousel={carousel} cad={cad} />;
       case 'education':
-      case 'experience':
         return <Timeline key={level.id} portfolio={portfolio} level={level} />;
+      case 'experience':
+        return <Journey key={level.id} portfolio={portfolio} level={level} />;
       case 'projects':
         return <Projects key={level.id} portfolio={portfolio} level={level} cad={cad} />;
       case 'trophies':
@@ -582,7 +658,7 @@ export default function ProSite({
         <i />
       </div>
       <div className="spotlight" aria-hidden />
-      <Intro name={portfolio.site.displayName} />
+      <NameIntro name={portfolio.site.displayName} />
       <ProHeader
         name={portfolio.site.displayName}
         sections={levels.map((l) => ({ id: l.id, label: l.id === 'trophies' ? 'Skills' : l.title.split(' ')[0] }))}

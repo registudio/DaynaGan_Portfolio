@@ -408,6 +408,14 @@ Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand
 - **Contact:** big gradient headline, copy-email button with toast, "Usually replies within 2 days", inquiry chips (Internship / job · Project collaboration · Mentorship / advice · Just saying hi) that set the email subject, floating labels, paper-plane send animation.
 - **Waiting on Dayna:** CAD exports, a hero headline animation, award stories (a body under each award shows on the flip side), Next-few-years / Long-term goals, hobby details.
 
+### Round 7 — spacing, first screen and a UI/UX pass
+- **First screen = hero only:** the hero fills the viewport under the pill header (`100svh − 56px`) with a scroll cue; the stats and intro cards moved into their own headed block ("01 / About · Engineer in the making.") below it. Verified at 1920×1080, 1440×900, 1280×720, 768×1024, 390×844 and 360×640 — nothing below the hero is visible on launch.
+- **Section rhythm:** hairline dividers removed; every section gets the same `clamp(112px, 16vh, 176px)` breathing space and a larger heading gap.
+- **Accessibility (axe-core, WCAG 2 A/AA + best practice, light and dark): 0 violations** after fixes — muted text darkened to pass 4.5:1, inactive showcase projects no longer dimmed (an accent bar marks the one on stage), terminal timestamps lightened.
+- **Keyboard:** skip-to-content link; the side rail is mouse-only so Tab doesn't visit every section twice; focus ring on the scrollable nav.
+- **Touch:** hero dots and hotspots meet the 24-px target size; phone eyebrow shortened to one line; award flip cards in two compact columns on phones; tablet carousel taller; chevron icons on the carousel arrows.
+- **Overflow:** the last Future-goal popover no longer pushes the page sideways on tablets.
+
 ## Improvement backlog (suggested)
 
 ### Performance

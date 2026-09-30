@@ -420,8 +420,24 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
+/* Section rhythm: one full "breath" of space between sections, no hairline dividers. */
 .section {
-  border-top-color: color-mix(in srgb, var(--line) 60%, transparent);
+  --gap: clamp(112px, 16vh, 176px);
+  border-top: 0;
+  padding: var(--gap) 0 0;
+  scroll-margin-top: 0;
+}
+.section:first-of-type {
+  padding-top: 0;
+}
+.section-head {
+  margin-bottom: clamp(40px, 6vh, 64px);
+}
+.section-head h2 {
+  margin-top: 4px;
+}
+main.pro {
+  padding-bottom: clamp(112px, 16vh, 176px);
 }
 main.pro {
   max-width: 1180px;
@@ -450,10 +466,75 @@ main.pro {
 }
 
 /* ── Hero ──────────────────────────────────────────────────────────────── */
+/* The hero fills the first screen on its own (the sticky pill header is 56px tall). */
 .hero {
+  position: relative;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   align-items: center;
-  padding: 56px 0 40px;
+  min-height: calc(100svh - 56px);
+  padding: 24px 0 88px;
+  box-sizing: border-box;
+}
+.hero-stage {
+  max-height: calc(100svh - 220px);
+}
+.about-more {
+  padding-top: clamp(56px, 10vh, 112px);
+  scroll-margin-top: 84px;
+  display: grid;
+  gap: 16px;
+}
+.about-more .section-head {
+  margin-bottom: clamp(24px, 4vh, 48px);
+}
+.scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: var(--ink-3);
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.scroll-cue i {
+  width: 22px;
+  height: 34px;
+  border-radius: 12px;
+  border: 2px solid color-mix(in srgb, var(--ink-3) 60%, transparent);
+  position: relative;
+}
+.scroll-cue i::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 4px;
+  height: 7px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--violet-2);
+  animation: cue 1.8s ease-in-out infinite;
+}
+@keyframes cue {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(11px);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.scroll-cue:hover {
+  color: var(--violet);
 }
 .hero-copy {
   display: grid;
@@ -462,7 +543,36 @@ main.pro {
 @media (max-width: 900px) {
   .hero {
     grid-template-columns: 1fr;
-    padding-top: 36px;
+    align-content: center;
+    gap: 22px;
+    padding: 16px 0 80px;
+  }
+  .hero h1 {
+    font-size: clamp(40px, 11vw, 64px);
+  }
+  .hero .tagline {
+    font-size: 17px;
+  }
+  .hero .hero-stage {
+    aspect-ratio: auto;
+    height: clamp(240px, 36svh, 480px);
+    min-height: 0;
+  }
+  .show-item::before {
+    left: -10px;
+  }
+  .hero-copy {
+    gap: 16px;
+  }
+}
+@media (max-width: 600px) {
+  .eyebrow-extra {
+    display: none;
+  }
+}
+@media (max-height: 560px) {
+  .scroll-cue {
+    display: none;
   }
 }
 .status-pill {
@@ -600,6 +710,27 @@ main.pro {
 .hero-caption-text a {
   font-weight: 600;
   text-decoration: none;
+  padding: 4px 0;
+}
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: -60px;
+  z-index: 95;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--violet);
+  color: var(--paper);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 16px;
+}
+.pill-nav:focus-visible {
+  outline: 2px solid var(--violet-2);
+  outline-offset: 2px;
 }
 .hero-dots {
   position: absolute;
@@ -608,21 +739,24 @@ main.pro {
   right: 0;
   display: flex;
   justify-content: center;
-  gap: 6px;
+  gap: 0;
 }
 .hero-dots button {
+  box-sizing: content-box;
   width: 8px;
   height: 8px;
-  padding: 0;
+  padding: 10px 5px;
   border-radius: 999px;
   border: 0;
-  background: color-mix(in srgb, var(--violet-2) 35%, transparent);
+  /* Longhands only: the `background` shorthand would reset background-clip. */
+  background-color: color-mix(in srgb, var(--violet-2) 35%, transparent);
+  background-clip: content-box;
   cursor: pointer;
-  transition: width 0.3s, background 0.3s;
+  transition: width 0.3s, background-color 0.3s;
 }
 .hero-dots button[aria-pressed='true'] {
   width: 22px;
-  background: var(--violet-2);
+  background-color: var(--violet-2);
 }
 .stat {
   transition: transform 0.25s, border-color 0.25s;
@@ -732,16 +866,33 @@ main.pro {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  opacity: 0.35;
-  transition: opacity 0.4s;
+  position: relative;
   border-top: 1px dashed var(--line);
+}
+/* The project on stage gets an accent bar (no dimming — dimmed text fails contrast). */
+.show-item::before {
+  content: '';
+  position: absolute;
+  left: -18px;
+  top: 28px;
+  width: 3px;
+  height: 0;
+  border-radius: 2px;
+  background: linear-gradient(var(--violet-2), #e879f9);
+  transition: height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.show-item:first-child::before {
+  top: 4px;
+}
+.show-item.on::before {
+  height: 120px;
+}
+.show-item:not(.on) h3 {
+  color: var(--ink-2);
 }
 .show-item:first-child {
   border-top: 0;
   padding-top: 0;
-}
-.show-item.on {
-  opacity: 1;
 }
 .show-item h3 {
   margin: 0;
@@ -943,10 +1094,10 @@ main.pro {
     flex-wrap: nowrap;
   }
   .hotspot {
-    width: 21px;
-    height: 21px;
-    margin: -10px 0 0 -10px;
-    font-size: 10.5px;
+    width: 24px;
+    height: 24px;
+    margin: -12px 0 0 -12px;
+    font-size: 11px;
   }
   .tool {
     padding: 5px 10px;
@@ -1060,6 +1211,25 @@ button.skill:focus-visible {
 .flip-back p {
   margin: 0;
   font-size: 14.5px;
+}
+@media (max-width: 600px) {
+  .awards {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .flip,
+  .flip-inner {
+    min-height: 132px;
+  }
+  .flip-face {
+    padding: 14px;
+  }
+  .flip-face b {
+    font-size: 14.5px;
+  }
+  .flip-back p {
+    font-size: 13px;
+  }
 }
 @media (hover: none) {
   .flip:active .flip-inner {
@@ -1259,7 +1429,7 @@ button.skill:focus-visible {
   color: #a78bfa;
 }
 .t-when {
-  color: #6f6690;
+  color: #9a91bb;
 }
 .t-cursor i {
   display: inline-block;
@@ -1515,6 +1685,20 @@ button.skill:focus-visible {
   transition: opacity 0.2s, transform 0.2s;
   z-index: 2;
 }
+.goal-plan {
+  left: 50%;
+  margin-left: calc(min(300px, 70vw) / -2);
+}
+.goal:first-child .goal-plan {
+  left: 0;
+  margin-left: -12px;
+}
+.goal:last-child .goal-plan {
+  left: auto;
+  right: 0;
+  margin-left: 0;
+  margin-right: -12px;
+}
 .goal:hover .goal-plan,
 .goal:focus-visible .goal-plan,
 .goal:focus-within .goal-plan {
@@ -1556,11 +1740,12 @@ button.skill:focus-visible {
     left: -30px;
     top: 4px;
   }
-  .goal-plan {
+  .goal .goal-plan {
     position: static;
     opacity: 1;
     transform: none;
     width: auto;
+    margin: 0;
     box-shadow: none;
   }
 }
@@ -1805,6 +1990,234 @@ button.skill:focus-visible {
   color: var(--violet);
   border-color: var(--violet-2);
   transform: translateY(-2px);
+}
+
+/* ── Scroll stories (pinned section openers) ───────────────────────────── */
+.section-story {
+  padding-top: 0;
+}
+.section-story:first-of-type {
+  padding-top: 0;
+}
+/* Static fallback (no JS / reduced motion): a normal heading, content below. */
+.story-stage {
+  position: relative;
+  padding-top: var(--gap, 120px);
+}
+.story-ghost {
+  display: none;
+}
+.story-num {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--violet);
+  margin-bottom: 6px;
+}
+.story-word {
+  margin: 0 0 clamp(24px, 4vh, 40px);
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+.story-track {
+  display: grid;
+  gap: 16px;
+}
+.mile-node,
+.mile-hint {
+  display: none;
+}
+.mile-count {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.mile-card {
+  display: grid;
+  gap: 4px;
+}
+.mile-card h3 {
+  margin: 0;
+  font-size: 21px;
+}
+.mile-intro .intro {
+  font-size: clamp(18px, 2.2vw, 24px);
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* Live: pinned, scroll-driven. --a reveal, --b dock, --c horizontal travel (0–1). */
+.story.live .story-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  padding: 0;
+  overflow: hidden;
+}
+.story.live .story-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  z-index: 2;
+  pointer-events: none;
+}
+.story.live .story-num {
+  font-size: clamp(14px, 1.4vw, 20px);
+  opacity: calc(0.4 + var(--a, 0) * 0.6);
+}
+.story.live .story-word {
+  margin: 0;
+  white-space: nowrap;
+  font-size: min(clamp(56px, 14vw, 230px), calc(172vw / var(--n)));
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+.story.live .story-ch {
+  --l: clamp(0, calc(var(--a, 0) * (var(--n) + 3) - var(--i)), 1);
+  display: inline-block;
+  white-space: pre;
+  opacity: calc(0.08 + var(--l) * 0.92);
+  color: color-mix(in srgb, var(--ink) calc(var(--l) * 100%), transparent);
+  -webkit-text-stroke: calc((1 - var(--l)) * 2px) var(--violet-2);
+  transform: translateY(calc((1 - var(--l)) * 0.45em)) rotate(calc((1 - var(--l)) * 8deg)) scale(calc(0.85 + var(--l) * 0.15));
+  filter: blur(calc((1 - var(--l)) * 10px));
+}
+/* The first word ("My") picks up the brand gradient once built. */
+.story.live .story-ch:nth-child(-n + 3) {
+  color: color-mix(in srgb, var(--violet) calc(var(--l) * 100%), transparent);
+}
+.story.live .story-ghost {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 34vh;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--violet-2) 55%, transparent);
+  opacity: calc((0.1 + var(--a, 0) * 0.25) * (1 - var(--b, 0)));
+  transform: translate(calc(10vw - var(--a, 0) * 40vw - var(--b, 0) * 30vw), -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+/* Horizontal milestone track. */
+.story.live .story-window {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: clamp(150px, 22vh, 190px);
+  bottom: 20px;
+  opacity: var(--b, 0);
+  transform: translateY(calc((1 - var(--b, 0)) * 60px));
+}
+.story.live .story-window::before,
+.story.live .story-window::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 2px;
+  background: var(--line);
+}
+.story.live .story-window::after {
+  background: linear-gradient(90deg, var(--violet-2), #e879f9);
+  transform-origin: left;
+  transform: scaleX(var(--c, 0));
+}
+.story.live .story-track {
+  display: flex;
+  gap: clamp(20px, 3vw, 40px);
+  height: 100%;
+  width: max-content;
+  padding-left: max(16px, calc((100vw - 1180px) / 2 + 16px));
+  padding-right: 20vw;
+  will-change: transform;
+}
+.story.live .mile {
+  position: relative;
+  flex: 0 0 min(540px, 84vw);
+  display: flex;
+  flex-direction: column;
+  padding-top: 48px;
+  min-height: 0;
+}
+.story.live .mile-intro {
+  flex-basis: min(440px, 80vw);
+  justify-content: center;
+  gap: 18px;
+  padding-top: 0;
+}
+.story.live .mile-end {
+  flex-basis: auto;
+  justify-content: center;
+  padding-top: 0;
+}
+.story.live .mile-hint {
+  display: block;
+  color: var(--violet);
+  font-size: 13px;
+  animation: nudge 1.6s ease-in-out infinite;
+}
+@keyframes nudge {
+  50% {
+    transform: translateX(8px);
+  }
+}
+.story.live .mile-node {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: absolute;
+  top: 9px;
+  left: 0;
+}
+.story.live .mile-node i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 3px solid var(--violet-2);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--violet-2) 18%, transparent);
+}
+.story.live .mile-node span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--violet);
+  background: var(--paper);
+  padding: 0 6px;
+}
+.story.live .mile-card {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  font-size: 15.5px;
+}
+.story.live .mile-card .bullets {
+  margin: 4px 0;
+}
+/* Content after an intro-only story slides up under the docked heading (margin set in JS). */
+.story-after {
+  position: relative;
+  z-index: 3;
+}
+@media (max-width: 700px) {
+  .story.live .story-window {
+    top: 138px;
+  }
+  .story.live .mile-card {
+    font-size: 14.5px;
+    padding: 16px;
+  }
 }
 
 @media print {

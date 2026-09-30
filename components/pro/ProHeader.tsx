@@ -67,6 +67,9 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
   const idx = Math.max(0, sections.findIndex((s) => s.id === active));
   return (
     <>
+      <a className="skip-link" href="#about-more">
+        Skip to content
+      </a>
       <div className="progress-bar" ref={bar} aria-hidden />
       <header className={`pill-header${compact ? ' compact' : ''}`}>
         <div className="pill">
@@ -102,9 +105,10 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
         </div>
       </header>
 
-      <nav className="rail" aria-label="Section progress">
+      {/* Mouse shortcut only: the pill nav already gives keyboard users the same links. */}
+      <nav className="rail" aria-hidden>
         {sections.map((s, i) => (
-          <a key={s.id} href={`#${s.id}`} aria-current={active === s.id} className={i < idx ? 'done' : ''}>
+          <a key={s.id} href={`#${s.id}`} aria-current={active === s.id} className={i < idx ? 'done' : ''} tabIndex={-1}>
             <span>{s.label}</span>
           </a>
         ))}
