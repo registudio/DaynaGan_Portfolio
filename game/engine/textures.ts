@@ -17,7 +17,11 @@ export type Pattern =
   | 'tile'
   | 'hazard'
   | 'tabby'
-  | 'metal';
+  | 'metal'
+  | 'plate'
+  | 'screen'
+  | 'tread'
+  | 'vent';
 
 const cache = new Map<string, THREE.CanvasTexture>();
 
@@ -142,6 +146,56 @@ function draw(pattern: Pattern, base: string, accent: string, ctx: CanvasRenderi
           if (stripe) px(x, y, shade(base, -58));
           else if (r() > 0.8) px(x, y, shade(base, 18));
         }
+      break;
+    case 'plate': {
+      // Armour plating: bevelled edge (light top-left, dark bottom-right), one seam, corner bolts.
+      const m = Math.max(1, n >> 3);
+      for (let i = 0; i < n; i++)
+        for (let k = 0; k < m; k++) {
+          px(i, k, shade(base, 26 - k * 8));
+          px(k, i, shade(base, 18 - k * 6));
+          px(i, n - 1 - k, shade(base, -34 + k * 8));
+          px(n - 1 - k, i, shade(base, -28 + k * 6));
+        }
+      const seam = Math.round(n * 0.55);
+      for (let x = m + 1; x < n - m - 1; x++) {
+        px(x, seam, shade(base, -24));
+        px(x, seam + 1, shade(base, 10));
+      }
+      for (const [x, y] of [
+        [m + 1, m + 1],
+        [n - m - 2, m + 1],
+        [m + 1, n - m - 2],
+        [n - m - 2, n - m - 2],
+      ]) {
+        px(x, y, shade(base, 48));
+        if (n >= 16) px(x + 1, y + 1, shade(base, -30));
+      }
+      break;
+    }
+    case 'screen': {
+      // Dim UI readout: dark glass, header bar, lines of "text", faint scanlines.
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) px(x, y, shade('#070a12', (y % 2 ? -3 : 3) + (r() - 0.5) * 6));
+      const a = (v: number) => shade(accent, v);
+      for (let x = 1; x < n - 1; x++) px(x, 1, a(-60));
+      for (let y = 3; y < n - 1; y += 2) {
+        const len = 2 + ((r() * (n - 6)) | 0);
+        const x0 = y % 4 === 1 ? 3 : 1;
+        for (let x = x0; x < Math.min(n - 1, x0 + len); x++) px(x, y, a(y < 6 ? -40 : -95 + ((r() * 20) | 0)));
+      }
+      px(n - 3, 1, a(40));
+      break;
+    }
+    case 'tread':
+      for (let y = 0; y < n; y++)
+        for (let x = 0; x < n; x++) px(x, y, y % 4 < 2 ? shade(base, -36) : shade(base, x % 4 === 0 ? -10 : 12));
+      break;
+    case 'vent':
+      for (let y = 0; y < n; y++) if (y % 3 === 1) for (let x = 1; x < n - 1; x++) px(x, y, shade(base, -46));
+      for (let i = 0; i < n; i++) {
+        px(i, 0, shade(base, 20));
+        px(i, n - 1, shade(base, -30));
+      }
       break;
     case 'noise':
     default:

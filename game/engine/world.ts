@@ -28,7 +28,7 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshLambertMaterial {
   return m;
 }
 
-type WorldMaterials = Record<'floor' | 'alt' | 'path' | 'wall' | 'wallDark' | 'top' | 'trim' | 'cliff' | 'cliffDeep' | 'rail' | 'windowMat', THREE.Material>;
+type WorldMaterials = Record<'floor' | 'alt' | 'path' | 'wall' | 'wallDark' | 'top' | 'trim' | 'cliff' | 'cliffDeep' | 'rail' | 'windowMat' | 'pipe' | 'vent' | 'lamp' | 'bolt', THREE.Material>;
 const materialCache = new Map<string, WorldMaterials>();
 
 /** Per-biome world materials, built once per session and reused on every visit. */
@@ -48,6 +48,10 @@ function worldMaterials(b: Biome): WorldMaterials {
     cliff: new THREE.MeshLambertMaterial({ map: pixelTexture('stone', b.cliff) }),
     cliffDeep: new THREE.MeshLambertMaterial({ map: pixelTexture('stone', b.cliff), color: '#777777' }),
     rail: new THREE.MeshBasicMaterial({ color: new THREE.Color(b.rail).multiplyScalar(1.1) }),
+    pipe: new THREE.MeshLambertMaterial({ map: pixelTexture('metal', `#${new THREE.Color(b.wall.color).multiplyScalar(0.75).getHexString()}`, '#ffffff', 16) }),
+    vent: new THREE.MeshLambertMaterial({ map: pixelTexture('vent', `#${new THREE.Color(b.wall.color).multiplyScalar(0.9).getHexString()}`, '#ffffff', 16) }),
+    lamp: new THREE.MeshBasicMaterial({ color: new THREE.Color(b.wallTop.color).lerp(new THREE.Color('#ffffff'), 0.35).multiplyScalar(0.9) }),
+    bolt: new THREE.MeshLambertMaterial({ color: new THREE.Color(b.wall.color).multiplyScalar(0.55) }),
     windowMat: new THREE.MeshLambertMaterial({
       color: '#0b1020',
       emissive: new THREE.Color('#1e3a8a'),
@@ -87,7 +91,7 @@ export class World {
 
   build() {
     this.clear();
-    const { floor, alt, path, wall, wallDark, top, trim, cliff, cliffDeep, rail, windowMat } = worldMaterials(this.biome);
+    const { floor, alt, path, wall, wallDark, top, trim, cliff, cliffDeep, rail, windowMat, pipe, vent, lamp, bolt } = worldMaterials(this.biome);
     const batches = new Map<THREE.Material, Batch>();
     const add = (material: THREE.Material, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1) => {
       let batch = batches.get(material);
@@ -110,6 +114,10 @@ export class World {
           add(m, cx, c.h - 0.5, cz);
           const edge = [at(x + 1, z), at(x - 1, z), at(x, z + 1), at(x, z - 1)].some((n) => open(n));
           if (edge) for (let k = 1; k <= CLIFF_DEPTH; k++) add(k > 2 ? cliffDeep : cliff, cx, c.h - 0.5 - k, cz);
+          // Clutter where floor meets a back wall: bolted plates and cable runs.
+          const hh = ((x * 2654435761) ^ (z * 40503)) >>> 0;
+          if (at(x - 1, z)?.t === WALL && hh % 5 === 0) add(bolt, x + 0.12, c.h + 0.03, cz, 0.16, 0.06, 0.7);
+          if (at(x, z - 1)?.t === WALL && hh % 6 === 1) add(bolt, cx, c.h + 0.03, z + 0.12, 0.7, 0.06, 0.16);
           // Glowing guard rail on front edges.
           if (open(at(x + 1, z))) add(rail, x + 1, c.h + 0.04, cz, 0.08, 0.08, 1);
           if (open(at(x, z + 1))) add(rail, cx, c.h + 0.04, z + 1, 1, 0.08, 0.08);
@@ -126,6 +134,27 @@ export class World {
           if (at(x + 1, z)?.t === FLOOR) add(trim, x + 1.01, base + 0.12, cz, 0.04, 0.06, 1);
           if (at(x, z + 1)?.t === FLOOR) add(trim, cx, base + 0.12, z + 1.01, 1, 0.06, 0.04);
           for (let k = 1; k <= CLIFF_DEPTH - 1; k++) add(cliffDeep, cx, base - 0.5 - k + 1, cz);
+          // Greebles on the faces you can see: pipes, vents, lamps and conduit runs (deterministic per cell).
+          const h = ((x * 73856093) ^ (z * 19349663)) >>> 0;
+          const faces: [number, number][] = [];
+          if (at(x + 1, z)?.t === FLOOR) faces.push([1, 0]);
+          if (at(x, z + 1)?.t === FLOOR) faces.push([0, 1]);
+          for (const [fx, fz] of faces) {
+            const ox = fx ? x + 1.06 : cx;
+            const oz = fz ? z + 1.06 : cz;
+            const sx = (w: number) => (fx ? 0.12 : w);
+            const sz = (w: number) => (fz ? 0.12 : w);
+            const kind = h % 7;
+            if (kind === 0 && !c.window) {
+              add(pipe, ox, base + 1.3, oz, sx(0.16), 2.3, sz(0.16));
+              add(bolt, ox, base + 0.45, oz, sx(0.24), 0.08, sz(0.24));
+              add(bolt, ox, base + 2.15, oz, sx(0.24), 0.08, sz(0.24));
+            } else if (kind === 1 && !c.window) add(vent, ox - fx * 0.03, base + 1.2, oz - fz * 0.03, sx(0.62), 0.5, sz(0.62));
+            else if (kind === 2) {
+              add(bolt, ox, base + 1.72, oz, sx(0.3), 0.16, sz(0.3));
+              add(lamp, ox + fx * 0.02, base + 1.66, oz + fz * 0.02, sx(0.18), 0.05, sz(0.18));
+            } else if (kind === 3) add(pipe, ox, base + 0.62, oz, sx(1), 0.1, sz(1));
+          }
         }
       }
 

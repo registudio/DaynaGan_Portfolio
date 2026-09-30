@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GitHubFeed } from '@/lib/github';
 import type { Portfolio, Room } from '../../lib/portfolio.ts';
 import { computeSkills, partKey, roomKey } from '../../lib/skills.ts';
@@ -1556,11 +1557,13 @@ export class Game {
       if (i.ring) {
         const done = i.done() && i.kind !== 'relay';
         const on = i === target;
-        const [edge, fill] = i.ring.children as THREE.Mesh[];
-        edge.material = done && !on ? DONE_RING : glow(i.accent ?? '#67e8f9', on ? 3.2 : 2.2);
-        fill.visible = on || !done;
-        (fill.material as THREE.MeshBasicMaterial).opacity = on ? 0.22 : 0.08;
-        i.ring.scale.setScalar(on ? 1 : 1 + Math.sin(this.time * 4) * 0.03);
+        const [edge, fill, inner] = i.ring.children as THREE.Mesh[];
+        const mats = ringMaterials(i.ring.userData.color);
+        edge.material = on ? mats.on : done ? DONE_RING : mats.idle;
+        (fill.material as THREE.MeshBasicMaterial).opacity = on ? 0.09 : done ? 0 : 0.035;
+        inner.visible = on;
+        edge.rotation.z = this.time * (on ? 0.6 : 0.15);
+        inner.scale.setScalar(on ? 1 + Math.sin(this.time * 5) * 0.05 : 1);
         continue;
       }
       if (!i.object || i.object === this.level) continue;
@@ -3378,28 +3381,52 @@ function screenDirection(v: THREE.Vector3) {
 
 export type { Hud };
 
-const DONE_RING = new THREE.MeshBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.5 });
+const DONE_RING = new THREE.MeshBasicMaterial({ color: '#64748b', transparent: true, opacity: 0.35, depthWrite: false });
 const ringGeo = new Map<number, THREE.BufferGeometry>();
-const fillMats = new Map<string, THREE.Material>();
+const ringMats = new Map<string, { idle: THREE.Material; on: THREE.Material; fill: THREE.MeshBasicMaterial }>();
 
-/** Floor marker for an interactable's trigger zone: glowing edge + faint fill. */
+/** Segmented HUD-style ring: 24 dashes, so zones read as UI rather than a solid neon hoop. */
+function dashedRing(r: number) {
+  let geo = ringGeo.get(r);
+  if (geo) return geo;
+  const n = 24;
+  const seg = (Math.PI * 2) / n;
+  const parts = Array.from({ length: n }, (_, i) => new THREE.RingGeometry(r - 0.045, r, 3, 1, i * seg, seg * 0.62));
+  geo = mergeGeometries(parts)!;
+  parts.forEach((g) => g.dispose());
+  ringGeo.set(r, geo);
+  return geo;
+}
+
+function ringMaterials(color: string) {
+  let m = ringMats.get(color);
+  if (!m) {
+    const c = new THREE.Color(color);
+    m = {
+      idle: new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.4, depthWrite: false }),
+      on: new THREE.MeshBasicMaterial({ color: c.clone().lerp(new THREE.Color('#ffffff'), 0.25), transparent: true, opacity: 0.9, depthWrite: false }),
+      fill: new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.035, depthWrite: false, blending: THREE.AdditiveBlending }),
+    };
+    ringMats.set(color, m);
+  }
+  return m;
+}
+
+/** Floor marker for an interactable's trigger zone: dashed edge + faint fill + an inner ring when targeted. */
 function zoneRing(radius: number, color: string) {
   const r = Math.round(radius * 100) / 100;
-  let geo = ringGeo.get(r);
-  if (!geo) ringGeo.set(r, (geo = new THREE.RingGeometry(r - 0.07, r, 40)));
-  let fill = fillMats.get(color);
-  if (!fill) {
-    fill = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.08, depthWrite: false, blending: THREE.AdditiveBlending });
-    fillMats.set(color, fill);
-  }
+  const mats = ringMaterials(color);
   const g = new THREE.Group();
-  const edge = new THREE.Mesh(geo, glow(color, 2.2));
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(r - 0.07, 32), (fill as THREE.MeshBasicMaterial).clone());
-  for (const m of [edge, disc]) {
+  const edge = new THREE.Mesh(dashedRing(r), mats.idle);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(r - 0.05, 32), mats.fill.clone());
+  const inner = new THREE.Mesh(new THREE.RingGeometry(r * 0.55 - 0.02, r * 0.55, 32), mats.on);
+  for (const m of [edge, disc, inner]) {
     m.rotation.x = -Math.PI / 2;
     g.add(m);
   }
   disc.position.y = -0.01;
+  inner.visible = false;
+  g.userData.color = color;
   return g;
 }
 

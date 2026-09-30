@@ -244,27 +244,57 @@ export function interactRing(parent: THREE.Object3D, color = '#67e8f9', r = 0.75
 }
 
 export function buildConsole(accent: string) {
+  // Station console: bevelled desk, sloped keyboard, twin readout screens (dim, textured) and a desk lamp.
   const g = new THREE.Group();
-  box(1.1, 0.8, 0.6, mat('#2b3040', { pattern: 'panel' }), 0, 0.4, 0, g);
-  box(1.0, 0.1, 0.6, mat('#1a1d27'), 0, 0.85, 0.05, g).rotation.x = -0.3;
-  const screen = group(g, 0, 1.35, -0.18);
-  box(1.2, 0.8, 0.08, mat('#11141c'), 0, 0, 0, screen);
-  box(1.06, 0.66, 0.02, glow(accent, 1.3), 0, 0, 0.05, screen);
-  box(0.5, 0.06, 0.02, glow('#ffffff', 2), -0.2, 0.18, 0.065, screen);
-  box(0.7, 0.04, 0.02, glow('#ffffff', 1.2), -0.1, 0.05, 0.065, screen);
-  box(0.4, 0.04, 0.02, glow('#ffffff', 1.2), -0.25, -0.07, 0.065, screen);
+  const shell = mat('#2b3040', { pattern: 'plate', res: 16 });
+  const dark = mat('#161a24', { pattern: 'plate', res: 16 });
+  box(1.2, 0.08, 0.66, dark, 0, 0.04, 0, g);
+  box(1.12, 0.62, 0.56, shell, 0, 0.39, 0, g);
+  box(1.02, 0.02, 0.46, mat('#1d2230', { pattern: 'vent', res: 16 }), 0, 0.2, 0.285, g);
+  const kb = box(1.06, 0.07, 0.34, dark, 0, 0.74, 0.1, g);
+  kb.rotation.x = -0.28;
+  for (let k = 0; k < 3; k++) box(0.9 - k * 0.1, 0.012, 0.05, mat('#3b4252'), 0, 0.785 + k * 0.022, 0.2 - k * 0.08, g).rotation.x = -0.28;
+  box(0.06, 0.06, 0.03, glow(accent, 1.2), 0.46, 0.8, 0.16, g);
+  const screen = group(g, 0, 1.28, -0.16);
+  screen.rotation.x = -0.12;
+  box(0.08, 0.5, 0.08, dark, 0, -0.35, -0.02, screen);
+  for (const [x, w] of [
+    [-0.27, 0.56],
+    [0.33, 0.42],
+  ] as const) {
+    box(w + 0.06, 0.46, 0.06, dark, x, 0, 0, screen);
+    box(w, 0.4, 0.02, mat('#0a0e16', { pattern: 'screen', accent, emissive: accent, intensity: 0.32, res: 16 }), x, 0, 0.035, screen);
+  }
   interactRing(g, accent, 0.9);
-  g.userData.light = { y: 1.4, color: accent, intensity: 3, distance: 4.5 };
+  g.userData.light = { y: 1.3, color: accent, intensity: 1.8, distance: 4 };
   return g;
 }
 
 export function buildTerminal(accent: string) {
+  // Info kiosk: footing, slim column with a vent, a slanted readout screen and a small hologram emitter.
   const g = new THREE.Group();
-  box(0.36, 0.8, 0.36, mat('#262b38', { pattern: 'panel' }), 0, 0.4, 0, g);
-  box(0.46, 0.08, 0.46, glow(accent, 1.4), 0, 0.82, 0, g);
-  const holo = box(0.3, 0.3, 0.3, mat(accent, { emissive: accent, intensity: 1.6, transparent: 0.55 }), 0, 1.25, 0, g);
+  const shell = mat('#2a2f3c', { pattern: 'plate', res: 16 });
+  const dark = mat('#151922', { pattern: 'plate', res: 16 });
+  box(0.56, 0.06, 0.56, dark, 0, 0.03, 0, g);
+  box(0.46, 0.05, 0.46, shell, 0, 0.085, 0, g);
+  box(0.24, 0.66, 0.2, shell, 0, 0.44, 0, g);
+  box(0.16, 0.2, 0.02, mat('#1c212c', { pattern: 'vent', res: 16 }), 0, 0.36, 0.105, g);
+  box(0.035, 0.035, 0.02, glow(accent, 1.1), 0.07, 0.62, 0.105, g);
+  const head = group(g, 0, 0.9, 0.02);
+  head.rotation.x = -0.38;
+  box(0.5, 0.32, 0.07, dark, 0, 0, 0, head);
+  box(0.44, 0.26, 0.02, mat('#0a0e16', { pattern: 'screen', accent, emissive: accent, intensity: 0.3, res: 16 }), 0, 0, 0.04, head);
+  box(0.12, 0.04, 0.08, dark, 0, 0.18, -0.02, head);
+  const holo = box(0.11, 0.11, 0.11, mat(accent, { emissive: accent, intensity: 0.9, transparent: 0.7 }), 0, 1.32, 0, g);
+  holo.rotation.set(Math.PI / 4, 0, Math.PI / 4);
   holo.userData.spin = 1.2;
   holo.userData.hover = true;
+  const cone = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.02, 0.22, 8, 1, true),
+    new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.08, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+  );
+  cone.position.set(0, 1.17, 0);
+  g.add(cone);
   interactRing(g, accent, 0.6);
   return g;
 }
@@ -321,32 +351,42 @@ export function buildAssembly(accent: string, wip: boolean) {
 
 export function buildPlinth(accent: string) {
   const g = new THREE.Group();
-  box(1.0, 0.8, 1.0, mat('#3a2f22', { pattern: 'panel' }), 0, 0.4, 0, g);
-  box(1.06, 0.06, 1.06, glow(accent, 1.4), 0, 0.82, 0, g);
+  const stone = mat('#3a2f22', { pattern: 'plate', res: 16 });
+  box(1.04, 0.1, 1.04, mat('#2a2219', { pattern: 'plate', res: 16 }), 0, 0.05, 0, g);
+  box(0.92, 0.66, 0.92, stone, 0, 0.43, 0, g);
+  box(0.98, 0.06, 0.98, stone, 0, 0.79, 0, g);
+  box(0.94, 0.015, 0.94, glow(accent, 0.8), 0, 0.825, 0, g);
+  box(0.4, 0.12, 0.02, mat('#1a140d', { pattern: 'screen', accent, emissive: accent, intensity: 0.25, res: 16 }), 0, 0.5, 0.47, g);
   interactRing(g, accent, 0.8);
   return g;
 }
 
 export function buildMatrix(accent: string) {
   const g = new THREE.Group();
-  box(1.6, 0.3, 1.6, mat('#3a2f22', { pattern: 'panel' }), 0, 0.15, 0, g);
-  const orb = group(g, 0, 1.8, 0);
-  for (let i = 0; i < 40; i++) {
-    const a = (i / 40) * Math.PI * 2 * 3.1;
-    const y = (i / 40) * 2 - 1;
+  const stone = mat('#3a2f22', { pattern: 'plate', res: 16 });
+  box(1.7, 0.16, 1.7, mat('#2a2219', { pattern: 'plate', res: 16 }), 0, 0.08, 0, g);
+  box(1.4, 0.2, 1.4, stone, 0, 0.26, 0, g);
+  box(0.3, 0.9, 0.3, stone, 0, 0.8, 0, g);
+  box(0.5, 0.06, 0.5, glow(accent, 0.9), 0, 1.27, 0, g);
+  const orb = group(g, 0, 1.95, 0);
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2 * 3.1;
+    const y = (i / 48) * 2 - 1;
     const r = Math.sqrt(1 - y * y);
-    box(0.1, 0.1, 0.1, glow(i % 5 ? accent : '#ffffff', 2.4), Math.cos(a) * r * 0.9, y * 0.9, Math.sin(a) * r * 0.9, orb);
+    box(0.075, 0.075, 0.075, glow(i % 6 ? accent : '#ffffff', i % 6 ? 1.3 : 1.8), Math.cos(a) * r * 0.85, y * 0.85, Math.sin(a) * r * 0.85, orb);
   }
   orb.userData.spin = 0.35;
   interactRing(g, accent, 1.2);
-  g.userData.light = { y: 1.8, color: accent, intensity: 5, distance: 7 };
+  g.userData.light = { y: 1.8, color: accent, intensity: 3, distance: 6 };
   return g;
 }
 
 export function buildRepoRack(accent: string) {
   const g = new THREE.Group();
-  box(0.9, 2.1, 0.8, mat('#15201a', { pattern: 'server', accent }), 0, 1.05, 0, g);
-  box(0.7, 0.2, 0.02, glow(accent, 2), 0, 1.7, 0.41, g);
+  box(0.96, 0.08, 0.86, mat('#0c120e', { pattern: 'plate', res: 16 }), 0, 0.04, 0, g);
+  box(0.9, 2.0, 0.8, mat('#15201a', { pattern: 'server', accent, res: 16 }), 0, 1.08, 0, g);
+  box(0.94, 0.06, 0.84, mat('#0c120e', { pattern: 'plate', res: 16 }), 0, 2.1, 0, g);
+  box(0.7, 0.22, 0.02, mat('#06100a', { pattern: 'screen', accent, emissive: accent, intensity: 0.35, res: 16 }), 0, 1.72, 0.41, g);
   interactRing(g, accent, 0.8);
   return g;
 }
@@ -389,11 +429,11 @@ export function buildTransmitter(active: boolean) {
 export function buildExitPad(color: string) {
   const g = new THREE.Group();
   box(1.6, 0.14, 1.6, mat('#232838', { pattern: 'panel' }), 0, 0.07, 0, g);
-  const r1 = ring(0.7, 0.05, glow(color, 2.4), g);
+  const r1 = ring(0.7, 0.035, glow(color, 1.5), g);
   r1.position.y = 0.16;
   const beam = new THREE.Mesh(
     new THREE.CylinderGeometry(0.6, 0.7, 2.4, 12, 1, true),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide }),
   );
   beam.position.y = 1.3;
   g.add(beam);

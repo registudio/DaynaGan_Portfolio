@@ -260,6 +260,12 @@ export function buildCat(): Rig {
 
 export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss' | 'core' | 'arm' | 'queen' | 'swarm' | 'spawner';
 
+/** Box with a stepped top edge, so silhouettes read as chamfered rather than cubic. */
+function bevel(w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D, cap = 0.05) {
+  box(w, h - cap, d, m, x, y - cap / 2, z, parent);
+  box(w - cap * 1.6, cap, d - cap * 1.6, m, x, y + h / 2 - cap / 2, z, parent);
+}
+
 export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
   const root = new THREE.Group();
   const body = group(root);
@@ -268,58 +274,128 @@ export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
   let floaty = false;
   switch (type) {
     case 'wisp': {
+      // Spark wisp: a two-cube plasma star inside a faint shell, orbiting sparks and a fading tail.
       floaty = true;
       blobShadow(0.25, root);
       const core = group(body, 0, 0.8, 0);
-      box(0.28, 0.28, 0.28, glow('#f0abfc', 2.6), 0, 0, 0, core);
+      box(0.22, 0.22, 0.22, glow('#f5d0fe', 2), 0, 0, 0, core);
+      const star = box(0.2, 0.2, 0.2, glow('#e879f9', 1.6), 0, 0, 0, core);
+      star.rotation.set(Math.PI / 4, 0, Math.PI / 4);
+      box(0.4, 0.4, 0.4, mat('#f0abfc', { emissive: '#c026d3', intensity: 0.5, transparent: 0.22 }), 0, 0, 0, core);
       for (let i = 0; i < 4; i++) {
-        const orb = box(0.1, 0.1, 0.1, glow('#e879f9', 2), 0, 0, 0, core);
+        const orb = box(0.07, 0.07, 0.07, glow('#fae8ff', 1.8), 0, 0, 0, core);
         orb.userData.orbit = i;
       }
+      const tail = group(body, 0, 0.8, 0);
+      [0.14, 0.1, 0.06].forEach((w, k) => box(w, w, w, glow('#d946ef', 1.4 - k * 0.3), 0, 0.02 * k, -0.26 - k * 0.16, tail));
       parts.core = core;
+      parts.tail = tail;
       break;
     }
     case 'welder': {
-      blobShadow(0.4, root);
-      const rust = mat('#8a4b2a', { pattern: 'metal' });
-      box(0.6, 0.45, 0.5, rust, 0, 0.35, 0, body);
-      box(0.5, 0.12, 0.45, mat('#3a2a22'), 0, 0.08, 0, body);
-      const head = group(body, 0, 0.7, 0.05);
-      box(0.34, 0.24, 0.3, mat('#b8653a', { pattern: 'panel' }), 0, 0, 0, head);
-      box(0.24, 0.07, 0.02, glow('#fb923c', 2.5), 0, 0.02, 0.16, head);
-      const arm = group(body, 0.36, 0.5, 0.1);
-      box(0.1, 0.1, 0.42, mat('#6b3a22'), 0, 0, 0.18, arm);
-      box(0.08, 0.08, 0.08, glow('#fdba74', 4), 0, 0, 0.42, arm);
+      // Rogue welder: tracked chassis, gas tanks, visored head and a two-joint torch arm.
+      blobShadow(0.42, root);
+      const rust = mat('#9a5a34', { pattern: 'plate', res: 16 });
+      const dark = mat('#2a211c', { pattern: 'plate', res: 16 });
+      const tread = mat('#2b2724', { pattern: 'tread', res: 16 });
+      for (const x of [-0.3, 0.3]) {
+        box(0.16, 0.2, 0.62, tread, x, 0.11, 0, body);
+        box(0.18, 0.1, 0.08, dark, x, 0.12, 0.33, body);
+        box(0.18, 0.1, 0.08, dark, x, 0.12, -0.33, body);
+      }
+      bevel(0.5, 0.28, 0.54, rust, 0, 0.36, 0, body);
+      box(0.52, 0.05, 0.02, mat('#15151a', { pattern: 'hazard', accent: '#f59e0b', res: 16 }), 0, 0.3, 0.28, body);
+      for (const x of [-0.1, 0.1]) {
+        box(0.12, 0.34, 0.12, mat('#4d6b5a', { pattern: 'metal' }), x, 0.58, -0.3, body);
+        box(0.08, 0.05, 0.08, mat('#c9c4bb'), x, 0.77, -0.3, body);
+      }
+      const head = group(body, 0, 0.66, 0.06);
+      bevel(0.36, 0.24, 0.32, mat('#c0703f', { pattern: 'plate', res: 16 }), 0, 0, 0, head);
+      box(0.3, 0.12, 0.02, mat('#0b0b0f'), 0, 0.01, 0.165, head);
+      box(0.22, 0.03, 0.02, glow('#fb923c', 2), 0, 0.02, 0.175, head);
+      box(0.03, 0.18, 0.03, mat('#3a3a40'), 0.12, 0.2, -0.08, head);
+      box(0.05, 0.05, 0.05, glow('#fbbf24', 1.6), 0.12, 0.3, -0.08, head);
+      const arm = group(body, 0.34, 0.48, 0.08);
+      box(0.12, 0.12, 0.12, dark, 0, 0, 0, arm);
+      box(0.09, 0.09, 0.3, rust, 0, 0, 0.16, arm);
+      const fore = group(arm, 0, 0, 0.3);
+      fore.rotation.x = 0.5;
+      box(0.1, 0.1, 0.1, dark, 0, 0, 0, fore);
+      box(0.07, 0.07, 0.24, mat('#7a4a2c', { pattern: 'metal' }), 0, 0, 0.13, fore);
+      box(0.05, 0.05, 0.08, mat('#1a1a1a'), 0, 0, 0.28, fore);
+      box(0.05, 0.05, 0.05, glow('#fde68a', 2.6), 0, 0, 0.33, fore);
+      const claw = group(body, -0.33, 0.44, 0.12);
+      box(0.08, 0.08, 0.22, dark, 0, 0, 0.1, claw);
+      box(0.03, 0.08, 0.08, rust, -0.03, 0, 0.24, claw);
+      box(0.03, 0.08, 0.08, rust, 0.03, 0, 0.24, claw);
       parts.head = head;
       parts.arm = arm;
       break;
     }
     case 'crawler': {
-      blobShadow(0.42, root);
-      const scrap = mat('#6b6258', { pattern: 'metal' });
-      box(0.7, 0.22, 0.56, scrap, 0, 0.28, 0, body);
-      box(0.4, 0.1, 0.3, mat('#8a7f70'), 0.05, 0.43, -0.05, body);
-      box(0.1, 0.08, 0.04, glow('#ef4444', 3), -0.12, 0.3, 0.29, body);
-      box(0.1, 0.08, 0.04, glow('#ef4444', 3), 0.12, 0.3, 0.29, body);
-      for (let i = 0; i < 4; i++) {
-        const leg = group(body, i < 2 ? -0.38 : 0.38, 0.25, i % 2 ? -0.18 : 0.18);
-        box(0.06, 0.26, 0.06, mat('#3d3833'), 0, -0.12, 0, leg);
-        leg.rotation.z = i < 2 ? -0.5 : 0.5;
+      // Scrap crawler: segmented spider of salvaged plates, mandibles and a cluster of red eyes.
+      blobShadow(0.46, root);
+      const scrap = mat('#77716a', { pattern: 'plate', res: 16 });
+      const dark = mat('#3a3531', { pattern: 'plate', res: 16 });
+      bevel(0.5, 0.22, 0.42, scrap, 0, 0.32, -0.16, body);
+      bevel(0.38, 0.2, 0.3, dark, 0, 0.3, 0.18, body);
+      box(0.26, 0.15, 0.14, scrap, 0, 0.28, 0.39, body);
+      for (const [x, y] of [
+        [-0.07, 0.31],
+        [0.07, 0.31],
+        [0, 0.26],
+      ])
+        box(0.05, 0.05, 0.02, glow('#ef4444', 2), x, y, 0.465, body);
+      for (const x of [-0.08, 0.08]) {
+        const m = box(0.04, 0.04, 0.16, dark, x, 0.22, 0.5, body);
+        m.rotation.y = -x * 3;
+      }
+      const plates: [number, number, number, number, string][] = [
+        [-0.1, 0.46, -0.2, 0.18, '#8c8378'],
+        [0.12, 0.45, -0.1, -0.22, '#5f5a54'],
+        [0.02, 0.47, -0.28, 0.08, '#9a5a34'],
+      ];
+      for (const [x, y, z, rz, c] of plates) {
+        const pl = box(0.24, 0.03, 0.18, mat(c, { pattern: 'plate' }), x, y, z, body);
+        pl.rotation.z = rz;
+        pl.rotation.y = rz * 0.8;
+      }
+      for (let i = 0; i < 6; i++) {
+        const side = i < 3 ? -1 : 1;
+        const leg = group(body, side * 0.24, 0.3, -0.2 + (i % 3) * 0.2);
+        const up = box(0.24, 0.05, 0.05, dark, side * 0.1, 0.06, 0, leg);
+        up.rotation.z = side * 0.55;
+        box(0.05, 0.3, 0.05, scrap, side * 0.22, -0.06, 0, leg);
+        box(0.07, 0.04, 0.07, mat('#1f1c1a'), side * 0.22, -0.22, 0, leg);
         parts[`leg${i}`] = leg;
       }
       break;
     }
     case 'bug': {
-      blobShadow(0.36, root);
-      const shell = mat('#0f3a44', { pattern: 'circuit', accent: '#22d3ee' });
-      box(0.46, 0.24, 0.6, shell, 0, 0.26, 0, body);
-      box(0.04, 0.26, 0.62, glow('#22d3ee', 1.8), 0, 0.27, 0, body);
-      box(0.3, 0.16, 0.18, mat('#123039'), 0, 0.22, 0.36, body);
-      box(0.06, 0.06, 0.03, glow('#fde047', 3), -0.08, 0.25, 0.46, body);
-      box(0.06, 0.06, 0.03, glow('#fde047', 3), 0.08, 0.25, 0.46, body);
+      // Short-circuit bug: domed circuit-board beetle with antennae, jointed legs and an underglow.
+      blobShadow(0.38, root);
+      const shell = mat('#15515e', { pattern: 'circuit', accent: '#0e7490', res: 16 });
+      const under = mat('#0e2f37', { pattern: 'plate', res: 16 });
+      box(0.5, 0.12, 0.62, shell, 0, 0.24, -0.02, body);
+      box(0.42, 0.08, 0.54, shell, 0, 0.33, -0.02, body);
+      box(0.3, 0.05, 0.42, shell, 0, 0.39, -0.02, body);
+      box(0.02, 0.05, 0.5, glow('#67e8f9', 1.1), 0, 0.39, -0.02, body);
+      box(0.38, 0.02, 0.46, glow('#22d3ee', 0.7), 0, 0.15, 0, body);
+      bevel(0.28, 0.14, 0.16, under, 0, 0.24, 0.37, body);
+      box(0.05, 0.05, 0.02, glow('#fde047', 2.2), -0.07, 0.26, 0.455, body);
+      box(0.05, 0.05, 0.02, glow('#fde047', 2.2), 0.07, 0.26, 0.455, body);
+      for (const side of [-1, 1]) {
+        const ant = group(body, side * 0.07, 0.31, 0.43);
+        ant.rotation.set(-0.7, side * 0.35, 0);
+        box(0.02, 0.2, 0.02, under, 0, 0.1, 0, ant);
+        box(0.04, 0.04, 0.04, glow('#67e8f9', 1.8), 0, 0.21, 0, ant);
+      }
       for (let i = 0; i < 6; i++) {
-        const leg = group(body, i < 3 ? -0.26 : 0.26, 0.2, -0.18 + (i % 3) * 0.18);
-        box(0.18, 0.04, 0.04, mat('#0a2229'), i < 3 ? -0.07 : 0.07, -0.05, 0, leg);
+        const side = i < 3 ? -1 : 1;
+        const leg = group(body, side * 0.24, 0.2, -0.2 + (i % 3) * 0.18);
+        const up = box(0.16, 0.04, 0.04, under, side * 0.07, 0.03, 0, leg);
+        up.rotation.z = side * 0.5;
+        box(0.035, 0.18, 0.035, under, side * 0.15, -0.06, 0, leg);
         parts[`leg${i}`] = leg;
       }
       const cargo = group(body, 0, 0.46, -0.05);
@@ -327,33 +403,87 @@ export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
       break;
     }
     case 'packet': {
+      // Malware packet: a hovering sealed envelope with a stepped flap, glitch shards and thrusters.
       floaty = true;
       blobShadow(0.3, root);
-      const cube = group(body, 0, 0.7, 0);
-      box(0.46, 0.46, 0.46, mat('#7f1d1d', { emissive: '#ef4444', intensity: 0.9 }), 0, 0, 0, cube);
-      box(0.3, 0.06, 0.02, glow('#fecaca', 2.5), 0, 0.05, 0.24, cube);
-      box(0.08, 0.08, 0.02, mat('#0a0a0a'), -0.1, -0.08, 0.24, cube);
-      box(0.08, 0.08, 0.02, mat('#0a0a0a'), 0.1, -0.08, 0.24, cube);
+      const cube = group(body, 0, 0.72, 0);
+      const red = mat('#8f1f1f', { pattern: 'plate', emissive: '#ef4444', intensity: 0.25, res: 16 });
+      const flap = mat('#6b1414', { pattern: 'plate', emissive: '#ef4444', intensity: 0.18, res: 16 });
+      bevel(0.58, 0.38, 0.14, red, 0, 0, 0, cube, 0.04);
+      [0.54, 0.4, 0.26, 0.12].forEach((w, k) => box(w, 0.06, 0.03, flap, 0, 0.15 - k * 0.06, 0.075, cube));
+      box(0.1, 0.1, 0.03, glow('#fecaca', 1.8), 0, -0.04, 0.09, cube);
+      box(0.04, 0.04, 0.02, mat('#1a0505'), -0.02, -0.03, 0.105, cube);
+      box(0.04, 0.04, 0.02, mat('#1a0505'), 0.02, -0.03, 0.105, cube);
+      for (const x of [-0.18, 0.18]) {
+        box(0.08, 0.08, 0.06, mat('#3b0d0d'), x, -0.08, -0.1, cube);
+        box(0.05, 0.05, 0.02, glow('#fca5a5', 1.8), x, -0.08, -0.135, cube);
+      }
+      for (let i = 0; i < 4; i++) {
+        const shard = box(0.06, 0.06, 0.06, glow(i % 2 ? '#f87171' : '#fecaca', 1.5), 0, 0, 0, cube);
+        shard.userData.orbit = i;
+      }
       parts.cube = cube;
       break;
     }
     case 'drone': {
+      // Static drone: quadcopter with motor pods, crossed rotor blades, a gimbal camera and skids.
       floaty = true;
-      blobShadow(0.32, root);
+      blobShadow(0.34, root);
       const craft = group(body, 0, 1.0, 0);
-      box(0.4, 0.14, 0.4, mat('#d4d0e8', { pattern: 'panel' }), 0, 0, 0, craft);
-      box(0.14, 0.08, 0.04, glow('#a78bfa', 3), 0, -0.02, 0.21, craft);
+      const shell = mat('#aab1c6', { pattern: 'plate', res: 16 });
+      const dark = mat('#3c3a52', { pattern: 'plate', res: 16 });
+      bevel(0.36, 0.14, 0.36, shell, 0, 0, 0, craft, 0.04);
+      box(0.2, 0.07, 0.2, dark, 0, 0.1, 0, craft);
+      box(0.02, 0.14, 0.02, dark, 0.08, 0.2, -0.08, craft);
+      box(0.04, 0.04, 0.04, glow('#c4b5fd', 1.6), 0.08, 0.28, -0.08, craft);
       for (const [x, z] of [
-        [-0.28, -0.28],
-        [0.28, -0.28],
-        [-0.28, 0.28],
-        [0.28, 0.28],
+        [-0.3, -0.3],
+        [0.3, -0.3],
+        [-0.3, 0.3],
+        [0.3, 0.3],
       ]) {
-        box(0.04, 0.04, 0.3, mat('#6b6880'), x / 2, 0, z / 2, craft).rotation.y = Math.atan2(x, z);
-        const rotor = box(0.22, 0.02, 0.04, mat('#e9e5ff'), x, 0.06, z, craft);
-        rotor.userData.rotor = true;
+        const armB = box(0.05, 0.04, 0.34, dark, x / 2, 0, z / 2, craft);
+        armB.rotation.y = Math.atan2(x, z);
+        box(0.1, 0.08, 0.1, shell, x, 0.02, z, craft);
+        for (const r of [0, Math.PI / 2]) {
+          const blade = box(0.3, 0.012, 0.035, mat('#7c8499'), x, 0.08, z, craft);
+          blade.rotation.y = r;
+          blade.userData.rotor = true;
+        }
+      }
+      box(0.12, 0.1, 0.12, dark, 0, -0.12, 0.04, craft);
+      box(0.06, 0.06, 0.02, glow('#a78bfa', 2.4), 0, -0.12, 0.105, craft);
+      for (const x of [-0.13, 0.13]) {
+        box(0.03, 0.12, 0.03, dark, x, -0.12, 0, craft);
+        box(0.03, 0.03, 0.3, dark, x, -0.18, 0, craft);
       }
       parts.craft = craft;
+      break;
+    }
+    case 'spawner': {
+      // Bot Fabricator: a hazard-striped pad with four pylons, cables, vents and a spinning print core.
+      blobShadow(0.9, root);
+      const steel = mat('#34343d', { pattern: 'plate', res: 16 });
+      box(1.5, 0.3, 1.5, mat('#26262e', { pattern: 'panel', res: 16 }), 0, 0.15, 0, body);
+      box(1.56, 0.08, 1.56, mat('#15151a', { pattern: 'hazard', accent, res: 16 }), 0, 0.33, 0, body);
+      box(0.8, 0.06, 0.8, mat('#050507', { emissive: accent, intensity: 0.45 }), 0, 0.38, 0, body);
+      for (const [x, z] of [
+        [-0.62, -0.62],
+        [0.62, -0.62],
+        [-0.62, 0.62],
+        [0.62, 0.62],
+      ]) {
+        box(0.22, 1.1, 0.22, steel, x, 0.85, z, body);
+        box(0.26, 0.1, 0.26, glow(accent, 1.1), x, 1.44, z, body);
+        box(0.24, 0.16, 0.02, mat('#2a2a33', { pattern: 'vent', res: 16 }), x, 0.7, z + Math.sign(z) * 0.12, body);
+        const cable = box(0.05, 0.05, 0.62, mat('#16161b'), x / 2, 0.42, z / 2, body);
+        cable.rotation.y = Math.atan2(x, z);
+      }
+      box(0.4, 0.26, 0.04, mat('#0b0d14', { pattern: 'screen', accent, res: 16, emissive: accent, intensity: 0.25 }), 0, 0.72, 0.64, body);
+      const core = group(body, 0, 1.05, 0);
+      box(0.36, 0.36, 0.36, glow(accent, 1.25), 0, 0, 0, core);
+      box(0.58, 0.06, 0.58, steel, 0, 0, 0, core).rotation.y = Math.PI / 4;
+      parts.core = core;
       break;
     }
     case 'core': {
@@ -421,27 +551,6 @@ export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
       parts.core = core;
       break;
     }
-    case 'spawner': {
-      // Bot Fabricator: a hazard-striped pad with four pylons and a spinning core that prints bots.
-      blobShadow(0.9, root);
-      box(1.5, 0.3, 1.5, mat('#26262e', { pattern: 'panel' }), 0, 0.15, 0, body);
-      box(1.56, 0.08, 1.56, mat('#15151a', { pattern: 'hazard', accent }), 0, 0.33, 0, body);
-      box(0.8, 0.06, 0.8, mat('#050507', { emissive: accent, intensity: 0.6 }), 0, 0.38, 0, body);
-      for (const [x, z] of [
-        [-0.62, -0.62],
-        [0.62, -0.62],
-        [-0.62, 0.62],
-        [0.62, 0.62],
-      ]) {
-        box(0.2, 1.1, 0.2, mat('#3a3a44', { pattern: 'metal' }), x, 0.85, z, body);
-        box(0.26, 0.12, 0.26, glow(accent, 3), x, 1.44, z, body);
-      }
-      const core = group(body, 0, 1.05, 0);
-      box(0.42, 0.42, 0.42, glow(accent, 2.4), 0, 0, 0, core);
-      box(0.6, 0.06, 0.6, mat('#1f1f27'), 0, 0, 0, core).rotation.y = Math.PI / 4;
-      parts.core = core;
-      break;
-    }
     case 'boss': {
       floaty = true;
       blobShadow(1.0, root);
@@ -494,9 +603,17 @@ export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
         });
       }
       if (parts.cube) {
-        parts.cube.rotation.y = t * 1.5;
+        parts.cube.rotation.y = Math.sin(t * 2.2) * 0.25;
+        parts.cube.rotation.z = Math.sin(t * 3.1) * 0.06;
         parts.cube.position.x = Math.random() < 0.04 ? (Math.random() - 0.5) * 0.1 : 0; // glitch jitter
+        parts.cube.children.forEach((c) => {
+          const i = c.userData.orbit;
+          if (i == null) return;
+          const a = t * 2.6 + (i * Math.PI) / 2;
+          c.position.set(Math.cos(a) * 0.46, Math.sin(a * 2) * 0.12, Math.sin(a) * 0.3);
+        });
       }
+      if (parts.tail) parts.tail.rotation.y = Math.sin(t * 4) * 0.35;
       if (parts.craft) parts.craft.children.forEach((c) => c.userData.rotor && (c.rotation.y += dt * 30));
       if (parts.core && type === 'boss') parts.core.rotation.y = Math.sin(t * 0.8) * 0.4;
       if (parts.core && type === 'spawner') {

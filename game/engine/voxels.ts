@@ -8,16 +8,18 @@ const unit = new THREE.BoxGeometry(1, 1, 1);
 export const UNIT_BOX = unit;
 const mats = new Map<string, THREE.Material>();
 
-export type MatOpts = { emissive?: string | number; intensity?: number; pattern?: Pattern; accent?: string; metal?: number; rough?: number; transparent?: number };
+export type MatOpts = { emissive?: string | number; intensity?: number; pattern?: Pattern; accent?: string; metal?: number; rough?: number; transparent?: number; res?: 8 | 16 };
 
 export function mat(color: string, o: MatOpts = {}): THREE.Material {
-  const key = `${color}|${o.emissive ?? ''}|${o.intensity ?? ''}|${o.pattern ?? 'noise'}|${o.accent ?? ''}|${o.metal ?? ''}|${o.rough ?? ''}|${o.transparent ?? ''}`;
+  // Patterned surfaces get 16×16 detail (and the hand-authored tiles); flat colours stay 8×8.
+  const res = o.res ?? (o.pattern && o.pattern !== 'noise' ? 16 : 8);
+  const key = `${color}|${o.emissive ?? ''}|${o.intensity ?? ''}|${o.pattern ?? 'noise'}|${o.accent ?? ''}|${o.metal ?? ''}|${o.rough ?? ''}|${o.transparent ?? ''}|${res}`;
   const hit = mats.get(key);
   if (hit) return hit;
   // Lambert (diffuse only): far cheaper per pixel than PBR, and voxels don't need the specular.
   const m = new THREE.MeshLambertMaterial({
     color: '#ffffff',
-    map: pixelTexture(o.pattern ?? 'noise', color, o.accent ?? '#ffffff', 8),
+    map: pixelTexture(o.pattern ?? 'noise', color, o.accent ?? '#ffffff', res),
     emissive: o.emissive != null ? new THREE.Color(o.emissive) : new THREE.Color(0),
     emissiveIntensity: o.intensity ?? (o.emissive != null ? 1.4 : 0),
     transparent: o.transparent != null,
