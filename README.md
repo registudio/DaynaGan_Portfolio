@@ -3,7 +3,9 @@
 Two ways to explore the same content:
 
 - **Professional mode**: a single-page, résumé-style site in purple, with light and dark themes, scroll reveals, voxel 3D project viewers, a live GitHub panel, a print stylesheet and a contact form.
-- **Game mode**: an isometric voxel action-RPG in the style of Minecraft Dungeons. You play as Dayna with Xiao Hu the cat, deploying from an orbital station to eight mission biomes. The prize at the end is the Comms Core contact form.
+- **Game mode**: an isometric voxel action-RPG in the style of Minecraft Dungeons. You play as Dayna with Xiao Hu the cat, deploying from an orbital station to eight mission biomes, each with trial rooms (locked dungeons with small tasks and hazard gauntlets), a mini-boss and bot fabricators. The prize at the end is the Comms Core contact form.
+- **Planet Aurora**: a combat-free open world (nine biomes: meadow, supertree garden, crystal ruins, sky islands, volcano, lighthouse coast, canyon, glowroot jungle, tundra) where every portfolio section — including Hobbies and Future Goals — is a landmark, some behind nature puzzles.
+- **Quick tour**: Xiao Hu walks you through everything hands-free (full, or by interest: robotics, embedded systems, AI).
 
 LinkedIn, GitHub, email and the résumé are one click away in both modes.
 
@@ -46,7 +48,7 @@ Requires Node 22.18+.
 
 ```sh
 npm ci
-npm run dev        # http://localhost:3000  (#play opens the game directly)
+npm run dev        # http://localhost:3000  (#play = game, #tour = quick tour, #planet = open world)
 npm run typecheck
 npm test
 npm run build
@@ -77,9 +79,15 @@ npm run build
 | `app/api/contact/route.ts` | Contact form → Resend (honeypot + rate limit) |
 | `components/pro/*` | Professional mode |
 | `components/game/*` | Game UI: HUD, panels, star map, pause menu, touch controls |
-| `game/engine/*` | Three.js engine: world, layout generator, characters, props, audio, missions |
+| `game/engine/Game.ts` | Game loop, scenes, combat, interactions, HUD state |
+| `game/engine/layout.ts`, `trials.ts` | Mission level generator (rooms, corridors, trial rooms, hazards, fabricators) |
+| `game/engine/planet.ts`, `nature.ts` | Planet Aurora open world and its nature art/puzzles |
+| `game/engine/world.ts`, `terrain.ts` | Terrain meshing (exposed faces, chunks, baked shading) and collision/step rules |
+| `game/engine/exploration.ts` | Blueprint tracking, tour topics, engineering-lab maths |
+| `game/engine/lore.ts`, `panels.ts` | Text for cards, area titles, fragments and panels (derived from `portfolio.md`) |
+| `game/engine/*` (rest) | Characters, props, biomes, textures, set pieces, star map, audio, missions, input, store |
 | `game/models/*` | Voxel project models (used by both modes) |
-| `tests/*` | Content and level-generation tests |
+| `tests/*` | Content, level generation, trials, planet, lore, missions and exploration tests (`npm test`) |
 
 ## Assets
 

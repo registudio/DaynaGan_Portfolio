@@ -310,6 +310,20 @@ Planned per mission so each type appears 2–3 times; completed trials are saved
 - Entry points: **🌍 Explore the planet** on the splash, `#planet`, a green pad in the hub, and a button on the star map.
 - New content sections in `portfolio.md`: **Hobbies** (skating, MMA, Xiao Hu, travel, building for fun) and **Future Goals** (mostly TODO for Dayna to write). They also appear in Professional mode.
 
+## Commit 2.0 (Reginald) — merged
+
+Pushed directly to `main`: trackable project blueprints (pin a project; the HUD shows its next step with direction, distance and above/below), searchable codex, three interactive engineering labs (claw grip, sensor calibration, signal routing), topic tours (robotics / embedded / AI), chunked world batches and exposed-face terrain with baked corner shading, step-height traversal (`MAX_STEP` 0.4), ranged bots keep distance and melee bots flank, signal-routing / bit-flip puzzle explanations, safe ability practice at the station, depth-readability / text size / HUD scale / panel opacity settings, symbols on the minimap, focus-trapped modals with gamepad navigation, input-aware hotbar with cooldown seconds and lock reasons, lore cards queued during combat, and systematic disposal of effects and GPU resources. The commit contained unresolved stash conflict markers; they were resolved by keeping both sides.
+
+## Round 5 — selected (in progress)
+
+Owner picked from the latest suggestion list: **Features** 1, 2, 4, 5 · **Performance** 1–5 · **Gameplay** 1, 2, 3, 5 (plus 4) · **UI/UX** 1–5 · **HUD** 1–5 — and answered: *smoother, stylised 3D appearance* and *grow into a slightly longer game*. Main complaint: textures don't read as 3D and elevations are hard to tell apart.
+
+Plan:
+- **Depth & visual pass** — lighter walkable tops vs darker, distinctly textured risers; a highlight lip on every ledge and a dark seam at its foot; stronger baked contact shading; elevation-tinted tops (higher = brighter); stronger directional sun vs ambient, less decorative bloom; subtle normal-mapped relief on plates/grates; a stylised depth-edge outline pass so every step and ledge has a crisp contour.
+- **Fix** — the planet's terrain was drawn twice after the merge (instanced blocks + face mesher); route it through the face mesher with per-terrain materials.
+- **Gaps in the chosen items** — encounter groups with readable roles (pressure / ranged support / reinforcement), interactive assembly defence (restore power, repair, interrupt a fabricator), locked-action explanations everywhere, elevation-aware minimap (height bands, stair marks, above/below arrows), toast priority during combat/boss/assembly.
+- **Longer game** — optional per-mission challenges (stars) and hidden collectibles.
+
 ## Improvement backlog (suggested)
 
 ### Performance
