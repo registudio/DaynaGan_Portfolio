@@ -93,6 +93,9 @@ export default function Splash({
           <button className="pixel-btn alt" onClick={() => onChoose('pro')}>
             PROFESSIONAL MODE
           </button>
+          <button className="pixel-btn alt planet" onClick={() => onChoose('game', 'planet')} title="An open world with the whole portfolio as landmarks — no combat">
+            🌍 EXPLORE THE PLANET <small>open world, no combat</small>
+          </button>
           <button className="pixel-btn alt tour" onClick={() => onChoose('game', 'tour')} title="Xiao Hu walks you through every mission">
             ⏱ QUICK TOUR <small>~4 min, hands-free</small>
           </button>

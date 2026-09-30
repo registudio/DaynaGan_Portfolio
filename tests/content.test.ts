@@ -10,7 +10,7 @@ test('portfolio.md parses and validates', () => {
   assert.equal(portfolio.site.displayName, 'Dayna Gan');
   assert.deepEqual(
     sectionLevels(portfolio).map((l) => l.id),
-    ['about', 'education', 'experience', 'projects', 'trophies', 'leadership', 'github', 'contact'],
+    ['about', 'education', 'experience', 'projects', 'trophies', 'leadership', 'github', 'hobbies', 'future', 'contact'],
   );
 });
 

@@ -191,3 +191,50 @@ export function npcPanel(p: Portfolio, room: Room, save: SaveData): Panel {
 }
 
 export const isRoomScanned = (save: SaveData, levelId: string, roomId: string) => save.scanned.includes(roomKey(levelId, roomId));
+
+/**
+ * Planet landmark: an entire section on one page — intro, then every room with all of its
+ * parts inline (no separate terminals to visit).
+ */
+export function sectionPanel(p: Portfolio, levelId: string): Panel {
+  const level = p.levels.find((l) => l.id === levelId);
+  if (!level) return { kind: 'content', levelId, roomId: '', title: levelId, html: '<p>…</p>' };
+  let html = level.html ?? '';
+  if (level.meta.tags) html += chips(list(level.meta.tags));
+  // Game-only rooms (shelves, matrix, backroom, relay field…) don't belong in the overview.
+  const GAME_ONLY = new Set(['shelves', 'skill-matrix', 'backroom', 'relays', 'star-map', 'form']);
+  for (const room of level.rooms) {
+    if ((room.todo && !room.body) || GAME_ONLY.has(room.id)) continue;
+    const meta = metaLine(room);
+    html += `<section class="g-sec"><h3>${esc(room.title)}</h3>${meta ? `<p class="g-sec-meta">${esc(meta)}</p>` : ''}${room.html ?? ''}`;
+    if (room.meta.tags) html += chips(list(room.meta.tags));
+    const parts = room.parts.filter((x) => !x.todo || x.body);
+    if (parts.length) {
+      html += '<ul class="g-sec-parts">';
+      for (const part of parts) {
+        const when = [part.meta.period, part.meta.org].filter(Boolean).join(' · ');
+        const body = part.html ? part.html.replace(/^<p>|<\/p>\s*$/g, '') : part.meta.label ? esc(part.meta.label) : '';
+        html += `<li><b>${esc(part.title)}</b>${when ? ` <span class="g-sec-meta">${esc(when)}</span>` : ''}${body ? ` — ${body}` : ''}</li>`;
+      }
+      html += '</ul>';
+    }
+    html += '</section>';
+  }
+  if (levelId === 'trophies') {
+    // Skills are earned in the missions; on the planet, just list them by group.
+    const groups = new Map<string, string[]>();
+    for (const sk of p.site.skills) (groups.get(sk.group) ?? groups.set(sk.group, []).get(sk.group)!).push(sk.name);
+    html += '<section class="g-sec"><h3>Skills</h3>';
+    for (const [g, names] of groups) html += `<p class="g-sec-meta">${esc(g)}</p>${chips(names)}`;
+    html += '</section>';
+  }
+  return {
+    kind: 'content',
+    levelId,
+    roomId: '',
+    eyebrow: [level.meta.eyebrow, level.meta.kicker].filter(Boolean).join(' · '),
+    title: level.title,
+    html: html || '<p>…</p>',
+    actions: [{ id: `pro:${proAnchor(levelId)}`, label: 'Open in Professional mode' }],
+  };
+}

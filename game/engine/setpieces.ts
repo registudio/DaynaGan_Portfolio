@@ -16,6 +16,7 @@ export function buildSetPiece(biome: string, map: LevelMap, quality: 'low' | 'hi
   if (biome === 'academy-spires') return godRays(map, quality);
   if (biome === 'robot-forge') return solderSea(map);
   if (biome === 'circuit-caverns') return dataFalls(map, quality);
+  if (biome === 'planet-surface') return planetSea(map, quality);
   return null;
 }
 
@@ -239,5 +240,92 @@ function dataFalls(map: LevelMap, quality: 'low' | 'high'): SetPiece {
       for (let k = 0; k < pools.length; k++) pools[k].scale.setScalar(1 + 0.08 * Math.sin(t * 3 + k));
     },
     dispose: disposer(group),
+  };
+}
+
+function waterTexture() {
+  const S = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#1d6fa3';
+  g.fillRect(0, 0, S, S);
+  let seed = 5;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const shades = ['#2383bd', '#2b93cf', '#58b6e6', '#a5dcf5'];
+  for (let i = 0; i < 180; i++) {
+    const x = Math.floor(rnd() * S);
+    const y = Math.floor(rnd() * S);
+    g.fillStyle = shades[Math.min(3, Math.floor(rnd() * rnd() * 4.5))];
+    g.fillRect(x, y, 2 + Math.floor(rnd() * 5), 1);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/** Planet Aurora: the sea around the island, and waterfalls pouring off the sky islands. */
+function planetSea(map: LevelMap, quality: 'low' | 'high'): SetPiece {
+  const group = new THREE.Group();
+  const tex = waterTexture();
+  const size = Math.max(map.w, map.d) + 160;
+  tex.repeat.set(size / 10, size / 10);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.92 }));
+  sea.rotation.x = -Math.PI / 2;
+  sea.position.set(map.w / 2, -0.35, map.d / 2);
+  group.add(sea);
+  const deep = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ color: '#0b2a4a' }));
+  deep.rotation.x = -Math.PI / 2;
+  deep.position.set(map.w / 2, -2.5, map.d / 2);
+  group.add(deep);
+  // Waterfalls: sky-island cells (h ≥ 5) whose east/south neighbour is open sky.
+  const { w, d, cells } = map;
+  const at = (x: number, z: number) => (x < 0 || z < 0 || x >= w || z >= d ? undefined : cells[z * w + x]);
+  const edges: { x: number; z: number; h: number; dx: number; dz: number }[] = [];
+  for (let z = 0; z < d; z++)
+    for (let x = 0; x < w; x++) {
+      const c = cells[z * w + x];
+      if (c.t !== FLOOR || c.h < 5) continue;
+      const e = at(x + 1, z);
+      const s2 = at(x, z + 1);
+      if (!e || e.t === 0) edges.push({ x: x + 1, z: z + 0.5, h: c.h, dx: 1, dz: 0 });
+      if (!s2 || s2.t === 0) edges.push({ x: x + 0.5, z: z + 1, h: c.h, dx: 0, dz: 1 });
+    }
+  const falls = edges.filter((_, i) => i % 3 === 1).slice(0, quality === 'high' ? 16 : 8);
+  const PER = quality === 'high' ? 36 : 20;
+  const n = falls.length * PER;
+  const pos = new Float32Array(n * 3);
+  const speed = new Float32Array(n);
+  const reset = (i: number, spread = false) => {
+    const f = falls[Math.floor(i / PER)];
+    const j = (Math.random() - 0.5) * 0.9;
+    pos[i * 3] = f.x + (f.dx ? 0.1 : j);
+    pos[i * 3 + 1] = f.h - (spread ? Math.random() * (f.h + 0.4) : 0);
+    pos[i * 3 + 2] = f.z + (f.dz ? 0.1 : j);
+    speed[i] = 4 + Math.random() * 3;
+  };
+  for (let i = 0; i < n; i++) reset(i, true);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#dbeafe', size: 3, sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false }));
+  pts.frustumCulled = false;
+  group.add(pts);
+  return {
+    group,
+    update(t, dt) {
+      tex.offset.set(t * 0.01, t * 0.006);
+      for (let i = 0; i < n; i++) {
+        const f = falls[Math.floor(i / PER)];
+        pos[i * 3 + 1] -= speed[i] * dt;
+        pos[i * 3] += f.dx * dt * 0.3;
+        pos[i * 3 + 2] += f.dz * dt * 0.3;
+        if (pos[i * 3 + 1] < -0.3) reset(i);
+      }
+      geo.attributes.position.needsUpdate = true;
+    },
+    dispose: disposer(group, [tex]),
   };
 }

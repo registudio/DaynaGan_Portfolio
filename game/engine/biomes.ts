@@ -61,11 +61,58 @@ export type Biome = {
   particles: Particles;
   /** Room floor height step (Academy Spires climbs). */
   climb?: number;
+  /** Per-cell terrain palette (open-world planet): top surface + cliff/side colour. */
+  terrain?: Record<string, { top: Surface; alt?: Surface; side: string }>;
 };
 
 const B = (b: Omit<Biome, 'light'> & { light?: string }): Biome => ({ light: '#ffffff', ...b });
 
+const T = (color: string, pattern: Surface['pattern'], side: string, altColor?: string, accent?: string, glow = false) => ({
+  top: { pattern, color, accent, glow },
+  alt: altColor ? { pattern, color: altColor, accent, glow } : undefined,
+  side,
+});
+
 export const BIOMES: Record<string, Biome> = {
+  'planet-surface': B({
+    id: 'planet-surface',
+    name: 'Planet Aurora',
+    light: '#fde68a',
+    background: '#1e2a5a',
+    fog: '#2b3a6e',
+    ambient: '#cfe3ff',
+    ambientIntensity: 1.05,
+    sun: '#fff1d0',
+    sunIntensity: 1.5,
+    floor: { pattern: 'grass', color: '#4f9a3c' },
+    floorAlt: { pattern: 'grass', color: '#5aa845' },
+    path: { pattern: 'stone', color: '#a39a86' },
+    wall: { pattern: 'stone', color: '#7b7f86' },
+    wallTop: { pattern: 'stone', color: '#9aa0a8' },
+    cliff: '#5b4330',
+    rail: '#fde68a',
+    props: [],
+    particles: 'pollen',
+    terrain: {
+      meadow: T('#4f9a3c', 'grass', '#6b4a2b', '#5aa845'),
+      path: T('#b59d72', 'noise', '#7a6446', '#ab9368'),
+      garden: T('#3f8f5a', 'grass', '#5b4330', '#48a066'),
+      terrace: T('#c9d3c2', 'tile', '#8a8f86', '#bfc9b8'),
+      jungle: T('#2f7d5f', 'grass', '#2a3b2a', '#35896a'),
+      moss: T('#3f5f3a', 'stone', '#3a3a34', '#46693f'),
+      ruin: T('#8a8d93', 'stone', '#5d6066', '#7f8288'),
+      crystal: T('#4b3f78', 'hex', '#2e2750', '#54478a', '#c4b5fd', true),
+      sand: T('#e3cf94', 'noise', '#b9a26c', '#dcc587'),
+      basalt: T('#5a4c4a', 'stone', '#3a2f2c', '#655552'),
+      lava: T('#f97316', 'noise', '#7c2d12', '#fb923c', '#fde047', true),
+      snow: T('#c9d4e0', 'noise', '#8d9db0', '#c1ccd9'),
+      ice: T('#8fc3e6', 'hex', '#5d8fb3', '#9ccdee', '#cfe8f7'),
+      desert: T('#d4a45c', 'noise', '#9c6f35', '#cc9a50'),
+      mesa: T('#b8663a', 'noise', '#8a4526', '#c2703f'),
+      sky: T('#6cc24a', 'grass', '#6b4a2b', '#78cc55'),
+      bridge: T('#8a5a2b', 'panel', '#5b3a1a', '#7a4f25'),
+    },
+  }),
   'orbital-station': B({
     id: 'orbital-station',
     name: 'Orbital Station',

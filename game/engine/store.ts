@@ -81,6 +81,8 @@ export type SaveData = {
   fragments?: string[];
   /** Trial rooms completed (ids like `about-trial-0`). */
   trials?: string[];
+  /** Planet Aurora: landmarks read, puzzles solved, regions discovered. */
+  planet?: { seen: string[]; solved: string[]; regions: string[] };
 };
 
 export const SAVE_KEY = 'dg-save-v2';

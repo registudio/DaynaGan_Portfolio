@@ -33,6 +33,7 @@ export default function App({
   const [remembered, setRemembered] = useState<Mode | null>(null);
   const [hasSave, setHasSave] = useState(false);
   const [tour, setTour] = useState(false);
+  const [planet, setPlanet] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add('js');
@@ -42,8 +43,9 @@ export default function App({
       setHasSave(!!localStorage.getItem(SAVE_KEY));
     } catch {}
     const hash = location.hash.slice(1);
-    if (hash === 'play' || hash === 'tour') {
+    if (hash === 'play' || hash === 'tour' || hash === 'planet') {
       setTour(hash === 'tour');
+      setPlanet(hash === 'planet');
       setModeState('game');
     }
     else if (hash && hash !== 'splash') setModeState('pro');
@@ -63,7 +65,8 @@ export default function App({
       });
     } else if (m === 'game') {
       setTour(anchor === 'tour');
-      history.replaceState(null, '', anchor === 'tour' ? '#tour' : '#play');
+      setPlanet(anchor === 'planet');
+      history.replaceState(null, '', anchor === 'tour' ? '#tour' : anchor === 'planet' ? '#planet' : '#play');
     }
   }, []);
 
@@ -83,7 +86,7 @@ export default function App({
         hasSave={hasSave}
         onChoose={setMode}
       />
-      {mode === 'game' && <Game portfolio={portfolio} github={github} onExit={setMode} tour={tour} />}
+      {mode === 'game' && <Game portfolio={portfolio} github={github} onExit={setMode} tour={tour} planet={planet} />}
     </ModeContext.Provider>
   );
 }

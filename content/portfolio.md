@@ -842,9 +842,81 @@ id: repos
 ## Commit Feed
 id: commits
 
+# Hobbies
+id: hobbies
+kind: planet
+biome: planet-surface
+eyebrow: 08 / Beyond work
+title: Off the clock.
+kicker: Wheels, gloves, a cat and a passport
+light: #38bdf8
+
+What I get up to when I'm not soldering, simulating or studying.
+
+## Skating
+id: skating
+tags: SP Skate Club
+
+A member of the Singapore Polytechnic Skate Club.
+
+TODO: What she rides, favourite spots, tricks she's working on.
+
+## Martial arts
+id: mma
+tags: SP MMA Club
+
+Trained with the Singapore Polytechnic MMA Club.
+
+TODO: Discipline(s), how long, what she enjoys about it.
+
+## Xiao Hu
+id: xiao-hu
+
+My cat — her name means "tiger" in Chinese. She's also your guide in this site's game mode.
+
+## Travel
+id: travel
+
+Overseas learning trips to Guangzhou (MakeX Robotics Competition, 2019) and Taiwan.
+
+TODO: Other places, favourite trip.
+
+## Building for fun
+id: tinkering
+
+Always building something on the side — right now, wrapping up a drone.
+
+# Future Goals
+id: future
+kind: planet
+biome: planet-surface
+eyebrow: 09 / Next
+title: What's next.
+kicker: Where I'm heading
+light: #fbbf24
+
+TODO: Dayna's goals in her own words — the kind of roles, problems and teams she wants to work on next.
+
+## Right now
+id: now
+
+Completing a Bachelor of Engineering in Computer Engineering at NUS (Aug 2025 – present) while building robotics and embedded projects.
+
+## Next few years
+id: next
+status: todo
+
+TODO: Internships, specialisations or research areas she wants to pursue.
+
+## Long term
+id: long-term
+status: todo
+
+TODO: The kind of engineer she wants to become and what she wants to build.
+
 # Contact
 id: contact
-eyebrow: 08 / Contact
+eyebrow: 10 / Contact
 title: Let's build something.
 kicker: Robotics, embedded systems, or whatever comes next
 biome: comms-array

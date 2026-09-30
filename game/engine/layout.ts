@@ -23,6 +23,8 @@ export type Cell = {
   solid?: boolean;
   secret?: boolean;
   window?: boolean;
+  /** Terrain key into the biome's `terrain` palette (open-world planet). */
+  mat?: string;
 };
 
 export type RoomRect = {
@@ -77,7 +79,7 @@ export type Spawn =
   | { kind: 'centerpiece'; x: number; z: number; what: string }
   | { kind: 'secret'; x: number; z: number }
   | { kind: 'backroom'; x: number; z: number }
-  | { kind: 'hub'; x: number; z: number; what: 'starmap' | 'bunk' | 'catbed' | 'locker' | 'vendor' | 'pad' | 'earth' };
+  | { kind: 'hub'; x: number; z: number; what: 'starmap' | 'bunk' | 'catbed' | 'locker' | 'vendor' | 'pad' | 'earth' | 'planet' };
 
 export type LevelMap = {
   id: string;
@@ -934,6 +936,7 @@ function buildHub(): LevelMap {
       if (c) c.solid = true;
     }
   put('pad', cx, cz + 3, false);
+  put('planet', cx + 4, cz + 3, false);
   put('bunk', room.x + 2, room.z + 2);
   put('catbed', room.x + 4.5, room.z + 1.5);
   put('locker', room.x + room.w - 2.5, room.z + 2.5);

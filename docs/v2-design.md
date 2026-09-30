@@ -278,6 +278,38 @@ Hazards never hurt Dayna in Peaceful mode or on the Tour.
 - Root cause of "too bright": glow materials were lit *and* emissive, so point lights pushed them to white. `glow()` is now unlit (HDR colour, bloom still works), point lights are softer and hung ≥2.4 above props, and the in-game project hologram is fainter.
 - More world detail: patterned props default to 16 px textures (and the hand-authored tiles); walls get pipes, vents, lamps and conduit runs; bolted plates along back walls.
 
+## Round 4 — structure, star map, trials, Planet Aurora (done)
+
+Owner feedback: star map should show each biome's real layout; rings not centred under objects; floating text boxes; hazards too easy to avoid and levels just room-to-room; *Professional Mode* button label; rooms should need small tasks to unlock; cramped rooms; fabricators could be sniped from outside; portal home at the end of each level; a nature/magical planet level; screen shake for big moments; Circuit Caverns too dark.
+
+**Fixes**
+- Splash / HUD / pause buttons read **Professional Mode** (no ☰ icon).
+- Every trigger and its ring is centred on the object it belongs to (star map, bunk, vendor, consoles).
+- Floating text boxes: the root cause was CSS — `.g-label { display: grid }` overrode the `hidden` attribute, so labels from far-away rooms stayed on screen. Fixed globally; labels are also limited to the room you're in (nearest three, same floor).
+- Content rooms, vaults, the Parts Cavern and Relay Field are bigger.
+- Fabricators are shielded (visible bubble, hits bounce) unless you're inside their room.
+- **Portal home**: a golden portal opens in the last room of every mission once it's cleared, plus one beside Dayna the moment it clears.
+- **Screen shake**: mini-boss arrival, heavy boss attacks (scaled by distance), fabricator destroyed, mission cleared, lockdown, doors opening.
+- Circuit Caverns re-lit (brighter floor, walls, ambient and sun).
+
+**Star map** — the hub table is now a holo-projector with every mission as a floating voxel island built from its actual layout (rooms, corridors, terraces, walls, glowing paths, biome colours, rock base) orbiting a miniature of the station; the star-map screen draws isometric renders of each layout with markers for the mini-boss (☠), fabricators, the puzzle gate and the portal home.
+
+**Trial rooms** (`game/engine/trials.ts`) — missions now route through 1–2 locked dungeon rooms between content rooms. The exit door stays shut until a task is done, and every trial room is a hazard gauntlet (two out-of-phase laser sweeps across the room, a conveyor in the Forge or an EMP pad elsewhere, capacitors beside the bots):
+- *Hidden Release* — find the door button tucked behind crate stacks in a corner.
+- *Dead Weight* — push (walk into) or pull (E) a heavy crate onto a pressure plate.
+- *Laser Array* — flip three breakers around the room; the exit is a laser wall.
+- *Dead Circuit* — carry a power cell across the gauntlet to the door socket (dropped if Dayna goes down).
+- *Lockdown* — both doors seal; survive two waves (not used in Peaceful mode).
+Planned per mission so each type appears 2–3 times; completed trials are saved; *Trailblazer* achievement.
+
+**Planet Aurora (open-world overview)** — owner's choices: open-world overview; all biome ideas plus ocean, volcano and more land biomes; all portfolio information without needing to interact with minor items, plus hobbies and future goals; exploration and puzzles.
+- 136×136 island (~2.5 screens each way at default zoom) in 9 regions: Landing Meadow (About + Contact beacon), Supertree Garden (Education), Crystal Forest Ruins (Skills & Awards), Floating Sky Islands with waterfalls (Hobbies), Ember Volcano with lava rivers (Experience), Lighthouse Coast (Leadership), Sunstone Canyon observatory (Future Goals), Glowroot Jungle (Projects), Frostline Tundra ice cave (GitHub). Sea all around; cobbled paths from the meadow to every landmark.
+- One monument per section; the section's rooms float as banners in an arc in front of it (every internship, school, award… readable at a glance without interacting); walk up / E opens the whole section on one page (all rooms and their parts inline; game-only rooms hidden; skills listed by group).
+- Nature puzzles gate 7 landmarks: Rune Order (sequence), Vine Bridge (water 3 sprouts → bridge to the sky islands), Lava Diversion (2 levers → cooled path), Lighthouse Pearls (collect 3), Sun Mirrors (rotate 3), Glow-spores (collect 5), Ice Chimes (ring 3). Hint stones by each gate. No combat.
+- Regions announce themselves on discovery; objective tracks landmarks / puzzles / regions; *Explorer* and *Naturalist* achievements.
+- Entry points: **🌍 Explore the planet** on the splash, `#planet`, a green pad in the hub, and a button on the star map.
+- New content sections in `portfolio.md`: **Hobbies** (skating, MMA, Xiao Hu, travel, building for fun) and **Future Goals** (mostly TODO for Dayna to write). They also appear in Professional mode.
+
 ## Improvement backlog (suggested)
 
 ### Performance

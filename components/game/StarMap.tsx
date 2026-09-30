@@ -136,6 +136,9 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
               ▶ DEPLOY
             </button>
           )}
+          <button className="g-btn g-planet-btn" onClick={() => game.travel('planet')}>
+            🌍 Planet Aurora — explore everything, no combat
+          </button>
         </aside>
       </div>
     </div>

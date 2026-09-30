@@ -47,6 +47,11 @@
 }
 
 /* In-world labels + cat bubble (positioned by the engine) */
+/* `display: grid` below would otherwise override the hidden attribute (stale, floating labels). */
+.g-overlay [hidden],
+.g-label[hidden] {
+  display: none !important;
+}
 .g-label {
   position: absolute;
   left: 0;
@@ -995,8 +1000,10 @@ div.g-sub {
   gap: 18px;
   min-height: 0;
 }
-.g-split .g-scroll {
-  max-height: 70vh;
+.g-split .g-scroll,
+.g-panel > div > .g-scroll,
+.g-panel > .g-scroll {
+  max-height: min(74vh, 700px);
 }
 .g-model .viewer {
   background: radial-gradient(circle at 50% 40%, #241b44, #0c0918);
@@ -1655,4 +1662,46 @@ div.g-sub {
   50% {
     opacity: 0.35;
   }
+}
+
+.g-label.banner {
+  padding: 3px 10px 4px;
+  max-width: 220px;
+  white-space: normal;
+}
+.g-label.banner .big {
+  font-size: calc(14px * var(--g-ui));
+  line-height: 1.15;
+  color: #f8fafc;
+  text-align: center;
+}
+.g-label.banner .s {
+  white-space: normal;
+  text-align: center;
+}
+.g-planet-btn {
+  margin-top: 14px;
+  width: 100%;
+  background: #13362b;
+  border-color: #34d399;
+}
+.g-sec {
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+.g-sec h3 {
+  margin: 0 0 2px;
+  font-size: calc(15px * var(--g-ui));
+}
+.g-sec-meta {
+  font-family: var(--mono);
+  font-size: calc(11px * var(--g-ui));
+  color: #94a3b8;
+}
+.g-sec-parts {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
 }

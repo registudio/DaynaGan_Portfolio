@@ -30,6 +30,7 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshLambertMaterial {
 
 type WorldMaterials = Record<'floor' | 'alt' | 'path' | 'wall' | 'wallDark' | 'top' | 'trim' | 'cliff' | 'cliffDeep' | 'rail' | 'windowMat' | 'pipe' | 'vent' | 'lamp' | 'bolt', THREE.Material>;
 const materialCache = new Map<string, WorldMaterials>();
+const terrainCache = new Map<string, THREE.Material>();
 
 /** Per-biome world materials, built once per session and reused on every visit. */
 function worldMaterials(b: Biome): WorldMaterials {
@@ -103,12 +104,46 @@ export class World {
     const { w, d, cells } = this.map;
     const at = (x: number, z: number) => (x < 0 || z < 0 || x >= w || z >= d ? undefined : cells[z * w + x]);
     const open = (c: Cell | undefined) => !c || c.t === VOID || this.hidden(c);
+    // Open-world terrain: per-cell materials from the biome palette.
+    const terr = this.biome.terrain;
+    const tcache = new Map<string, THREE.Material>();
+    const tmat = (key: string, part: 'top' | 'alt' | 'side' | 'wall') => {
+      const k = `${key}|${part}`;
+      let m = tcache.get(k) ?? terrainCache.get(`${this.biome.id}|${k}`);
+      if (!m) {
+        const t = terr![key] ?? terr!.meadow;
+        m =
+          part === 'side'
+            ? new THREE.MeshLambertMaterial({ map: pixelTexture('stone', t.side) })
+            : part === 'wall'
+              ? surfaceMaterial({ ...t.top, glow: false }, 0.82)
+              : surfaceMaterial(part === 'alt' ? (t.alt ?? t.top) : t.top);
+        terrainCache.set(`${this.biome.id}|${k}`, m);
+      }
+      tcache.set(k, m);
+      return m;
+    };
     for (let z = 0; z < d; z++)
       for (let x = 0; x < w; x++) {
         const c = cells[z * w + x];
         if (this.hidden(c)) continue;
         const cx = x + 0.5;
         const cz = z + 0.5;
+        if (c.t === FLOOR && terr && c.mat) {
+          add(tmat(c.mat, c.surf === 'alt' ? 'alt' : 'top'), cx, c.h - 0.5, cz);
+          // Fill down to the lowest neighbour (terraces) or a deep cliff at the coast.
+          const ns = [at(x + 1, z), at(x - 1, z), at(x, z + 1), at(x, z - 1)];
+          const low = ns.some((n) => open(n)) ? c.h - CLIFF_DEPTH - 1 : Math.min(...ns.map((n) => (n && n.t !== VOID ? n.h : c.h)));
+          const side = tmat(c.mat, 'side');
+          for (let y = c.h - 1; y > low - 0.01; y--) add(side, cx, y - 0.5, cz);
+          continue;
+        }
+        if (c.t === WALL && terr && c.mat) {
+          // Low garden/ruin walls (2 blocks) so the monuments inside stay visible from the camera.
+          for (let k = 0; k < 2; k++) add(tmat(c.mat, 'wall'), cx, c.h + k + 0.5, cz);
+          for (let k = 1; k <= 2; k++) add(tmat(c.mat, 'side'), cx, c.h - k + 0.5, cz);
+          continue;
+        }
         if (c.t === FLOOR) {
           const m = c.surf === 'path' ? path : c.surf === 'alt' ? alt : floor;
           add(m, cx, c.h - 0.5, cz);

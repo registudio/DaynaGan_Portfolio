@@ -18,11 +18,13 @@ export default function GameShell({
   github,
   onExit,
   tour = false,
+  planet = false,
 }: {
   portfolio: Portfolio;
   github: GitHubFeed;
   onExit: (m: Mode, anchor?: string) => void;
   tour?: boolean;
+  planet?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ export default function GameShell({
         touch,
         events: { onExit: (m, a) => exitRef.current(m, a) },
       });
-      g.start();
+      g.start(planet ? 'planet' : 'hub');
       setGame(g);
       if (tour) setTimeout(() => g?.startTour(), 900);
       if (process.env.NODE_ENV !== 'production') (window as unknown as { __game: Game }).__game = g;

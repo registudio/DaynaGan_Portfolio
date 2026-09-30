@@ -29,7 +29,7 @@ import {
   objective,
   PUZZLES,
 } from './missions.ts';
-import { githubConsole, npcPanel, partCard, partPanel, projectPanel, repoPanel, roomPanel } from './panels.ts';
+import { githubConsole, npcPanel, partCard, partPanel, projectPanel, repoPanel, roomPanel, sectionPanel } from './panels.ts';
 import {
   buildAssembly,
   buildBunk,
@@ -68,6 +68,8 @@ import { rng } from './rng.ts';
 import { buildSetPiece, type SetPiece } from './setpieces.ts';
 import { buildStarMapTable } from './starmap3d.ts';
 import { TRIAL_INFO, type TrialType } from './trials.ts';
+import { buildPlanet, REGIONS, type PlanetMap, type PlanetPuzzle } from './planet.ts';
+import { buildDecor, buildMonument, buildNatureGate, buildPiece, runeColour } from './nature.ts';
 import { loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
 import { glow } from './voxels.ts';
@@ -322,7 +324,7 @@ export class Game {
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
-  start() {
+  start(scene = 'hub') {
     const touch = this.store.get().touch;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance' });
     const autoLow = touch || (navigator.hardwareConcurrency ?? 8) <= 4 || Math.min(innerWidth, innerHeight) < 600 || weakGpu(this.renderer);
@@ -364,7 +366,7 @@ export class Game {
     addEventListener('resize', this.resize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
-    this.loadScene('hub', true);
+    this.loadScene(scene, true);
     this.last = performance.now();
     this.raf = requestAnimationFrame(this.loop);
   }
@@ -516,6 +518,7 @@ export class Game {
 
   private levelTitle(id: string) {
     if (id === 'hub') return 'Station Hub';
+    if (id === 'planet') return 'Planet Aurora · Open world';
     const l = this.portfolio.levels.find((x) => x.id === id);
     return l ? `${l.title} · ${biomeFor(l.meta.biome).name}` : id;
   }
@@ -583,7 +586,7 @@ export class Game {
   }
 
   private loadScene(id: string, first = false) {
-    const biomeName = id === 'hub' ? 'the station' : biomeFor(this.portfolio.levels.find((l) => l.id === id)?.meta.biome).name;
+    const biomeName = id === 'hub' ? 'the station' : id === 'planet' ? 'Planet Aurora' : biomeFor(this.portfolio.levels.find((l) => l.id === id)?.meta.biome).name;
     this.store.set({ loading: first ? 'BOOTING STATION…' : id === 'hub' ? 'RETURNING TO STATION…' : `DEPLOYING TO ${biomeName.toUpperCase()}…` });
     setTimeout(() => {
       try {
@@ -610,6 +613,7 @@ export class Game {
     this.puzzle = null;
     this.gates.clear();
     this.trials.clear();
+    this.pieceLooks.clear();
     this.carrying = null;
     this.pushT = 0;
     this.homeSpot = null;
@@ -650,7 +654,7 @@ export class Game {
     const key = `${id}|${this.settings.peaceful}`;
     let map = this.levelCache.get(key);
     if (!map) {
-      map = buildLevel(this.portfolio, id, { peaceful: this.settings.peaceful, github: this.github });
+      map = id === 'planet' ? buildPlanet() : buildLevel(this.portfolio, id, { peaceful: this.settings.peaceful, github: this.github });
       this.levelCache.set(key, map);
     }
     return structuredClone(map);
@@ -663,7 +667,7 @@ export class Game {
     this.store.set({ boss: null, assembly: null });
     this.sceneId = id;
     const level = this.portfolio.levels.find((l) => l.id === id);
-    this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : biomeFor(level?.meta.biome, level?.meta.light);
+    this.biome = id === 'hub' ? biomeFor('orbital-station', '#a78bfa') : id === 'planet' ? biomeFor('planet-surface') : biomeFor(level?.meta.biome, level?.meta.light);
     const b = this.biome;
     this.map = this.cachedLevel(id);
     this.announced.clear();
@@ -684,7 +688,7 @@ export class Game {
 
     // Room lights in the biome's dominant colour.
     for (const room of this.map.rooms) {
-      if (room.i === hidden) continue;
+      if (room.i === hidden || id === 'planet') continue;
       const backroom = room.kind === 'secret';
       this.addLight(
         new THREE.Vector3(room.x + room.w / 2, room.h + 3.2, room.z + room.d / 2),
@@ -696,6 +700,7 @@ export class Game {
     }
 
     for (const s of this.map.spawns) this.spawn(s, hidden);
+    if (id === 'planet') this.spawnPlanet(this.map as PlanetMap);
     batchStatic(this.staticRoots, this.level);
     this.staticRoots = [];
 
@@ -769,6 +774,11 @@ export class Game {
       } else if (contactUnlocked(this.portfolio, this.save) && !this.save.sent) {
         this.say('The Comms Core is online — we can send Dayna a message!', 4500);
       } else this.say('Welcome back aboard. Meow.', 2500);
+      return;
+    }
+    if (id === 'planet') {
+      this.say('Welcome to Planet Aurora! Every part of Dayna’s story is out here as a landmark.', 4500);
+      this.say('No bots here — just explore. Some landmarks are behind nature puzzles; look for the hint stones.', 5000);
       return;
     }
     this.award('first-steps');
@@ -1203,6 +1213,231 @@ export class Game {
       case 'hub':
         this.spawnHub(s);
         break;
+    }
+  }
+
+  // ── Planet Aurora (open world) ──────────────────────────────────────────────
+
+  private planetState() {
+    this.save.planet ??= { seen: [], solved: [], regions: [] };
+    return this.save.planet;
+  }
+
+  private spawnPlanet(map: PlanetMap) {
+    const st = this.planetState();
+    for (const d of map.decor) this.place(buildDecor(d.kind, d.s), d.x, d.z, (d.rot * Math.PI) / 2);
+    // Landmarks: one monument per section, with the section's rooms as floating banners around it.
+    for (const lm of map.landmarks) {
+      const level = this.portfolio.levels.find((l) => l.id === lm.section);
+      if (!level) continue;
+      const accent = level.meta.light ?? REGIONS[lm.region].light;
+      const obj = this.place(buildMonument(lm.section, accent), lm.x, lm.z);
+      const key = `landmark:${lm.section}`;
+      this.inter({
+        id: key,
+        kind: 'landmark',
+        x: lm.x,
+        z: lm.z,
+        radius: 3.3,
+        verb: lm.section === 'contact' ? 'Send a message' : 'Read',
+        label: level.title,
+        sub: level.meta.kicker,
+        summary: summarize(level.body, 190),
+        object: obj,
+        accent,
+        done: () => st.seen.includes(key),
+        use: () => {
+          this.markLandmark(key);
+          this.audio.sfx('open');
+          this.store.set({ panel: lm.section === 'contact' ? { kind: 'contact' } : sectionPanel(this.portfolio, lm.section) });
+        },
+        scan: lm.section === 'contact' ? undefined : () => this.markLandmark(key),
+      });
+      this.addLight(new THREE.Vector3(lm.x, this.world!.heightAt(lm.x, lm.z) + 6, lm.z), accent, 0.9, 10);
+      const rooms = level.rooms.filter((r) => !r.todo || r.body);
+      rooms.forEach((room, k) => {
+        // A low arc in front of the monument (towards the camera), so it never covers the monument.
+        const n = rooms.length;
+        const a = n === 1 ? 0 : (k / (n - 1) - 0.5) * Math.min(2.4, 0.55 * n);
+        const r = 3.6 + (n > 5 ? (k % 2) * 1.2 : 0);
+        const pos = new THREE.Vector3(lm.x, 0, lm.z).addScaledVector(SCREEN_RIGHT, Math.sin(a) * r).addScaledVector(SCREEN_UP, -Math.cos(a) * r);
+        const meta = [room.meta.role, room.meta.period ?? room.meta.year, room.meta.short && room.meta.short !== room.title ? room.meta.short : undefined].filter(Boolean).join(' · ');
+        this.inter({
+          id: `${key}:${room.id}`,
+          kind: 'banner',
+          x: pos.x,
+          z: pos.z,
+          radius: 0.1,
+          verb: '',
+          label: room.title,
+          stat: { value: room.meta.short || room.title, label: meta || firstLine(room.body) },
+          object: this.level,
+          done: () => false,
+          enabled: () => false,
+          use: () => {},
+        });
+      });
+    }
+    for (const pz of map.puzzles) this.spawnPlanetPuzzle(pz);
+  }
+
+  private markLandmark(key: string) {
+    const st = this.planetState();
+    if (st.seen.includes(key)) return;
+    st.seen.push(key);
+    this.markDirty();
+    this.audio.sfx('chip');
+    this.refreshHud();
+  }
+
+  private spawnPlanetPuzzle(pz: PlanetPuzzle) {
+    const st = this.planetState();
+    const solved = st.solved.includes(pz.id);
+    const world = this.world!;
+    const cells = pz.gate.cells;
+    const def = pz.def;
+    let gate: THREE.Object3D | null = null;
+    if (!solved) {
+      if (def.gate === 'wall') {
+        const xs = new Set(cells.map((c) => c.x));
+        const alongX = xs.size > 1;
+        gate = buildNatureGate(def.gateMat, cells.length, alongX);
+        this.place(gate, pz.gate.x, pz.gate.z, 0, false);
+        for (const c of cells) {
+          const cell = world.cell(c.x + 0.5, c.z + 0.5);
+          if (cell) cell.solid = true;
+        }
+      }
+    } else this.openPlanetGate(pz, false);
+    // Hint stone.
+    const hint = buildPiece('runestone', 4);
+    this.place(hint, pz.hint.x, pz.hint.z);
+    this.inter({
+      id: `${pz.id}:hint`, kind: 'hint', x: pz.hint.x, z: pz.hint.z, radius: 1.4, verb: 'Read', label: def.name, sub: 'Nature puzzle',
+      summary: def.hint, object: hint, accent: '#fde68a', done: () => st.solved.includes(pz.id), use: () => this.say(def.hint, 4500, true),
+    });
+    let next = 0;
+    const done = new Set<number>();
+    const states = pz.pieces.map((p) => (def.kind === 'rotate' ? 1 + (p.index % 3) : 0));
+    const finish = () => {
+      if (st.solved.includes(pz.id)) return;
+      st.solved.push(pz.id);
+      this.markDirty();
+      this.openPlanetGate(pz, true, gate);
+      this.store.toast(`🌿 ${def.name} solved`, 'gear', 3000);
+      this.say(def.gate === 'bridge' ? 'Look — the vines grew into a bridge!' : def.gate === 'lava' ? 'The lava cooled into a path!' : 'The way is open!', 3000, true);
+      if (this.planetMapPuzzles().every((p) => st.solved.includes(p.id))) this.award('naturalist');
+      this.refreshHud();
+    };
+    for (const piece of pz.pieces) {
+      const obj = buildPiece(def.piece, piece.index);
+      this.place(obj, piece.x, piece.z, 0, false);
+      obj.traverse((o) => (o.userData.spin || o.userData.hover) && this.spinners.push(o));
+      const lamp = obj.userData.lamp as THREE.Mesh | undefined;
+      const head = obj.userData.head as THREE.Object3D | undefined;
+      const look = () => {
+        if (def.kind === 'toggle') {
+          if (def.piece === 'sprout' && lamp) lamp.scale.set(done.has(piece.index) ? 2.2 : 1, done.has(piece.index) ? 3.5 : 1, done.has(piece.index) ? 2.2 : 1);
+          if (def.piece === 'lever' && head) head.rotation.x = done.has(piece.index) ? 0.6 : -0.6;
+          if (lamp && def.piece !== 'sprout') lamp.material = glow(done.has(piece.index) ? '#4ade80' : def.piece === 'chime' ? '#e0f2fe' : '#ef4444', done.has(piece.index) ? 1.8 : 0.6);
+        } else if (def.kind === 'sequence' && lamp) lamp.material = glow(runeColour(piece.index), done.has(piece.index) ? 2.2 : 0.6);
+        else if (def.kind === 'rotate') {
+          if (head) head.rotation.y = (states[piece.index] * Math.PI) / 2;
+          if (lamp) lamp.material = glow(states[piece.index] === 0 ? '#fbbf24' : '#78350f', states[piece.index] === 0 ? 2 : 0.5);
+        }
+      };
+      if (solved) {
+        done.add(piece.index);
+        states[piece.index] = 0;
+      }
+      look();
+      const verb = { sprout: 'Water', lever: 'Pull', chime: 'Ring', runestone: 'Touch', mirror: 'Turn', pearl: 'Collect', spore: 'Collect' }[def.piece] ?? 'Use';
+      const it = this.inter({
+        id: `${pz.id}:${piece.index}`,
+        kind: 'piece',
+        x: piece.x,
+        z: piece.z,
+        radius: def.kind === 'collect' ? 0.9 : 1.4,
+        verb,
+        label: def.name,
+        object: obj,
+        auto: def.kind === 'collect',
+        accent: '#fde68a',
+        done: () => st.solved.includes(pz.id) || done.has(piece.index),
+        enabled: () => !st.solved.includes(pz.id) && (def.kind === 'rotate' || !done.has(piece.index)),
+        use: () => {
+          if (def.kind === 'collect') {
+            done.add(piece.index);
+            this.removeInter(it);
+            this.level.remove(obj);
+            this.audio.sfx('pickup');
+            this.floatText(this.player.pos.clone().add(new THREE.Vector3(0, 2.2, 0)), `${def.name} ${done.size}/${def.n}`, 'lore');
+          } else if (def.kind === 'sequence') {
+            if (piece.index !== next) {
+              done.clear();
+              next = 0;
+              this.audio.sfx('error');
+              this.say('Hmm, wrong order — the runes went dark. ' + def.hint, 3500, true);
+              this.refreshPieces(pz.id);
+              return;
+            }
+            done.add(piece.index);
+            next++;
+            this.audio.sfx('chip');
+          } else if (def.kind === 'rotate') {
+            states[piece.index] = (states[piece.index] + 1) % 4;
+            if (states[piece.index] === 0) done.add(piece.index);
+            else done.delete(piece.index);
+            this.audio.sfx(states[piece.index] === 0 ? 'chip' : 'swing');
+          } else {
+            done.add(piece.index);
+            this.audio.sfx(def.piece === 'chime' ? 'skill' : 'chip');
+          }
+          look();
+          const complete = def.kind === 'rotate' ? states.every((v) => v === 0) : done.size >= def.n;
+          if (complete) finish();
+        },
+      });
+      this.pieceLooks.set(`${pz.id}:${piece.index}`, look);
+    }
+  }
+
+  private pieceLooks = new Map<string, () => void>();
+
+  private refreshPieces(puzzleId: string) {
+    for (const [k, fn] of this.pieceLooks) if (k.startsWith(`${puzzleId}:`)) fn();
+  }
+
+  private planetMapPuzzles(): PlanetPuzzle[] {
+    return (this.map as PlanetMap).puzzles ?? [];
+  }
+
+  private openPlanetGate(pz: PlanetPuzzle, animate: boolean, gate?: THREE.Object3D | null) {
+    const world = this.world!;
+    for (const c of pz.gate.cells) {
+      const cell = world.cell(c.x + 0.5, c.z + 0.5);
+      if (!cell) continue;
+      if (pz.def.gate === 'bridge') cell.t = 1;
+      if (pz.def.gate === 'lava') cell.mat = 'basalt';
+      cell.solid = false;
+    }
+    if (pz.def.gate !== 'wall') world.build();
+    if (gate) {
+      const panel = gate.userData.panel as THREE.Object3D;
+      const t0 = performance.now();
+      const tick = () => {
+        const k = Math.min(1, (performance.now() - t0) / 900);
+        panel.position.y = -2.4 * k * k;
+        if (k < 1) requestAnimationFrame(tick);
+        else gate.visible = false;
+      };
+      requestAnimationFrame(tick);
+    }
+    if (animate) {
+      this.shake = Math.max(this.shake, 0.3);
+      this.audio.sfx('build');
+      for (const c of pz.gate.cells.filter((_, i) => i % 3 === 0))
+        this.bursts.spawn(new THREE.Vector3(c.x + 0.5, world.heightAt(c.x + 0.5, c.z + 0.5) + 0.4, c.z + 0.5), pz.def.gate === 'lava' ? '#fb923c' : '#86efac', 6, 2.5);
     }
   }
 
@@ -1722,6 +1957,11 @@ export class Game {
         const hubSpec = { id: 'hub', map: this.levelPreview('hub'), biome: biomeFor('orbital-station', '#a78bfa'), cleared: false, locked: false };
         const obj = this.place(buildStarMapTable(islands, hubSpec), s.x, s.z, 0, false);
         this.inter({ id: 'starmap', kind: 'starmap', x: s.x, z: s.z, radius: 2.6, verb: 'Open', label: 'Star map', sub: 'Choose a mission', object: obj, accent: '#a78bfa', done: () => false, use: () => this.openStarMap() });
+        break;
+      }
+      case 'planet': {
+        const obj = this.place(buildExitPad('#34d399'), s.x, s.z);
+        this.inter({ id: 'planet-pad', kind: 'pad', x: s.x, z: s.z, radius: 1.1, verb: 'Descend', label: 'Planet Aurora', sub: 'Open world — the whole portfolio, no combat', object: obj, accent: '#34d399', done: () => false, use: () => this.travel('planet') });
         break;
       }
       case 'pad': {
@@ -2364,6 +2604,21 @@ export class Game {
     const room = level?.rooms.find((x) => x.id === r.roomId);
     if (this.announced.has(r.i)) return;
     this.announced.add(r.i);
+    if (this.sceneId === 'planet') {
+      const reg = REGIONS[r.i];
+      if (!reg) return;
+      const st = this.planetState();
+      const fresh = !st.regions.includes(reg.id);
+      if (fresh) {
+        st.regions.push(reg.id);
+        this.markDirty();
+        if (st.regions.length >= REGIONS.length) this.award('explorer');
+      }
+      this.store.set({ area: { eyebrow: fresh ? 'REGION DISCOVERED' : 'REGION', title: reg.name, sub: reg.blurb, id: Date.now() } });
+      if (fresh && !this.tour) this.say(reg.blurb, 4200);
+      this.refreshHud();
+      return;
+    }
     if (r.kind === 'trial') {
       const rt = [...this.trials.values()].find((t) => t.room === r.i);
       if (rt && !this.trialDone(rt.id)) {
@@ -3851,6 +4106,18 @@ export class Game {
     // Inside an unsolved trial room the objective is the trial's task.
     const here = this.player && this.world ? this.world.roomAt(this.player.pos.x, this.player.pos.z) : -1;
     const trial = [...this.trials.values()].find((t) => t.room === here && !this.trialDone(t.id));
+    if (id === 'planet') {
+      const st = this.planetState();
+      const lms = (this.map as PlanetMap).landmarks?.length ?? 0;
+      const pzs = this.planetMapPuzzles().length;
+      this.store.set({
+        objective: { mission: 'Explore Planet Aurora', text: `Landmarks ${st.seen.length}/${lms} · Puzzles ${st.solved.length}/${pzs} · Regions ${st.regions.length}/${REGIONS.length}`, done: st.seen.length >= lms },
+        chips: null,
+        save: { ...this.save },
+        rev: this.store.get().rev + 1,
+      });
+      return;
+    }
     this.store.set({
       objective: trial
         ? { mission: `Trial · ${TRIAL_INFO[trial.type].name}`, text: TRIAL_INFO[trial.type].task, done: false }
@@ -3929,7 +4196,7 @@ export class Game {
       }
       if (!i.el) {
         i.el = document.createElement('div');
-        i.el.className = `g-label${i.stat ? ' stat' : ''}`;
+        i.el.className = `g-label${i.stat ? ' stat' : ''}${i.kind === 'banner' ? ' banner' : ''}`;
         const head = i.stat
           ? `<span class="big">${escapeHtml(i.stat.value)}</span><span class="s">${escapeHtml(i.stat.label)}</span>`
           : `<span class="t">${escapeHtml(i.label)}</span>${i.sub ? `<span class="s">${escapeHtml(i.sub)}</span>` : ''}`;
@@ -3939,7 +4206,7 @@ export class Game {
         if (i.accent) i.el.style.setProperty('--accent', i.accent);
         this.overlay.appendChild(i.el);
       }
-      const s = this.project(i.pos.clone().add(new THREE.Vector3(0, i.kind === 'assembly' ? 3.4 : i.kind === 'matrix' ? 3.4 : i.kind === 'npc' ? 2 : 2.1, 0)));
+      const s = this.project(i.pos.clone().add(new THREE.Vector3(0, i.kind === 'banner' ? 0.4 : i.kind === 'landmark' ? 5.2 : i.kind === 'assembly' ? 3.4 : i.kind === 'matrix' ? 3.4 : i.kind === 'npc' ? 2 : 2.1, 0)));
       i.el.hidden = !s.visible;
       i.el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
       i.el.style.opacity = String(Math.max(0.25, Math.min(1, (7 - d) / 3)));
