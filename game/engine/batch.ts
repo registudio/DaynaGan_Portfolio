@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { UNIT_BOX } from './voxels.ts';
+import { CHUNK_SIZE } from './terrain.ts';
 
 /**
  * Merges static voxel boxes into one InstancedMesh per material. Props are built
@@ -12,7 +13,7 @@ const DYNAMIC_FLAGS = ['spin', 'roll', 'hover', 'blink', 'interactRing', 'core',
 const isDynamic = (o: THREE.Object3D) => DYNAMIC_FLAGS.some((f) => o.userData[f]);
 
 export function batchStatic(roots: THREE.Object3D[], into: THREE.Object3D): THREE.InstancedMesh[] {
-  const groups = new Map<THREE.Material, THREE.Matrix4[]>();
+  const groups = new Map<string, { material: THREE.Material; matrices: THREE.Matrix4[] }>();
   const victims: THREE.Mesh[] = [];
   const visit = (o: THREE.Object3D) => {
     if (isDynamic(o)) return;
@@ -20,9 +21,11 @@ export function batchStatic(roots: THREE.Object3D[], into: THREE.Object3D): THRE
       const m = o.material as THREE.Material;
       if (!Array.isArray(o.material) && !m.transparent && o.visible) {
         o.updateWorldMatrix(true, false);
-        let list = groups.get(m);
-        if (!list) groups.set(m, (list = []));
-        list.push(o.matrixWorld.clone());
+        const p = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld);
+        const key = `${m.uuid}:${Math.floor(p.x / CHUNK_SIZE)}:${Math.floor(p.z / CHUNK_SIZE)}`;
+        let batch = groups.get(key);
+        if (!batch) groups.set(key, batch = { material: m, matrices: [] });
+        batch.matrices.push(o.matrixWorld.clone());
         victims.push(o);
       }
     }
@@ -33,7 +36,7 @@ export function batchStatic(roots: THREE.Object3D[], into: THREE.Object3D): THRE
   into.updateWorldMatrix(true, false);
   const inv = into.matrixWorld.clone().invert();
   const out: THREE.InstancedMesh[] = [];
-  for (const [material, mats] of groups) {
+  for (const {material, matrices: mats} of groups.values()) {
     const mesh = new THREE.InstancedMesh(UNIT_BOX, material, mats.length);
     mats.forEach((m, i) => mesh.setMatrixAt(i, m.premultiply(inv)));
     mesh.instanceMatrix.needsUpdate = true;

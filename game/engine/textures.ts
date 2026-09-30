@@ -32,7 +32,7 @@ export { rng };
 const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
 function shade(hex: string, amount: number): string {
-  const c = new THREE.Color(hex);
+  const c = new THREE.Color(hex).convertLinearToSRGB();
   const r = clamp(c.r * 255 + amount);
   const g = clamp(c.g * 255 + amount);
   const b = clamp(c.b * 255 + amount);
@@ -48,19 +48,19 @@ function draw(pattern: Pattern, base: string, accent: string, ctx: CanvasRenderi
   // Hand-authored tiles (see authored.ts) take priority at 16×16.
   const art = n === 16 ? AUTHORED[pattern] : undefined;
   if (art) {
-    const SHADE: Record<string, number> = { '#': -55, '-': -26, '.': 0, '+': 20, '*': 42 };
+    const SHADE: Record<string, number> = { '#': -28, '-': -13, '.': 0, '+': 10, '*': 21 };
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++) {
         const ch = art[y]?.[x] ?? '.';
         if (ch === 'a') px(x, y, accent);
         else if (ch === 'A') px(x, y, shade(accent, 70));
-        else px(x, y, shade(base, (SHADE[ch] ?? 0) + (r() - 0.5) * 10));
+        else px(x, y, shade(base, (SHADE[ch] ?? 0) + (r() - 0.5) * 3));
       }
     return;
   }
   // Base noise on every pattern.
   for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) px(x, y, shade(base, (r() - 0.5) * 18));
+    for (let x = 0; x < n; x++) px(x, y, shade(base, (r() - 0.5) * 5));
 
   switch (pattern) {
     case 'panel':
@@ -212,9 +212,9 @@ export function pixelTexture(pattern: Pattern, base: string, accent = '#ffffff',
   const ctx = canvas.getContext('2d')!;
   draw(pattern, base, accent, ctx, size);
   const tex = new THREE.CanvasTexture(canvas);
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   cache.set(key, tex);

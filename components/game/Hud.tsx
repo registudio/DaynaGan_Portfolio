@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import type { Game } from '@/game/engine/Game';
 import { GEAR, gearUnlocked } from '@/game/engine/missions';
 import type { Hud } from '@/game/engine/store';
-import PixelIcon from './PixelIcon';
+import Hotbar from './Hotbar';
 
 const keyName = (code?: string) =>
   !code ? '' : code.replace(/^Key/, '').replace(/^Digit/, '').replace('ShiftLeft', 'Shift').replace('Escape', 'Esc').replace('Space', '␣');
@@ -51,12 +51,14 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
           </button>
         </div>
         <canvas ref={mini} className="g-minimap" width={300} height={300} aria-label="Minimap" />
+        <small className="g-map-legend">◆ Part · ○ Console · ↗ Exit · ! Bot · F Fabricator<br/>Light = higher · white seams = stairs · height {hud.navigation?.height ?? 0}m</small>
         {hud.objective && (
           <div className={`g-objective${hud.objective.done ? ' done' : ''}`}>
             <b>◆ {hud.objective.mission}</b>
             <span>{hud.objective.text}</span>
           </div>
         )}
+        {hud.navigation && <div className="g-next-step"><small>{hud.save.trackedProject?'PINNED BLUEPRINT':'NEXT NEARBY'}</small><b>{hud.navigation.text}</b><span>{hud.navigation.bearing}</span>{hud.save.trackedProject&&<button onClick={()=>game.trackProject(null)}>Unpin</button>}</div>}
       </div>
 
       {/* Toasts */}
@@ -146,62 +148,9 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
         </div>
       )}
 
-      {/* Hotbar */}
-      <div className="g-hotbar" hidden={!!hud.tour}>
-        <div className="g-slot" title="Wrench (melee)">
-          <span className="g-ico"><PixelIcon name="wrench" /></span>
-          <kbd>{hud.touch ? '' : 'LMB'}</kbd>
-        </div>
-        <div className="g-slot" title="Solder beam">
-          <span className="g-ico"><PixelIcon name="bolt" /></span>
-          <kbd>{hud.touch ? '' : 'RMB'}</kbd>
-        </div>
-        <div className={`g-slot${unlocked.has('dash') ? '' : ' locked'}`} title="Servo Boots — dash">
-          <span className="g-ico"><PixelIcon name={unlocked.has('dash') ? 'boot' : 'lock'} /></span>
-          <Cooldown v={hud.cooldowns.dash} />
-          <kbd>{hud.touch ? '' : keyName(keys.dash[0])}</kbd>
-        </div>
-        <div className="g-heart" title={`Health ${hud.hp}/${hud.maxHp}`}>
-          <svg viewBox="0 0 16 14" aria-hidden>
-            <defs>
-              <clipPath id="hp-clip">
-                <rect x="0" y={14 - 14 * hpPct} width="16" height={14 * hpPct} />
-              </clipPath>
-            </defs>
-            <path d="M2 0h4v2h4V0h4v2h2v6h-2v2h-2v2h-2v2H6v-2H4v-2H2V8H0V2h2z" fill="#3b0d1a" />
-            <path d="M2 0h4v2h4V0h4v2h2v6h-2v2h-2v2h-2v2H6v-2H4v-2H2V8H0V2h2z" fill="#f43f5e" clipPath="url(#hp-clip)" />
-            <path d="M3 2h2v2H3z" fill="#fecdd3" />
-          </svg>
-          <span>
-            {hud.hp}/{hud.maxHp}
-          </span>
-        </div>
-        <button className="g-slot" title="Xiao Hu — pounce on a bot / fetch a part" onClick={() => game.catAbility()}>
-          <span className="g-ico">
-            <PixelIcon name="cat" />
-          </span>
-          <Cooldown v={hud.cooldowns.cat} />
-          <kbd>{hud.touch ? '' : keyName(keys.cat?.[0])}</kbd>
-        </button>
-        {GEAR.filter((g) => g.slot).map((g) => (
-          <button
-            key={g.id}
-            className={`g-slot${unlocked.has(g.id) ? '' : ' locked'}`}
-            title={`${g.name} — ${g.desc}${unlocked.has(g.id) ? '' : ' (locked)'}`}
-            onClick={() => game.input.press(`artifact${g.slot}` as 'artifact1')}
-          >
-            <span className="g-ico"><PixelIcon name={unlocked.has(g.id) ? g.id : 'lock'} /></span>
-            <Cooldown v={hud.cooldowns[g.id]} />
-            <kbd>{hud.touch ? '' : g.slot}</kbd>
-          </button>
-        ))}
-      </div>
+      <Hotbar game={game} />
       {hud.dead && <div className="g-dead">SUIT OFFLINE</div>}
     </div>
   );
 }
 
-function Cooldown({ v }: { v?: number }) {
-  if (!v) return null;
-  return <i className="g-cd" style={{ height: `${Math.round(v * 100)}%` }} />;
-}

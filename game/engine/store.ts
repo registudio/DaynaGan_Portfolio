@@ -47,6 +47,10 @@ export type Settings = {
   reducedMotion: boolean;
   largeText: boolean;
   quality: 'auto' | 'low' | 'high';
+  depthReadability: boolean;
+  textScale: number;
+  hudScale: number;
+  panelOpacity: number;
   keys: Record<Action, string[]>;
 };
 
@@ -79,10 +83,16 @@ export type SaveData = {
   spawners?: string[];
   /** Lore fragments collected from bots. */
   fragments?: string[];
+<<<<<<< Updated upstream
   /** Trial rooms completed (ids like `about-trial-0`). */
   trials?: string[];
   /** Planet Aurora: landmarks read, puzzles solved, regions discovered. */
   planet?: { seen: string[]; solved: string[]; regions: string[] };
+=======
+  trackedProject?: string | null;
+  labs?: string[];
+  practiced?: string[];
+>>>>>>> Stashed changes
 };
 
 export const SAVE_KEY = 'dg-save-v2';
@@ -119,6 +129,10 @@ export const defaultSettings = (): Settings => ({
     typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches,
   largeText: false,
   quality: 'auto',
+  depthReadability: true,
+  textScale: 1,
+  hudScale: 1,
+  panelOpacity: 0.94,
   keys: DEFAULT_KEYS,
 });
 
@@ -209,6 +223,7 @@ export type Hud = {
   device: 'keyboard' | 'gamepad' | 'touch';
   /** Tour mode status (null when not touring). */
   tour: { step: number; total: number; label: string } | null;
+  navigation?: { text: string; height: number; bearing: string } | null;
 };
 
 type Listener = () => void;
@@ -217,6 +232,18 @@ export class Store {
   private state: Hud;
   private listeners = new Set<Listener>();
   private toastId = 0;
+  private pending: {text: string; kind: Toast['kind']; ms: number}[] = [];
+  private timers = new Set<ReturnType<typeof setTimeout>>();
+  private quiet = false;
+
+  setCombat(active: boolean) {
+    this.quiet = active;
+    if (!active && !this.state.toasts.length && this.pending.length) {
+      const next = this.pending.shift()!;
+      this.toast(next.text, next.kind, next.ms);
+    }
+  }
+  dispose() { this.timers.forEach(clearTimeout); this.timers.clear(); this.pending = []; this.listeners.clear(); }
 
   constructor(initial: Hud) {
     this.state = initial;
@@ -239,8 +266,17 @@ export class Store {
     this.listeners.forEach((l) => l());
   }
   toast(text: string, kind: Toast['kind'] = 'info', ms = 3200) {
+    if ((this.quiet || this.state.toasts.length >= 2) && kind !== 'warn') {
+      if (this.pending.length < 20) this.pending.push({text,kind,ms});
+      return;
+    }
     const id = ++this.toastId;
     this.set({ toasts: [...this.state.toasts.slice(-3), { id, text, kind }] });
-    setTimeout(() => this.set({ toasts: this.state.toasts.filter((t) => t.id !== id) }), ms);
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      this.set({ toasts: this.state.toasts.filter((t) => t.id !== id) });
+      this.setCombat(this.quiet);
+    }, ms);
+    this.timers.add(timer);
   }
 }

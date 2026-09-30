@@ -29,7 +29,7 @@
   width: 100%;
   height: 100%;
   display: block;
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 .g-overlay {
   position: absolute;
@@ -1672,6 +1672,7 @@ div.g-sub {
   }
 }
 
+<<<<<<< Updated upstream
 .g-label.banner {
   padding: 3px 10px 4px;
   max-width: 220px;
@@ -1712,4 +1713,46 @@ div.g-sub {
   padding-left: 18px;
   display: grid;
   gap: 4px;
+=======
+/* Stylized exploration interface: independent text, HUD and panel controls. */
+.g-root { font-family: var(--sans, system-ui), sans-serif; }
+.g-top-left { transform: scale(var(--hud-scale, 1)); transform-origin: top left; }
+.g-top-right { transform: scale(var(--hud-scale, 1)); transform-origin: top right; max-height: 75vh; overflow: auto; }
+.g-hotbar { scale: var(--hud-scale, 1); transform-origin: bottom center; }
+.g-panel { border-radius: 18px; box-shadow: 0 24px 100px #0009; }
+.g-root button:focus-visible, .g-root a:focus-visible, .g-root input:focus-visible,
+.g-root select:focus-visible, .g-root summary:focus-visible { outline: 3px solid #fbbf24; outline-offset: 3px; }
+.g-root input[type=search], .g-root select { background: #1e293b; color: #f1f5f9; padding: 9px 12px; border: 1px solid #64748b; border-radius: 8px; max-width: 100%; }
+.g-search { display: grid; gap: 8px; margin-bottom: 20px; }
+.g-map-legend { font: 10px/1.5 system-ui; color: #d1d5e8; max-width: 230px; }
+.g-next-step { display: grid; gap: 6px; max-width: 250px; padding: 12px; background: var(--g-panel); border: 1px solid #64748b; border-left: 3px solid #c4b5fd; border-radius: 10px; font-size: calc(12px * var(--g-ui)); }
+.g-next-step small { color: #c4b5fd; letter-spacing: .08em; }
+.g-next-step span { color: #e2e8f0; }
+.g-next-step button { pointer-events: auto; justify-self: start; color: #e2e8f0; text-decoration: underline; }
+.g-slot-state { position: absolute; top: 2px; left: 2px; z-index: 2; padding: 1px 2px; background: #101827dd; font: 8px system-ui; white-space: nowrap; color: #e2e8f0; }
+.g-hotbar .g-heart { display: grid; place-items: center; color: #fb7185; min-width: 48px; }
+.g-hotbar .g-heart > span { font-size: 26px; }
+.g-hotbar .g-heart b { font: bold 12px system-ui; color: #fff; }
+.g-blueprints { display: grid; gap: 16px; }
+.g-blueprint { border: 1px solid #475569; border-radius: 12px; background: #182135; padding: 18px; }
+.g-blueprint ul { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0; list-style: none; }
+.g-blueprint p { margin: 8px 0; }
+.g-btn[aria-pressed=true] { background: #3c3263; border-color: #c4b5fd; }
+.g-lab { display: grid; gap: 16px; }
+.g-lab svg { width: min(100%, 450px); max-height: 210px; background: #111b2e; border-radius: 12px; }
+.g-lab label { display: grid; gap: 8px; }
+.g-lab input { width: min(100%, 460px); }
+.g-lab output { padding: 12px; background: #182135; border-radius: 8px; }
+.g-lab-meters, .g-circuit { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.g-lab-meters span { display: grid; gap: 10px; background: #182135; padding: 20px; border-radius: 12px; }
+.g-lab-meters b { font-size: 24px; }
+.g-circuit small { display: block; font-size: 10px; }
+.g-depth .g-label { background: rgb(8 12 22 / .9); border-radius: 6px; }
+@media (max-width: 700px) {
+  .g-top-right { max-width: 175px; max-height: 55vh; }
+  .g-map-legend { font-size: 9px; max-width: 155px; }
+  .g-next-step { max-width: 160px; font-size: 11px; }
+  .g-hotbar { max-width: 96vw; }
+  .g-panel { border-radius: 10px; }
+>>>>>>> Stashed changes
 }

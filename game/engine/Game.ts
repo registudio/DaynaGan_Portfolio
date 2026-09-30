@@ -66,13 +66,19 @@ import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
 import { rng } from './rng.ts';
 import { buildSetPiece, type SetPiece } from './setpieces.ts';
+<<<<<<< Updated upstream
 import { buildStarMapTable } from './starmap3d.ts';
 import { TRIAL_INFO, type TrialType } from './trials.ts';
 import { buildPlanet, REGIONS, type PlanetMap, type PlanetPuzzle } from './planet.ts';
 import { buildDecor, buildMonument, buildNatureGate, buildPiece, runeColour } from './nature.ts';
 import { loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
+=======
+import { emptySave, loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
+>>>>>>> Stashed changes
 import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
-import { glow } from './voxels.ts';
+import { glow, UNIT_BOX } from './voxels.ts';
+import { canStep } from './terrain.ts';
+import { matchesTopic, projectPlan, signalPath, TOUR_TOPICS, type TourTopic } from './exploration.ts';
 import { Ambient, Bursts, LightPool, World, type LightSource } from './world.ts';
 
 // ── Tunables ─────────────────────────────────────────────────────────────────
@@ -283,6 +289,121 @@ export class Game {
   private dirty = false;
   private ray = new THREE.Raycaster();
   private skillsCache: Record<string, number> = {};
+  private stopped = false;
+  private timers = new Set<ReturnType<typeof setTimeout>>();
+  private effectFrames = new Set<number>();
+  private combat = false;
+  private queuedCard: Hud['card'] = null;
+
+  private defer(fn: () => void, ms: number) {
+    const timer = setTimeout(() => { this.timers.delete(timer); if (!this.stopped) fn(); }, ms);
+    this.timers.add(timer);
+    return timer;
+  }
+  private effectFrame(fn: FrameRequestCallback) {
+    const id = requestAnimationFrame(t => { this.effectFrames.delete(id); if (!this.stopped) fn(t); });
+    this.effectFrames.add(id);
+    return id;
+  }
+  private cancelEffects() {
+    this.timers.forEach(clearTimeout); this.timers.clear();
+    this.effectFrames.forEach(cancelAnimationFrame); this.effectFrames.clear();
+  }
+
+  private disposeObjects(root: THREE.Object3D) {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    root.traverse(o => {
+      if (!(o instanceof THREE.Mesh)) return;
+      if (o instanceof THREE.InstancedMesh) o.dispose();
+      if (o.geometry !== UNIT_BOX) geometries.add(o.geometry);
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (!m.userData.shared) materials.add(m);
+    });
+    geometries.forEach(g => g.dispose());
+    materials.forEach(m => m.dispose());
+  }
+
+  trackProject(id: string | null) {
+    this.save.trackedProject = id;
+    this.markDirty(); this.refreshHud(); this.updateNavigation(); this.persistNow();
+  }
+
+  completeLab(id: string) {
+    if (!['gripper','sensor','routing'].includes(id) || this.save.labs?.includes(id)) return;
+    this.save.labs = [...(this.save.labs ?? []), id];
+    this.markDirty(); this.refreshHud(); this.persistNow();
+    this.store.toast(`Engineering lab complete · ${this.save.labs.length}/3`, 'achievement');
+  }
+
+  private updateNavigation() {
+    if (!this.player || !this.world) return;
+    if (this.practice) return;
+    const plan = this.save.trackedProject ? projectPlan(this.portfolio,this.save,this.save.trackedProject) : null;
+    let target = plan && !plan.done ? this.inters.find(i=>i.id===plan.next.target) : undefined;
+    let text = plan?.next.text ?? '';
+    if (plan && !plan.done && plan.next.level !== this.sceneId) {
+      text = `Travel to ${this.portfolio.levels.find(l=>l.id===plan.next.level)?.title} · ${text}`;
+    } else if (plan && !target && !plan.done) {
+      const carrier=this.enemies.find(e=>e.carry && partKey('projects',e.carry.projectId,e.carry.partId)===plan.next.target);
+      if (carrier) text += ' · carried by a bug';
+    } else if (!plan) {
+      target = this.inters.filter(i=>!i.done() && i.kind!=='cat' && i.kind!=='exit' && (!i.enabled || i.enabled()))
+        .sort((a,b)=>a.pos.distanceToSquared(this.player.pos)-b.pos.distanceToSquared(this.player.pos))[0];
+      text = target ? `${target.verb} ${target.label}` : this.store.get().objective?.text ?? '';
+    }
+    let bearing='';
+    if (target) {
+      const d=target.pos.clone().sub(this.player.pos);
+      const angle=Math.atan2(d.dot(SCREEN_RIGHT),d.dot(SCREEN_UP));
+      bearing=['↑','↗','→','↘','↓','↙','←','↖'][(Math.round(angle/(Math.PI/4))+8)%8];
+      const dh=target.pos.y-this.player.pos.y;
+      bearing += ` ${Math.round(Math.hypot(d.x,d.z))}m${dh>0.4?' · above':dh< -0.4?' · below':' · same level'}`;
+    }
+    const nav={text,height:Math.round(this.world.heightAt(this.player.pos.x,this.player.pos.z)*10)/10,bearing};
+    if (JSON.stringify(nav)!==JSON.stringify(this.store.get().navigation)) this.store.set({navigation:nav});
+  }
+
+  private showCard(card: NonNullable<Hud['card']>) {
+    if (this.combat) { this.queuedCard=card; return; }
+    this.store.set({card});
+    this.defer(()=> { if (this.store.get().card?.id===card.id) this.store.set({card:null}); },6500);
+  }
+
+  private practice: {gear:string;dummy:Enemy;stage:number;start:THREE.Vector3;hp:number} | null = null;
+  startPractice(id: string) {
+    if (this.sceneId!=='hub') { this.store.toast('Return to the station, then choose Practice in Gear.', 'warn'); return; }
+    if (!this.hasGear(id) || id==='firewall') return;
+    if (this.practice) { this.store.toast('Finish the current practice first.', 'warn'); return; }
+    this.stopTour(false);
+    const spot=this.freeNear(this.player.pos.clone().add(new THREE.Vector3(1.8,0,0)));
+    const dummy=this.addEnemy('bug',spot.x,spot.z,this.player.room,'#60a5fa');
+    dummy.spec={...dummy.spec,dmg:0,speed:0,aggro:0}; dummy.hp=1000; dummy.stun=9999;
+    this.practice={gear:id,dummy,stage:0,start:this.player.pos.clone(),hp:this.player.hp};
+    this.cooldowns[id]=0;
+    if(id==='repair') {this.player.hp=Math.max(1,this.maxHp()-5);this.store.set({hp:this.player.hp});}
+    this.store.set({menu:null,panel:null});
+    this.say('Safe practice: the blue training bot cannot hurt you. Try your ability, then follow up with the solder beam.',5500,true);
+  }
+  private updatePractice() {
+    const p=this.practice;
+    if(!p) return;
+    const gear=GEAR.find(g=>g.id===p.gear)!;
+    const effect=p.gear==='dash'?this.player.pos.distanceTo(p.start)>1.5 && !!this.cooldowns.dash
+      :p.gear==='emp'?p.dummy.hp<1000 && !!this.cooldowns.emp
+      :p.gear==='repair'?!!this.cooldowns.repair && this.player.hp===this.maxHp()
+      :p.gear==='drone'?!!this.buddy && p.dummy.hp<1000:this.scannerT>0;
+    if(p.stage===0 && effect){p.stage=1;p.dummy.hp=1000;this.store.toast('Ability verified. Now hit the blue bot with your solder beam.', 'info');}
+    this.store.set({navigation:{text:p.stage===0?`Practice ${gear.name}${p.gear==='emp'?' near the blue bot':''}`:'Combine: hit the blue bot with the solder beam',height:0,bearing:'Safe station practice'}});
+  }
+  private finishPractice() {
+    const p=this.practice;if(!p)return;
+    this.save.practiced=[...new Set([...(this.save.practiced??[]),p.gear])];
+    this.enemies=this.enemies.filter(e=>e!==p.dummy);
+    p.dummy.rig.root.removeFromParent();this.disposeObjects(p.dummy.rig.root);
+    this.player.hp=p.hp;this.store.set({hp:p.hp});
+    this.practice=null;this.markDirty();this.refreshHud();this.persistNow();
+    this.store.toast('✓ Practice complete — ability + solder beam combined', 'achievement');
+  }
 
   constructor(opts: { canvas: HTMLCanvasElement; overlay: HTMLElement; portfolio: Portfolio; github: GitHubFeed; events: GameEvents; touch: boolean }) {
     this.canvas = opts.canvas;
@@ -326,10 +447,10 @@ export class Game {
 
   start(scene = 'hub') {
     const touch = this.store.get().touch;
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' });
     const autoLow = touch || (navigator.hardwareConcurrency ?? 8) <= 4 || Math.min(innerWidth, innerHeight) < 600 || weakGpu(this.renderer);
     this.quality = this.settings.quality === 'auto' ? (autoLow ? 'low' : 'high') : this.settings.quality;
-    this.basePixelRatio = Math.min(devicePixelRatio, this.quality === 'high' ? 1.25 : 1);
+    this.basePixelRatio = Math.min(devicePixelRatio, this.quality === 'high' ? 1.5 : 1);
     this.renderer.setPixelRatio(this.basePixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
@@ -375,6 +496,8 @@ export class Game {
   }
 
   dispose() {
+    this.stopped = true;
+    this.cancelEffects();
     cancelAnimationFrame(this.raf);
     removeEventListener('resize', this.resize);
     document.removeEventListener('visibilitychange', this.onVisibility);
@@ -382,6 +505,9 @@ export class Game {
     this.clearScene();
     this.input?.dispose();
     this.audio.dispose();
+    this.store.dispose();
+    this.bursts.dispose();
+    for (const pass of this.composer?.passes ?? []) pass.dispose();
     this.composer?.dispose();
     this.renderer?.dispose();
     this.overlay.innerHTML = '';
@@ -410,6 +536,7 @@ export class Game {
   };
 
   private loop = (now: number) => {
+    if (this.stopped) return;
     this.raf = requestAnimationFrame(this.loop);
     const raw = now - this.last;
     const dt = Math.min(0.05, raw / 1000);
@@ -417,6 +544,7 @@ export class Game {
     this.adaptResolution(raw, dt);
     const st = this.store.get();
     const paused = !!(st.panel || st.menu || st.loading || this.beaming);
+    this.input.enabled = !paused;
     const actions = this.input.consume();
     if (this.input.device !== this.store.get().device) this.store.set({ device: this.input.device });
     if (actions.has('pause')) this.togglePause();
@@ -482,13 +610,15 @@ export class Game {
   private tier = 0;
 
   private dropQualityTier() {
-    if (this.tier === 0 && this.renderer.shadowMap.enabled) {
+    if (this.bloom.enabled) this.bloom.enabled = false;
+    else if (this.ambient?.points.visible) this.ambient.points.visible = false;
+    else if (this.lights.lights.length > 3) {
+      for (const l of this.lights.lights.splice(3)) this.scene.remove(l);
+    } else if (this.renderer.shadowMap.enabled) {
       this.renderer.shadowMap.enabled = false;
       this.sun.castShadow = false;
-    } else if (this.tier <= 1 && this.lights.lights.length > 3) {
-      for (const l of this.lights.lights.splice(3)) this.scene.remove(l);
-      this.tier = 1;
-    } else if (this.bloom.enabled) this.bloom.enabled = false;
+      // Terrain's baked corner and riser shading remains on every quality tier.
+    }
     else return;
     this.tier++;
     this.stats.tier = this.tier;
@@ -573,7 +703,7 @@ export class Game {
       const g = arriving ? Math.max(0, (k - 0.25) / 0.75) : 1 - k;
       const e = g * g * (3 - 2 * g);
       for (const r of rigs) r.scale.set(Math.max(0.001, e), Math.max(0.001, 1 + (1 - e) * 1.4), Math.max(0.001, e));
-      if (k < 1) requestAnimationFrame(tick);
+      if (k < 1) this.effectFrame(tick);
       else {
         for (const r of rigs) r.scale.setScalar(arriving ? 1 : 0.001);
         this.level.remove(col);
@@ -584,20 +714,20 @@ export class Game {
         done?.();
       }
     };
-    requestAnimationFrame(tick);
+    this.effectFrame(tick);
     if (arriving) this.bursts.spawn(this.player.pos.clone().add(new THREE.Vector3(0, 0.3, 0)), color, 18);
   }
 
   private loadScene(id: string, first = false) {
     const biomeName = id === 'hub' ? 'the station' : id === 'planet' ? 'Planet Aurora' : biomeFor(this.portfolio.levels.find((l) => l.id === id)?.meta.biome).name;
     this.store.set({ loading: first ? 'BOOTING STATION…' : id === 'hub' ? 'RETURNING TO STATION…' : `DEPLOYING TO ${biomeName.toUpperCase()}…` });
-    setTimeout(() => {
+    this.defer(() => {
       try {
         this.buildScene(id);
       } catch (e) {
         console.error(e);
       }
-      setTimeout(() => {
+      this.defer(() => {
         this.store.set({ loading: null });
         if (!first && !this.settings.reducedMotion) this.beam(true);
       }, first ? 350 : 500);
@@ -606,6 +736,10 @@ export class Game {
   }
 
   private clearScene() {
+    this.cancelEffects();
+    this.practice = null;
+    this.queuedCard = null;
+    this.store.set({ card: null, boss: null, banner: null, area: null });
     for (const i of this.inters) i.el?.remove();
     this.inters = [];
     this.enemies = [];
@@ -631,8 +765,10 @@ export class Game {
     this.blueprints.clear();
     this.setPiece?.dispose();
     this.setPiece = null;
-    this.level.clear();
     this.world?.dispose();
+    this.world?.group.removeFromParent();
+    this.disposeObjects(this.level);
+    this.level.clear();
     this.world = null;
     if (this.ambient) {
       this.scene.remove(this.ambient.points);
@@ -685,9 +821,9 @@ export class Game {
     this.scene.fog = new THREE.Fog(b.fog, 52, 95);
     this.hemi.color.set(b.ambient);
     this.hemi.groundColor.set(b.background);
-    this.hemi.intensity = b.ambientIntensity * 2.2;
+    this.hemi.intensity = b.ambientIntensity * (this.settings.depthReadability ? 1.05 : 1.4);
     this.sun.color.set(b.sun);
-    this.sun.intensity = b.sunIntensity * 2;
+    this.sun.intensity = b.sunIntensity * 1.65;
 
     // Room lights in the biome's dominant colour.
     for (const room of this.map.rooms) {
@@ -757,6 +893,7 @@ export class Game {
       prompt: null,
       dead: false,
     });
+    this.applySettings();
     this.refreshHud();
   }
 
@@ -2143,10 +2280,7 @@ export class Game {
         this.removeInter(it);
         this.syncBlueprint(projectId);
         const card = partCard(room, part);
-        this.store.set({ card: { ...card, id: Date.now() } });
-        setTimeout(() => {
-          if (this.store.get().card?.title === card.title) this.store.set({ card: null });
-        }, 6000);
+        this.showCard({ ...card, id: Date.now() });
         const left = room.parts.filter((p) => !this.save.scanned.includes(partKey('projects', room.id, p.id))).length;
         if (!left) this.say(`That's everything for ${room.title}! Take it to its vault.`, 3500);
         this.hintT = 30;
@@ -2180,6 +2314,9 @@ export class Game {
   private update(dt: number, actions: Set<string>) {
     const p = this.player;
     const world = this.world!;
+    this.combat = !this.touring && this.enemies.some(e => e !== this.practice?.dummy && e.spec.dmg > 0 && e.pos.distanceToSquared(p.pos) < 100);
+    this.store.setCombat(this.combat);
+    if (!this.combat && this.queuedCard && !this.store.get().card) { this.showCard(this.queuedCard); this.queuedCard = null; }
     for (const k in this.cooldowns) this.cooldowns[k] = Math.max(0, this.cooldowns[k] - dt);
     this.comboT = Math.max(0, this.comboT - dt);
 
@@ -2330,7 +2467,10 @@ export class Game {
       this.hudT = 0.1;
       const cds: Record<string, number> = {};
       for (const g of GEAR) if (COOLDOWNS[g.id]) cds[g.id] = (this.cooldowns[g.id] ?? 0) / COOLDOWNS[g.id];
+      cds.cat = (this.cooldowns.cat ?? 0) / COOLDOWNS.cat;
       this.store.set({ cooldowns: cds });
+      this.updateNavigation();
+      this.updatePractice();
     }
   }
 
@@ -2525,14 +2665,14 @@ export class Game {
     this.level.add(arc);
     const fade = () => {
       (arc.material as THREE.MeshBasicMaterial).opacity -= 0.12;
-      if ((arc.material as THREE.MeshBasicMaterial).opacity > 0) requestAnimationFrame(fade);
+      if ((arc.material as THREE.MeshBasicMaterial).opacity > 0) this.effectFrame(fade);
       else {
         this.level.remove(arc);
         arc.geometry.dispose();
         (arc.material as THREE.Material).dispose();
       }
     };
-    requestAnimationFrame(fade);
+    this.effectFrame(fade);
     let hit = false;
     const cosHalf = Math.cos(half);
     for (const e of [...this.enemies]) {
@@ -2635,7 +2775,7 @@ export class Game {
     const intro = room ? roomIntro(room) : null;
     const area = { eyebrow: intro?.eyebrow ?? '', title: r.title ?? '', sub: intro?.sub ?? '', id: Date.now() };
     this.store.set({ area });
-    setTimeout(() => this.store.get().area?.id === area.id && this.store.set({ area: null }), 4200);
+    this.defer(() => this.store.get().area?.id === area.id && this.store.set({ area: null }), 4200);
     if (intro && !this.tour && !this.store.get().boss && this.bubbleQueue.length < 2) this.say(intro.line, 5200);
   }
 
@@ -2648,7 +2788,7 @@ export class Game {
     el.style.left = `${s.x}px`;
     el.style.top = `${s.y}px`;
     this.overlay.appendChild(el);
-    setTimeout(() => el.remove(), 1400);
+    this.defer(() => el.remove(), 1400);
   }
 
   /** Bots sometimes drop a lore fragment: one fact from this mission you haven't found yet. */
@@ -2680,8 +2820,7 @@ export class Game {
         this.level.remove(obj);
         this.audio.sfx('chip');
         const card = { eyebrow: `Data fragment · ${f.room}`, title: 'Memory recovered', html: `<p>${escapeHtml(f.text)}</p>`, id: Date.now() };
-        this.store.set({ card });
-        setTimeout(() => this.store.get().card?.id === card.id && this.store.set({ card: null }), 6500);
+        this.showCard(card);
         const total = this.fragments.length;
         const have = this.fragments.filter((x) => this.save.fragments!.includes(x.id)).length;
         this.floatText(this.player.pos.clone().add(new THREE.Vector3(0, 2.2, 0)), `FRAGMENT ${have}/${total}`, 'lore');
@@ -2699,17 +2838,18 @@ export class Game {
     el.style.left = `${s.x}px`;
     el.style.top = `${s.y}px`;
     this.overlay.appendChild(el);
-    setTimeout(() => el.remove(), 900);
+    this.defer(() => el.remove(), 900);
   }
 
   private killEnemy(e: Enemy) {
     this.enemies = this.enemies.filter((x) => x !== e);
     this.level.remove(e.rig.root);
+    this.disposeObjects(e.rig.root);
     if (e.type === 'capacitor') {
       this.explode(e);
       return;
     }
-    if (e.tele) this.level.remove(e.tele);
+    this.clearTelegraph(e);
     this.bursts.spawn(e.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), e.spec.color, e.boss ? 60 : 16, e.boss ? 6 : 3);
     this.audio.sfx('die');
     this.shake = e.boss ? 0.6 : 0.15;
@@ -2743,7 +2883,7 @@ export class Game {
       // Minions fizzle out with their boss.
       for (const m of [...this.enemies]) if (m.room === e.room && m.summoned) this.killEnemy(m);
       this.store.set({ boss: null, banner: { title: `${def?.name.toUpperCase() ?? 'BOSS'} DEFEATED`, sub: def?.title ?? '', id: Date.now() } });
-      setTimeout(() => this.store.set({ banner: null }), 3600);
+      this.defer(() => this.store.set({ banner: null }), 3600);
       this.say(e.type === 'boss' ? 'Conflict resolved! Both branches live happily now.' : `We beat the ${def?.name}! Meow!`, 4000);
       this.checkCleared();
       this.refreshHud();
@@ -2966,11 +3106,14 @@ export class Game {
           e.pending = null;
         }
       } else if (active) {
-        const keep = e.spec.shoot ? (e.boss ? 3.5 : 3.5) : 0;
+        const keep = e.spec.shoot ? (e.boss ? 3.5 : 4.5) : 0;
+        if (e.spec.shoot && !e.boss && dist < keep - 1) world.move(e.pos,-dir.x*e.spec.speed*dt,-dir.z*e.spec.speed*dt,e.spec.radius);
         if (dist > keep + e.spec.radius && e.type !== 'arm') {
           speed = e.spec.speed * diff.speed * (e.type === 'wisp' ? 0.8 + Math.sin(this.time * 5 + e.home.x) * 0.4 : 1);
           const wobble = e.type === 'wisp' ? new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(Math.sin(this.time * 3) * 0.6) : new THREE.Vector3();
-          const m = dir.clone().add(wobble).normalize();
+          const flank = !e.boss && (e.type==='crawler'||e.type==='packet') && dist>2
+            ? new THREE.Vector3(-dir.z,0,dir.x).multiplyScalar(Math.floor(e.home.x)%2?0.65:-0.65):new THREE.Vector3();
+          const m = dir.clone().add(wobble).add(flank).normalize();
           world.move(e.pos, m.x * speed * dt, m.z * speed * dt, e.spec.radius);
         }
         e.rig.root.rotation.y = lerpAngle(e.rig.root.rotation.y, Math.atan2(dir.x, dir.z), 1 - Math.exp(-dt * 8));
@@ -3068,6 +3211,7 @@ export class Game {
         for (const e of this.enemies) {
           if (e.pos.clone().setY(0).distanceTo(pr.pos.clone().setY(0)) < e.spec.radius + 0.25) {
             this.damageEnemy(e, pr.dmg, pr.vel.clone().normalize());
+            if(e===this.practice?.dummy && this.practice.stage===1) this.finishPractice();
             dead = true;
             break;
           }
@@ -3178,7 +3322,7 @@ export class Game {
       s += 0.08 * radius;
       m.scale.setScalar(s);
       (m.material as THREE.MeshBasicMaterial).opacity *= 0.9;
-      if (s < radius) requestAnimationFrame(grow);
+      if (s < radius) this.effectFrame(grow);
       else {
         this.level.remove(m);
         m.geometry.dispose();
@@ -3224,12 +3368,17 @@ export class Game {
     return steps;
   }
 
-  startTour() {
-    const steps = this.buildTourSteps();
+  startTour(topic: TourTopic = 'all') {
+    const steps = this.buildTourSteps().filter(step => {
+      if (topic === 'all' || step.level === 'about' || step.level === 'contact') return true;
+      const level = this.portfolio.levels.find(l => l.id === step.level);
+      const room = level?.rooms.find(r => step.target === `assembly:${r.id}` || step.target === roomKey(step.level, r.id));
+      return !!room && matchesTopic(topic, `${room.title} ${room.body} ${Object.values(room.meta).join(' ')}`);
+    });
     this.tour = { steps, i: 0, phase: 'travel', timer: 0, path: [], paused: false };
     this.touring = true;
     this.store.set({ menu: null, panel: null });
-    this.say(`Tour mode! I'll walk you through everything — sit back. Meow.`, 3500, true);
+    this.say(`${TOUR_TOPICS[topic]} tour! I'll take you to the relevant stops. Meow.`, 3500, true);
     this.tourUpdateHud();
     this.tourBegin();
   }
@@ -3333,7 +3482,7 @@ export class Game {
         const nx = x + dx;
         const nz = z + dz;
         const j = nz * W + nx;
-        if (prev.has(j) || w.solid(nx + 0.5, nz + 0.5)) continue;
+        if (prev.has(j) || w.solid(nx + 0.5, nz + 0.5) || !canStep(w.cell(x,z), w.cell(nx,nz))) continue;
         prev.set(j, i);
         queue.push(j);
       }
@@ -3585,7 +3734,8 @@ export class Game {
     const head = n.obj.userData.head as THREE.Object3D;
     const lamp = n.obj.userData.lamp as THREE.Mesh;
     if (type === 'rotate') head.rotation.y = (n.state * Math.PI) / 2;
-    const on = type === 'pattern' ? n.state === 1 : lit;
+    if (type === 'pattern') head.rotation.z = n.state ? 0.25 : -0.25;
+    const on = lit;
     lamp.material = on ? glow('#4ade80', 3) : glow('#f59e0b', 1.2);
   }
 
@@ -3653,7 +3803,7 @@ export class Game {
     const html = solved
       ? '<p class="g-ok">✔ Barrier offline — the way is open.</p>'
       : `<p>${def.hint}</p><div class="g-puzzle">${target}</div>${
-          pz.type === 'rotate' ? '<p class="g-sub">Arrows show where each junction\u2019s glowing arrow must point on screen.</p>' : ''
+          pz.type === 'rotate' ? '<p class="g-sub">Route power in series. The first misaligned junction cuts power to every stage after it. Green lamps show the connected prefix; match the arrow directions above.</p>' : pz.type === 'pattern' ? `<p>Each switch flips its own bit AND the next bit to the right. The last switch only flips itself. Work left to right to avoid undoing a corrected bit.</p><p>Current receiver bits: <b>${pz.nodes.map(n=>n.state).join(' · ')}</b>. Target bits are shown above.</p>` : `<p>${pz.progress}/${pz.target.length} capacitors charged. Each correct stage stores power; an out-of-order charge trips the protection circuit.</p>`
         }`;
     this.store.set({
       panel: {
@@ -3689,7 +3839,13 @@ export class Game {
       return;
     }
     node.state = (node.state + 1) % (pz.type === 'rotate' ? 4 : 2);
-    this.nodeLook(node, pz.type);
+    if (pz.type==='pattern') {
+      const downstream=pz.nodes.find(n=>n.index===node.index+1);
+      if(downstream)downstream.state=1-downstream.state;
+    }
+    const powered = signalPath(pz.nodes.map(n => n.state), pz.target);
+    for (const n of pz.nodes) this.nodeLook(n, pz.type, n.index < powered);
+    this.store.toast(`${powered}/${pz.target.length} stages connected${powered < pz.target.length ? ` — signal stops at junction ${powered + 1}` : ' — receiver powered'}`, 'info', 2000);
     pz.tries += 0.25;
     if (pz.nodes.every((n) => n.state === pz.target[n.index])) this.solvePuzzle(false);
     else if (pz.tries >= 3 && pz.tries < 3.25) this.say('Stuck? The diagnostics console has the answer — or I can chew the wire.', 3500);
@@ -3892,7 +4048,7 @@ export class Game {
       const tick = () => {
         t -= 0.03;
         model.setExplode(Math.max(0, t));
-        if (t > 0) requestAnimationFrame(tick);
+        if (t > 0) this.effectFrame(tick);
       };
       tick();
     } else model.setExplode(built ? 0 : 0.35);
@@ -3989,7 +4145,7 @@ export class Game {
     const tick = () => {
       head.rotation.x += (target - head.rotation.x) * 0.05;
       head.rotation.y += 0.02;
-      if (Math.abs(target - head.rotation.x) > 0.01) requestAnimationFrame(tick);
+      if (Math.abs(target - head.rotation.x) > 0.01) this.effectFrame(tick);
     };
     tick();
   }
@@ -4050,7 +4206,7 @@ export class Game {
     const knows = catTricks(this.portfolio, this.save);
     for (const t of CAT_TRICKS)
       if (knows[t.id] && !knew[t.id])
-        setTimeout(() => {
+        this.defer(() => {
           this.store.toast(`XIAO HU LEARNED ${t.name.toUpperCase()} — ${t.desc}`, 'achievement', 6000);
           this.audio.meow(1.2);
           this.say(`Mrrp! I learned ${t.name}!`, 3000);
@@ -4059,11 +4215,15 @@ export class Game {
     const level = this.portfolio.levels.find((l) => l.id === id);
     const gear = GEAR.find((g) => g.from === id);
     this.store.set({ banner: { title: 'MISSION CLEARED', sub: level?.meta.mission ?? level?.title ?? '', id: Date.now() } });
+<<<<<<< Updated upstream
     this.shake = Math.max(this.shake, 0.4);
     this.openHomePortal(true);
     setTimeout(() => this.store.set({ banner: null }), 3800);
+=======
+    this.defer(() => this.store.set({ banner: null }), 3800);
+>>>>>>> Stashed changes
     this.audio.sfx('build');
-    if (gear) setTimeout(() => this.store.toast(`NEW GEAR · ${gear.name} — ${gear.desc}`, 'gear', 5000), 1200);
+    if (gear) this.defer(() => this.store.toast(`NEW GEAR · ${gear.name} — ${gear.desc}`, 'gear', 5000), 1200);
     if (gear?.id === 'firewall') {
       this.player.hp = this.maxHp();
       this.store.set({ hp: this.player.hp, maxHp: this.maxHp() });
@@ -4248,10 +4408,14 @@ export class Game {
       for (let x = 0; x < this.map.w; x++) {
         const cell = this.map.cells[z * this.map.w + x];
         if (hidden != null && cell.room === hidden) continue;
-        if (cell.t === 1) ctx.fillStyle = cell.solid ? '#3a3f55' : cell.surf === 'path' ? '#6d6395' : '#4b5170';
+        if (cell.t === 1) ctx.fillStyle = cell.solid ? '#3a3f55' : `hsl(${cell.surf === 'path' ? 265 : 210} 28% ${Math.min(78,36+cell.h*7)}%)`;
         else if (cell.t === 2) ctx.fillStyle = cell.secret ? '#262a3a' : '#20243a';
         else continue;
         ctx.fillRect(x * S, z * S, S, S);
+        if (cell.t===1) for (const [dx,dz] of [[1,0],[0,1]]) {
+          const n=this.world?.cell(x+dx,z+dz);
+          if(n?.t===1&&Math.abs(n.h-cell.h)>0.01){ctx.fillStyle='#e2e8f0';ctx.fillRect(x*S+(dx?S-1:0),z*S+(dz?S-1:0),dx?1:S,dz?1:S);}
+        }
       }
     return c;
   }
@@ -4273,18 +4437,19 @@ export class Game {
     ctx.setTransform(a, b, -a, b, W / 2 - (a * p.x * S - a * p.z * S), H / 2 - (b * p.x * S + b * p.z * S));
     ctx.globalAlpha = 0.95;
     ctx.drawImage(this.minimapBase, 0, 0);
-    const dot = (x: number, z: number, color: string, r = 1.4) => {
+    const dot = (x: number, z: number, color: string, r = 1.4, symbol = '') => {
       ctx.fillStyle = color;
-      ctx.fillRect(x * S - r * S * 0.5, z * S - r * S * 0.5, r * S, r * S);
+      if (symbol) {ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(symbol,x*S,z*S);}
+      else ctx.fillRect(x * S - r * S * 0.5, z * S - r * S * 0.5, r * S, r * S);
     };
     for (const i of this.inters) {
       if (i.kind === 'cat') continue;
       const done = i.done();
       if (i.kind === 'part' && this.scannerT <= 0 && i.pos.distanceTo(p) > 7) continue;
-      dot(i.pos.x, i.pos.z, done ? '#475569' : i.kind === 'part' ? '#fde047' : i.kind === 'exit' || i.kind === 'pad' ? '#a78bfa' : '#67e8f9', done ? 1 : 1.5);
+      dot(i.pos.x, i.pos.z, done ? '#475569' : i.kind === 'part' ? '#fde047' : i.kind === 'exit' || i.kind === 'pad' ? '#a78bfa' : '#67e8f9', done ? 1 : 1.5, done?'·':i.kind==='part'?'◆':i.kind==='exit'||i.kind==='pad'?'↗':'○');
     }
-    if (this.scannerT > 0) for (const e of this.enemies) dot(e.pos.x, e.pos.z, '#f43f5e', 1.2);
-    for (const e of this.enemies) if (e.fab) dot(e.pos.x, e.pos.z, '#f43f5e', 2.2);
+    if (this.scannerT > 0) for (const e of this.enemies) dot(e.pos.x, e.pos.z, '#f43f5e', 1.2, '!');
+    for (const e of this.enemies) if (e.fab) dot(e.pos.x, e.pos.z, '#f43f5e', 2.2, 'F');
     dot(this.cat.pos.x, this.cat.pos.z, '#d6b48a', 1);
     dot(p.x, p.z, '#ffffff', 1.8);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -4305,6 +4470,7 @@ export class Game {
   }
 
   panelAction(id: string, panel: Panel) {
+    if (id.startsWith('track:')) { this.trackProject(id.slice(6)); this.store.toast('Blueprint pinned — follow the next step on your HUD.'); return; }
     if (id.startsWith('pro:')) {
       this.persistNow();
       this.events.onExit('pro', id.slice(4));
@@ -4357,12 +4523,18 @@ export class Game {
     this.audio.configure(this.settings.muted, this.settings.music, this.settings.sfx);
     if (!this.settings.muted && this.biome) this.audio.playMusic(this.biome.id);
     document.documentElement.classList.toggle('g-large', this.settings.largeText);
+    const root = this.canvas.parentElement;
+    root?.style.setProperty('--g-ui', String(this.settings.textScale * (this.settings.largeText ? 1.22 : 1)));
+    root?.style.setProperty('--hud-scale', String(this.settings.hudScale));
+    root?.style.setProperty('--g-panel', `rgb(16 18 32 / ${this.settings.panelOpacity})`);
+    root?.classList.toggle('g-depth', this.settings.depthReadability);
+    if (this.bloom) this.bloom.strength = this.settings.depthReadability ? 0.2 : 0.4;
+    if (this.biome) this.hemi.intensity = this.biome.ambientIntensity * (this.settings.depthReadability ? 1.05 : 1.4);
   }
 
   resetProgress() {
     const settings = this.settings;
-    this.save = loadSave();
-    Object.assign(this.save, { scanned: [], built: [], shelved: [], cleared: [], achievements: [], kills: 0, pets: 0, playMs: 0, sent: false, backroom: false, tutorial: false, levelKills: {}, relays: [], bossDefeated: false, bosses: [], puzzles: [], bypassed: [] });
+    this.save = emptySave();
     this.settings = settings;
     this.persistNow();
     this.skillsCache = this.skills();
