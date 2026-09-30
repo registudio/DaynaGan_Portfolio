@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Biome, Surface } from './biomes.ts';
 import { computeWalls, FLOOR, VOID, WALL, type Cell, type LevelMap } from './layout.ts';
 import { glowTexture, pixelTexture } from './textures.ts';
+import { canStep, CHUNK_SIZE, terrainFaces } from './terrain.ts';
 
 /** Renders a LevelMap as instanced voxel blocks and answers collision/height queries. */
 
@@ -15,6 +16,7 @@ function surfaceMaterial(s: Surface, shade = 1): THREE.MeshLambertMaterial {
   const m = new THREE.MeshLambertMaterial({
     map: pixelTexture(s.pattern, `#${color.getHexString()}`, s.accent ?? s.color),
   });
+  m.userData.shared = true;
   if (s.glow) {
     m.emissiveMap = glowTexture(s.pattern, s.accent ?? s.color);
     m.emissive = new THREE.Color('#ffffff');
@@ -39,7 +41,7 @@ function worldMaterials(b: Biome): WorldMaterials {
   if (hit) return hit;
   const m: WorldMaterials = {
     floor: surfaceMaterial(b.floor),
-    alt: surfaceMaterial(b.floorAlt),
+    alt: surfaceMaterial({ ...b.floorAlt, color: `#${new THREE.Color(b.floor.color).lerp(new THREE.Color(b.floorAlt.color),0.25).getHexString()}` }),
     path: surfaceMaterial(b.path ?? b.floorAlt),
     wall: surfaceMaterial(b.wall),
     wallDark: surfaceMaterial(b.wall, 0.75),
@@ -61,6 +63,8 @@ function worldMaterials(b: Biome): WorldMaterials {
     }),
   };
   materialCache.set(key, m);
+  Object.values(m).forEach(material => { material.userData.shared = true; });
+  [m.floor, m.alt, m.path, m.cliff].forEach(material => { (material as THREE.MeshLambertMaterial).vertexColors = true; });
   return m;
 }
 
@@ -70,6 +74,7 @@ export class World {
   biome: Biome;
   hiddenRoom: number | null;
   private meshes: THREE.InstancedMesh[] = [];
+  private terrain: THREE.Mesh[] = [];
   private unit = new THREE.BoxGeometry(1, 1, 1);
 
   constructor(map: LevelMap, biome: Biome, hiddenRoom: number | null = null) {
@@ -93,10 +98,11 @@ export class World {
   build() {
     this.clear();
     const { floor, alt, path, wall, wallDark, top, trim, cliff, cliffDeep, rail, windowMat, pipe, vent, lamp, bolt } = worldMaterials(this.biome);
-    const batches = new Map<THREE.Material, Batch>();
+    const batches = new Map<string, Batch>();
     const add = (material: THREE.Material, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1) => {
-      let batch = batches.get(material);
-      if (!batch) batches.set(material, (batch = { material, matrices: [] }));
+      const key = `${material.uuid}:${Math.floor(x / CHUNK_SIZE)}:${Math.floor(z / CHUNK_SIZE)}`;
+      let batch = batches.get(key);
+      if (!batch) batches.set(key, (batch = { material, matrices: [] }));
       const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
       batch.matrices.push(m);
     };
@@ -146,9 +152,13 @@ export class World {
         }
         if (c.t === FLOOR) {
           const m = c.surf === 'path' ? path : c.surf === 'alt' ? alt : floor;
-          add(m, cx, c.h - 0.5, cz);
-          const edge = [at(x + 1, z), at(x - 1, z), at(x, z + 1), at(x, z - 1)].some((n) => open(n));
-          if (edge) for (let k = 1; k <= CLIFF_DEPTH; k++) add(k > 2 ? cliffDeep : cliff, cx, c.h - 0.5 - k, cz);
+          // Tops and exposed risers are emitted below as chunked face geometry.
+          void m;
+          for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+            const n = at(x + dx, z + dz);
+            if (!open(n) && n?.t === FLOOR && n.h < c.h - 0.01)
+              add(bolt, cx + dx * 0.47, c.h + 0.012, cz + dz * 0.47, dx ? 0.06 : 1, 0.024, dz ? 0.06 : 1);
+          }
           // Clutter where floor meets a back wall: bolted plates and cable runs.
           const hh = ((x * 2654435761) ^ (z * 40503)) >>> 0;
           if (at(x - 1, z)?.t === WALL && hh % 5 === 0) add(bolt, x + 0.12, c.h + 0.03, cz, 0.16, 0.06, 0.7);
@@ -193,6 +203,30 @@ export class World {
         }
       }
 
+    const chunks = new Map<string, { material: THREE.Material; positions: number[]; colors: number[]; uvs: number[] }>();
+    for (const face of terrainFaces(this.map, this.hiddenRoom)) {
+      const material = face.surface === 'side' ? cliff : face.surface === 'path' ? path : face.surface === 'alt' ? alt : floor;
+      const key = `${Math.floor(face.x / CHUNK_SIZE)}:${Math.floor(face.z / CHUNK_SIZE)}:${face.surface}`;
+      let chunk = chunks.get(key);
+      if (!chunk) chunks.set(key, chunk = {material, positions: [], colors: [], uvs: []});
+      for (const i of [0,1,2,0,2,3]) {
+        chunk.positions.push(...face.points[i]);
+        chunk.colors.push(face.shade[i], face.shade[i], face.shade[i]);
+        chunk.uvs.push(...[[0,1],[0,0],[1,0],[1,1]][i]);
+      }
+    }
+    for (const chunk of chunks.values()) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(chunk.positions, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(chunk.colors, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(chunk.uvs, 2));
+      geo.computeVertexNormals();
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, chunk.material);
+      mesh.castShadow = mesh.receiveShadow = true;
+      this.terrain.push(mesh);
+      this.group.add(mesh);
+    }
     for (const batch of batches.values()) {
       const mesh = new THREE.InstancedMesh(this.unit, batch.material, batch.matrices.length);
       batch.matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
@@ -207,7 +241,9 @@ export class World {
   }
 
   clear() {
-    for (const m of this.meshes) this.group.remove(m);
+    for (const m of this.meshes) { this.group.remove(m); m.dispose(); }
+    for (const m of this.terrain) { this.group.remove(m); m.geometry.dispose(); }
+    this.terrain = [];
     this.meshes = [];
   }
 
@@ -246,10 +282,16 @@ export class World {
 
   /** Moves a circle through the grid, sliding along walls. Mutates pos. */
   move(pos: THREE.Vector3, dx: number, dz: number, r: number) {
-    const blocked = (x: number, z: number) =>
-      this.solid(x - r, z - r) || this.solid(x + r, z - r) || this.solid(x - r, z + r) || this.solid(x + r, z + r);
-    if (!blocked(pos.x + dx, pos.z)) pos.x += dx;
-    if (!blocked(pos.x, pos.z + dz)) pos.z += dz;
+    // Substeps prevent dashes tunnelling across walls or skipping stair cells.
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.15));
+    const blocked = (x: number, z: number) => {
+      const from = this.cell(pos.x, pos.z);
+      return [[-r,-r],[r,-r],[-r,r],[r,r]].some(([ox,oz]) => this.solid(x+ox,z+oz) || !canStep(from, this.cell(x+ox,z+oz)));
+    };
+    for (let i=0;i<steps;i++) {
+      if (!blocked(pos.x + dx / steps, pos.z)) pos.x += dx / steps;
+      if (!blocked(pos.x, pos.z + dz / steps)) pos.z += dz / steps;
+    }
   }
 
   /** True if the straight line between two points crosses no solid cell. */

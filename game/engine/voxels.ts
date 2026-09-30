@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { pixelTexture, type Pattern } from './textures.ts';
 
 /** Shared helpers for building chunky voxel meshes out of boxes. */
 
-const unit = new THREE.BoxGeometry(1, 1, 1);
+const unit = new RoundedBoxGeometry(1, 1, 1, 1, 0.035);
 /** Shared unit cube used by every voxel box (lets static props be batched). */
 export const UNIT_BOX = unit;
 const mats = new Map<string, THREE.Material>();
@@ -17,7 +18,7 @@ export function mat(color: string, o: MatOpts = {}): THREE.Material {
   const hit = mats.get(key);
   if (hit) return hit;
   // Lambert (diffuse only): far cheaper per pixel than PBR, and voxels don't need the specular.
-  const m = new THREE.MeshLambertMaterial({
+  const options = {
     color: '#ffffff',
     map: pixelTexture(o.pattern ?? 'noise', color, o.accent ?? '#ffffff', res),
     emissive: o.emissive != null ? new THREE.Color(o.emissive) : new THREE.Color(0),
@@ -25,7 +26,11 @@ export function mat(color: string, o: MatOpts = {}): THREE.Material {
     transparent: o.transparent != null,
     opacity: o.transparent ?? 1,
     depthWrite: o.transparent == null,
-  });
+  };
+  const m = o.metal != null || o.rough != null
+    ? new THREE.MeshStandardMaterial({ ...options, metalness: o.metal ?? 0.15, roughness: o.rough ?? 0.65 })
+    : new THREE.MeshLambertMaterial(options);
+  m.userData.shared = true;
   mats.set(key, m);
   return m;
 }
@@ -45,6 +50,7 @@ export function glow(color: string, intensity = 2.2): THREE.Material {
     map: pixelTexture('noise', color, '#ffffff', 8),
   });
   glows.set(key, m);
+  m.userData.shared = true;
   return m;
 }
 
@@ -94,6 +100,7 @@ export const blobShadow = (() => {
   let m: THREE.Material | null = null;
   return (radius: number, parent: THREE.Object3D) => {
     m ??= new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.35, depthWrite: false });
+    m.userData.shared = true;
     const s = disc(radius, m, 0.02, parent);
     s.renderOrder = 1;
     return s;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { loadPortfolio } from '../lib/load.ts';
 import { buildLevel, FLOOR, setProjectIds, type LevelMap } from '../game/engine/layout.ts';
 import type { GitHubFeed } from '../lib/github.ts';
+import { canStep } from '../game/engine/terrain.ts';
 
 const portfolio = loadPortfolio();
 const feed = {
@@ -28,7 +29,7 @@ function reachable(map: LevelMap) {
       if (nx < 0 || nz < 0 || nx >= map.w || nz >= map.d) continue;
       const j = nz * map.w + nx;
       const c = map.cells[j];
-      if (seen.has(j) || c.t !== FLOOR || c.solid) continue;
+      if (seen.has(j) || !canStep(map.cells[i], c)) continue;
       seen.add(j);
       queue.push(j);
     }

@@ -8,8 +8,12 @@ import { DEFAULT_KEYS, type Action, type Hud } from '@/game/engine/store';
 import { partKey, roomKey } from '@/lib/skills';
 import SkillTree from './SkillTree';
 import ControlsOverlay from './ControlsOverlay';
+import Blueprints from './Blueprints';
+import EngineeringLab from './EngineeringLab';
+import { useModal } from './useModal';
+import { TOUR_TOPICS, type TourTopic } from '@/game/engine/exploration';
 
-const TABS = ['Codex', 'Skills', 'Gear', 'Achievements', 'Settings', 'Controls'] as const;
+const TABS = ['Codex', 'Blueprints', 'Lab', 'Skills', 'Gear', 'Achievements', 'Settings', 'Controls'] as const;
 type Tab = (typeof TABS)[number];
 
 const ACTION_LABELS: Record<Action, string> = {
@@ -31,9 +35,11 @@ const ACTION_LABELS: Record<Action, string> = {
 
 export default function PauseMenu({ game, hud }: { game: Game; hud: Hud }) {
   const [tab, setTab] = useState<Tab>('Codex');
+  const ref=useModal(()=>game.resume());
+  const [topic,setTopic]=useState<TourTopic>('all');
   return (
     <div className="g-modal">
-      <div className="g-panel wide g-pause" role="dialog" aria-modal="true" aria-label="Paused">
+      <div ref={ref} tabIndex={-1} className="g-panel wide g-pause" role="dialog" aria-modal="true" aria-label="Paused">
         <div className="g-pause-head">
           <h2>PAUSED</h2>
           <div className="g-actions">
@@ -50,23 +56,26 @@ export default function PauseMenu({ game, hud }: { game: Game; hud: Hud }) {
                 ✉ Skip to Comms
               </button>
             )}
-            <button className="g-btn" onClick={() => game.startTour()}>
-              ⏱ Quick tour
+            <select aria-label="Tour interest" value={topic} onChange={e=>setTopic(e.target.value as TourTopic)}>{Object.entries(TOUR_TOPICS).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+            <button className="g-btn" onClick={() => game.startTour(topic)}>
+              ⏱ Start tour
             </button>
             <button className="g-btn" onClick={() => game.exit('pro')}>
               Professional Mode
             </button>
           </div>
         </div>
-        <nav className="g-tabs" role="tablist">
+        <nav className="g-tabs" aria-label="Pause sections">
           {TABS.map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
+            <button key={t} aria-pressed={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
               {t}
             </button>
           ))}
         </nav>
         <div className="g-scroll g-tab-body">
           {tab === 'Codex' && <Codex game={game} hud={hud} />}
+          {tab === 'Blueprints' && <Blueprints game={game} hud={hud} />}
+          {tab === 'Lab' && <EngineeringLab game={game} hud={hud} />}
           {tab === 'Skills' && <SkillTree game={game} hud={hud} />}
           {tab === 'Gear' && <GearList hud={hud} game={game} />}
           {tab === 'Achievements' && (
@@ -92,6 +101,8 @@ export default function PauseMenu({ game, hud }: { game: Game; hud: Hud }) {
 
 function Codex({ game, hud }: { game: Game; hud: Hud }) {
   const { portfolio } = game;
+  const [query,setQuery]=useState('');
+  const matches=(value:string)=>value.toLowerCase().includes(query.trim().toLowerCase());
   const open = (levelId: string, roomId: string, partId?: string) => {
     const level = portfolio.levels.find((l) => l.id === levelId);
     const room = level?.rooms.find((r) => r.id === roomId);
@@ -102,12 +113,14 @@ function Codex({ game, hud }: { game: Game; hud: Hud }) {
   return (
     <div className="g-codex">
       <p className="g-sub">Everything you&apos;ve scanned so far. Unscanned entries stay encrypted until you find them in-game — or read them all in Professional mode.</p>
+      <label className="g-search">Search recovered knowledge<input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Project, technology, employer, or fact…"/></label>
+      {query.trim() && <p role="status">Matching recovered entries below. Clear the search to browse all missions.</p>}
       {MISSION_ORDER.map((id) => {
         const level = portfolio.levels.find((l) => l.id === id);
         if (!level) return null;
         const c = chips(portfolio, hud.save, id);
         return (
-          <details key={id} open={id === hud.scene}>
+          <details key={`${id}:${!!query}`} open={!!query || id === hud.scene}>
             <summary>
               <b>{level.title}</b> <span>◆ {c.got}/{c.total}</span>{' '}
               <button
@@ -126,6 +139,9 @@ function Codex({ game, hud }: { game: Game; hud: Hud }) {
                 .map((room) => {
                   const rk = id === 'projects' ? `build:${room.id}` : roomKey(id, room.id);
                   const seen = id === 'projects' ? hud.save.built.includes(room.id) : hud.save.scanned.includes(rk);
+                  const roomMatch=seen&&matches(`${room.title} ${room.body} ${Object.values(room.meta).join(' ')}`);
+                  const parts=room.parts.filter(p=>!p.todo||p.body).filter(p=>!query||hud.save.scanned.includes(partKey(id,room.id,p.id))&&matches(`${p.title} ${p.body} ${Object.values(p.meta).join(' ')}`));
+                  if(query && !roomMatch && !parts.length)return null;
                   return (
                     <li key={room.id}>
                       <button className={seen ? 'got' : ''} disabled={!seen} onClick={() => open(id, room.id)}>
@@ -133,8 +149,7 @@ function Codex({ game, hud }: { game: Game; hud: Hud }) {
                       </button>
                       {room.parts.length > 0 && (
                         <ul>
-                          {room.parts
-                            .filter((p) => !p.todo || p.body)
+                          {parts
                             .map((part) => {
                               const got = hud.save.scanned.includes(partKey(id, room.id, part.id));
                               return (
@@ -192,6 +207,7 @@ function GearList({ game, hud }: { game: Game; hud: Hud }) {
               {g.desc}
               {got.has(g.id) ? '' : ` — clear ${from?.title ?? g.from} to unlock`}
             </span>
+            {got.has(g.id)&&g.id!=='firewall'&&<button className="g-btn" onClick={()=>game.startPractice(g.id)}>{hud.save.practiced?.includes(g.id)?'✓ Practice again':'Practice ability'}{hud.scene!=='hub'?' · at station':''}</button>}
           </li>
         );
       })}
@@ -205,6 +221,10 @@ function SettingsTab({ game, hud }: { game: Game; hud: Hud }) {
   const [confirm, setConfirm] = useState(false);
   return (
     <div className="g-settings">
+      <label><input type="checkbox" checked={s.depthReadability} onChange={e=>game.setSettings({depthReadability:e.target.checked})}/> Clear depth — stronger terrain contrast, reduced glow</label>
+      <label>Text size · {Math.round(s.textScale*100)}%<input type="range" min="0.9" max="1.5" step="0.05" value={s.textScale} onChange={e=>game.setSettings({textScale:+e.target.value})}/></label>
+      <label>HUD size · {Math.round(s.hudScale*100)}%<input type="range" min="0.8" max="1.2" step="0.05" value={s.hudScale} onChange={e=>game.setSettings({hudScale:+e.target.value})}/></label>
+      <label>Panel opacity · {Math.round(s.panelOpacity*100)}%<input type="range" min="0.75" max="1" step="0.05" value={s.panelOpacity} onChange={e=>game.setSettings({panelOpacity:+e.target.value})}/></label>
       <label>
         <input type="checkbox" checked={!s.muted} onChange={(e) => game.setSettings({ muted: !e.target.checked })} /> Sound on
       </label>

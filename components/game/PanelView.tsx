@@ -8,20 +8,10 @@ import ModelViewer from '../ModelViewer';
 import ContactForm from '../pro/ContactForm';
 import SkillTree from './SkillTree';
 import StarMap from './StarMap';
+import { useModal } from './useModal';
 
 export default function PanelView({ game, hud, panel }: { game: Game; hud: Hud; panel: Panel }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') {
-        e.stopPropagation();
-        game.closePanel();
-      }
-    };
-    addEventListener('keydown', onKey, true);
-    return () => removeEventListener('keydown', onKey, true);
-  }, [game, panel]);
+  const ref = useModal(()=>game.closePanel());
 
   const close = () => game.closePanel();
   const wide = panel.kind === 'starmap' || panel.kind === 'skills' || panel.kind === 'locker' || (panel.kind === 'content' && panel.model);
@@ -33,6 +23,7 @@ export default function PanelView({ game, hud, panel }: { game: Game; hud: Hud; 
         className={`g-panel${wide ? ' wide' : ''}${panel.kind === 'content' && panel.tone ? ` ${panel.tone}` : ''}`}
         role="dialog"
         aria-modal="true"
+        aria-label={panel.kind === 'content' ? panel.title : panel.kind}
         tabIndex={-1}
       >
         <button className="g-close" onClick={close} aria-label="Close">

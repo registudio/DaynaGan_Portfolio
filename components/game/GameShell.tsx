@@ -11,6 +11,7 @@ import PanelView from './PanelView';
 import PauseMenu from './PauseMenu';
 import TouchControls from './TouchControls';
 import ControlsOverlay from './ControlsOverlay';
+import { useGameState } from './useGameState';
 import './game.css';
 
 export default function GameShell({
@@ -37,6 +38,7 @@ export default function GameShell({
     if (!canvas.current || !overlay.current) return;
     const touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let g: Game | null = null;
+    let tourTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       g = new Game({
         canvas: canvas.current,
@@ -48,13 +50,13 @@ export default function GameShell({
       });
       g.start(planet ? 'planet' : 'hub');
       setGame(g);
-      if (tour) setTimeout(() => g?.startTour(), 900);
+      if (tour) tourTimer = setTimeout(() => g?.startTour(), 900);
       if (process.env.NODE_ENV !== 'production') (window as unknown as { __game: Game }).__game = g;
     } catch (e) {
       console.error(e);
       setError('Your browser could not start the 3D game (WebGL unavailable).');
     }
-    return () => g?.dispose();
+    return () => { clearTimeout(tourTimer); g?.dispose(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolio, github]);
 
@@ -78,7 +80,8 @@ export default function GameShell({
 }
 
 export function useHud(game: Game): Hud {
-  return useSyncExternalStore(game.store.subscribe, game.store.get, game.store.get);
+  // Cooldowns are consumed by Hotbar alone, not by panels or the rest of the HUD.
+  return useGameState(game, ['scene','sceneTitle','loading','hp','maxHp','prompt','objective','chips','panel','card','area','assembly','banner','menu','toasts','save','settings','rev','touch','dead','boss','device','tour','navigation']) as Hud;
 }
 
 function GameUi({ game }: { game: Game }) {

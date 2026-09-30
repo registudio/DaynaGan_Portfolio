@@ -137,6 +137,7 @@ export class Input {
       const map: [number, Action][] = [
         [0, 'interact'],
         [2, 'melee'],
+        [3, 'cat'],
         [1, 'zap'],
         [7, 'zap'],
         [4, 'dash'],

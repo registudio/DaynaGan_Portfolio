@@ -107,10 +107,10 @@ export function projectPanel(
       .join('')}</ul>`;
     const hints = skillHint(check, levelTitles);
     if (missingParts.length) html += `<p class="g-warn">Recover the missing parts scattered through the caverns — some are carried by bugs.</p>`;
-    else if (hints.length) {
+    if (hints.length) {
       tone = 'warn';
       html += `<p class="g-warn">Assembly locked — skill check failed:</p><ul class="g-req">${hints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>`;
-    } else {
+    } else if (!missingParts.length) {
       html += `<p class="g-ok">All parts recovered and skills met.</p>`;
       actions.push({ id: `build:${room.id}`, label: '⚙ Assemble project', primary: true });
     }
@@ -118,6 +118,7 @@ export function projectPanel(
     if (first) html += `<div class="g-sub">Case file</div>${first}</p>`;
   }
   if (room.meta.status === 'in-progress') html += `<p class="g-warn">⚠ CASE FILE INCOMPLETE — full write-up coming soon.</p>`;
+  actions.push({id:`track:${room.id}`,label:'Pin blueprint & next step'});
   actions.push({ id: `pro:${proAnchor(levelId, room.id)}`, label: 'Open in Professional mode' });
   return {
     panel: {
