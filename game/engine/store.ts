@@ -75,6 +75,8 @@ export type SaveData = {
   /** Puzzles Xiao Hu bypassed. */
   bypassed: string[];
   catAssists?: number;
+  /** Bot fabricators destroyed (ids like `about-fab-0`). */
+  spawners?: string[];
 };
 
 export const SAVE_KEY = 'dg-save-v2';

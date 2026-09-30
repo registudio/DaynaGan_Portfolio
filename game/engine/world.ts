@@ -10,12 +10,10 @@ const CLIFF_DEPTH = 4;
 
 type Batch = { material: THREE.Material; matrices: THREE.Matrix4[] };
 
-function surfaceMaterial(s: Surface, shade = 1): THREE.MeshStandardMaterial {
+function surfaceMaterial(s: Surface, shade = 1): THREE.MeshLambertMaterial {
   const color = new THREE.Color(s.color).multiplyScalar(shade);
-  const m = new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshLambertMaterial({
     map: pixelTexture(s.pattern, `#${color.getHexString()}`, s.accent ?? s.color),
-    roughness: 0.85,
-    metalness: 0.15,
   });
   if (s.glow) {
     m.emissiveMap = glowTexture(s.pattern, s.accent ?? s.color);
@@ -45,17 +43,16 @@ function worldMaterials(b: Biome): WorldMaterials {
     wall: surfaceMaterial(b.wall),
     wallDark: surfaceMaterial(b.wall, 0.75),
     top: surfaceMaterial({ pattern: 'metal', color: b.wall.color }, 0.6),
-    trim: new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.wallTop.color), emissiveIntensity: 1.3 }),
-    cliff: new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1 }),
-    cliffDeep: new THREE.MeshStandardMaterial({ map: pixelTexture('stone', b.cliff), roughness: 1, color: '#777777' }),
-    rail: new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color(b.rail), emissiveIntensity: 1.1 }),
-    windowMat: new THREE.MeshStandardMaterial({
+    // Emissive-only surfaces don't need lighting at all.
+    trim: new THREE.MeshBasicMaterial({ color: new THREE.Color(b.wallTop.color).multiplyScalar(1.3) }),
+    cliff: new THREE.MeshLambertMaterial({ map: pixelTexture('stone', b.cliff) }),
+    cliffDeep: new THREE.MeshLambertMaterial({ map: pixelTexture('stone', b.cliff), color: '#777777' }),
+    rail: new THREE.MeshBasicMaterial({ color: new THREE.Color(b.rail).multiplyScalar(1.1) }),
+    windowMat: new THREE.MeshLambertMaterial({
       color: '#0b1020',
       emissive: new THREE.Color('#1e3a8a'),
       emissiveIntensity: 0.9,
       emissiveMap: glowTexture('stone', '#93c5fd'),
-      roughness: 0.2,
-      metalness: 0.6,
     }),
   };
   materialCache.set(key, m);
@@ -320,7 +317,7 @@ export class Bursts {
   spawn(at: THREE.Vector3, color: string, count = 14, speed = 3, glowing = true) {
     let m = this.mats.get(color);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color, emissive: glowing ? color : '#000000', emissiveIntensity: glowing ? 2 : 0 });
+      m = glowing ? new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(2) }) : new THREE.MeshLambertMaterial({ color });
       this.mats.set(color, m);
     }
     for (let i = 0; i < count; i++) {

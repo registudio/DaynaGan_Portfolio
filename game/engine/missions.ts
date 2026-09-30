@@ -54,6 +54,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'puzzler', name: 'Puzzler', desc: 'Solve all three puzzles without Xiao Hu chewing the wires' },
   { id: 'good-kitty', name: 'Good Kitty', desc: 'Let Xiao Hu stun or fetch 5 times' },
   { id: 'combo', name: 'Three-Hit Wonder', desc: 'Land a full wrench combo on a mini-boss' },
+  { id: 'fab-breaker', name: 'Supply Chain Attack', desc: 'Destroy 5 bot fabricators' },
 ];
 
 export const MISSION_ORDER = ['about', 'education', 'experience', 'projects', 'trophies', 'leadership', 'github', 'contact'];

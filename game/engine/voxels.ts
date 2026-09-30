@@ -14,11 +14,10 @@ export function mat(color: string, o: MatOpts = {}): THREE.Material {
   const key = `${color}|${o.emissive ?? ''}|${o.intensity ?? ''}|${o.pattern ?? 'noise'}|${o.accent ?? ''}|${o.metal ?? ''}|${o.rough ?? ''}|${o.transparent ?? ''}`;
   const hit = mats.get(key);
   if (hit) return hit;
-  const m = new THREE.MeshStandardMaterial({
+  // Lambert (diffuse only): far cheaper per pixel than PBR, and voxels don't need the specular.
+  const m = new THREE.MeshLambertMaterial({
     color: '#ffffff',
     map: pixelTexture(o.pattern ?? 'noise', color, o.accent ?? '#ffffff', 8),
-    metalness: o.metal ?? 0.1,
-    roughness: o.rough ?? 0.8,
     emissive: o.emissive != null ? new THREE.Color(o.emissive) : new THREE.Color(0),
     emissiveIntensity: o.intensity ?? (o.emissive != null ? 1.4 : 0),
     transparent: o.transparent != null,

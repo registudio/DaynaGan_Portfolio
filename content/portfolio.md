@@ -167,7 +167,7 @@ title: A path, one layer deeper each time.
 kicker: From school robotics club to computer engineering
 biome: academy-spires
 light: #60a5fa
-enemies: none
+enemies: pop-quiz-drones
 mission: Climb the spires
 
 My academic path has moved progressively deeper into the intersection of electronics, software, control systems and intelligent machines.
@@ -662,7 +662,7 @@ title: The toolkit.
 kicker: What I work with, and what it has earned
 biome: trophy-hall
 light: #fbbf24
-enemies: none
+enemies: dust-bots
 mission: Fill the shelves
 
 The languages, platforms and tools I reach for — and some recognition picked up along the way.
@@ -758,7 +758,7 @@ title: Building people, too.
 kicker: Clubs, committees and community
 biome: colony-commons
 light: #34d399
-enemies: none
+enemies: pest-bugs
 mission: Meet the colony
 
 ## Robotics @APEX, SST

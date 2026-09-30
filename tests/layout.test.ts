@@ -62,3 +62,39 @@ for (const id of ['hub', ...portfolio.levels.filter((l) => l.meta.kind !== 'hub'
     }
   });
 }
+
+const CONTENT_LEVELS = ['about', 'education', 'experience', 'leadership'];
+for (const id of CONTENT_LEVELS) {
+  test(`level ${id}: every part gets a terminal and every terminal can be approached from all sides`, () => {
+    const map = buildLevel(portfolio, id, { peaceful: false, github: feed });
+    const level = portfolio.levels.find((l) => l.id === id)!;
+    if (id !== 'leadership') {
+      const want = level.rooms.flatMap((r) => r.parts.filter((p) => !p.todo || p.body).map((p) => `${r.id}/${p.id}`));
+      const got = map.spawns.filter((s) => s.kind === 'terminal').map((s) => (s.kind === 'terminal' ? `${s.roomId}/${s.partId}` : ''));
+      assert.deepEqual(got.sort(), want.sort());
+    }
+    for (const s of map.spawns) {
+      if (s.kind !== 'terminal' && s.kind !== 'console' && s.kind !== 'npc') continue;
+      const x = Math.floor(s.x);
+      const z = Math.floor(s.z);
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const c = map.cells[(z + dz) * map.w + (x + dx)];
+        assert.ok(c && c.t === FLOOR && !c.solid, `${id}: ${s.kind} at ${s.x},${s.z} blocked on side ${dx},${dz}`);
+      }
+    }
+  });
+}
+
+for (const id of ['about', 'education', 'experience', 'projects', 'trophies', 'leadership', 'github', 'contact']) {
+  test(`level ${id}: has bots and 2–3 fabricators (none in Peaceful)`, () => {
+    const map = buildLevel(portfolio, id, { peaceful: false, github: feed });
+    const bots = map.spawns.filter((s) => s.kind === 'enemy').length;
+    const fabs = map.spawns.filter((s) => s.kind === 'spawner');
+    assert.ok(bots >= 4, `${id}: only ${bots} bots`);
+    assert.ok(fabs.length >= 2 && fabs.length <= 3, `${id}: ${fabs.length} fabricators`);
+    const boss = map.spawns.find((s) => s.kind === 'boss');
+    for (const f of fabs) if (boss && boss.kind === 'boss' && f.kind === 'spawner') assert.notEqual(f.room, boss.room, 'no fabricator in the boss arena');
+    const calm = buildLevel(portfolio, id, { peaceful: true, github: feed });
+    assert.equal(calm.spawns.filter((s) => s.kind === 'spawner' || s.kind === 'enemy').length, 0);
+  });
+}

@@ -52,6 +52,7 @@ export type Spawn =
   | { kind: 'exit'; x: number; z: number }
   | { kind: 'enemy'; x: number; z: number; type: string; room: number }
   | { kind: 'boss'; x: number; z: number; room: number; type: string }
+  | { kind: 'spawner'; id: string; x: number; z: number; room: number; type: string }
   | { kind: 'barrier'; id: string; cells: { x: number; z: number }[]; x: number; z: number }
   | { kind: 'pnode'; id: string; index: number; x: number; z: number }
   | { kind: 'phint'; id: string; x: number; z: number }
@@ -225,16 +226,24 @@ class Builder {
     return this.doors.some((d) => Math.abs(d.x - x) <= dist && Math.abs(d.z - z) <= dist);
   }
 
-  /** Candidate interactable spots inside a room: back wall first, then left wall, then the rest. */
-  spots(room: RoomRect, gap = 2.6): { x: number; z: number }[] {
+  /**
+   * Candidate interactable spots inside a room, on a ring inset from the walls so every
+   * trigger circle can be walked into from any side: back row first, then the sides, then the front.
+   */
+  spots(room: RoomRect, gap = 2.6, inset = 2.5): { x: number; z: number }[] {
     const out: { x: number; z: number }[] = [];
+    // Skip doors and anything already placed (puzzle nodes, barriers…) so each ring stays clear.
     const add = (x: number, z: number) => {
-      if (!this.nearDoor(x, z, 1.6)) out.push({ x, z });
+      if (!this.nearDoor(x, z, 1.6) && this.isFree(x, z, 1)) out.push({ x, z });
     };
-    for (let x = room.x + 2.5; x <= room.x + room.w - 2; x += gap) add(x, room.z + 1.5);
-    for (let z = room.z + 2.5 + gap; z <= room.z + room.d - 2.5; z += gap) add(room.x + 1.5, z);
-    for (let z = room.z + 2.5 + gap; z <= room.z + room.d - 2.5; z += gap) add(room.x + room.w - 1.5, z);
-    for (let x = room.x + 2.5 + gap; x <= room.x + room.w - 3; x += gap) add(x, room.z + room.d - 1.5);
+    const x0 = room.x + inset;
+    const x1 = room.x + room.w - inset;
+    const z0 = room.z + inset;
+    const z1 = room.z + room.d - inset;
+    for (let x = x0; x <= x1 + 0.01; x += gap) add(x, z0);
+    for (let z = z0 + gap; z <= z1 - gap / 2; z += gap) add(x0, z);
+    for (let z = z0 + gap; z <= z1 - gap / 2; z += gap) add(x1, z);
+    for (let x = x0 + gap; x <= x1 - gap / 2; x += gap) add(x, z1);
     return out;
   }
 
@@ -297,6 +306,9 @@ const ENEMIES: Record<string, string[]> = {
   'short-circuit-bugs': ['bug'],
   'malware-packets': ['packet'],
   'static-drones': ['drone'],
+  'pop-quiz-drones': ['drone', 'wisp'],
+  'dust-bots': ['crawler', 'packet'],
+  'pest-bugs': ['bug', 'crawler'],
 };
 
 function enemyTypes(level: Level): string[] {
@@ -394,42 +406,74 @@ export function buildLevel(
         b.spawns.push({ kind: 'npc', x: cx, z: room.z + room.d / 2 - 1, roomId: content.id, look: room.i });
         b.claim(cx, room.z + room.d / 2 - 1, 1);
       } else {
-        b.spawns.push({ kind: 'console', x: cx, z: room.z + 1.5, roomId: content.id });
-        b.claim(cx, room.z + 1.5, 1);
+        b.spawns.push({ kind: 'console', x: cx, z: room.z + 2.5, roomId: content.id });
+        b.claim(cx, room.z + 2.5, 1);
       }
-      const spots = b.spots(room).filter((s) => Math.abs(s.x - cx) > 1.8 || s.z > room.z + 2);
+      const spots = b.spots(room).filter((s) => Math.abs(s.x - cx) > 1.8 || s.z > room.z + 3);
       content.parts
         .filter((p) => !p.todo || p.body)
         .forEach((part, k) => {
-          const s = spots[k];
+          // Crowded rooms (puzzle nodes, hint consoles) fall back to any clear floor.
+          const s = spots[k] ?? b.randomFree(room, rand, 1, 2) ?? b.randomFree(room, rand, 0, 2);
           if (!s) return;
           b.spawns.push({ kind: 'terminal', x: s.x, z: s.z, roomId: content.id, partId: part.id });
           b.claim(s.x, s.z, 1);
         });
     }
 
-  if (levelId !== 'projects' && levelId !== 'github')
-    spawnEnemies(b, level, rand, opts.peaceful, contentRooms, levelId === 'about' ? 1 : 2);
+  if (levelId !== 'projects' && levelId !== 'github') spawnEnemies(b, level, rand, opts.peaceful, contentRooms, 2);
   if (levelId === 'github' && !opts.peaceful) spawnEnemies(b, level, rand, false, contentRooms.slice(0, -1), 2);
-  if (!opts.peaceful) placeBoss(b, levelId, rooms);
-  else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
+  if (!opts.peaceful) {
+    placeBoss(b, levelId, rooms);
+    placeSpawners(b, level, levelId, rooms, rand);
+  } else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
   b.decorate(biome, rand, levelId === 'trophies' ? 0.1 : 0.16);
   return b.result(levelId, biome, spawn);
 }
 
 /** Mini-boss arena: the last content room (Caverns: the big cavern; Comms: the relay field). */
+function bossRoom(levelId: string, rooms: RoomRect[]) {
+  if (!BOSSES[levelId] || levelId === 'github') return undefined;
+  return levelId === 'projects'
+    ? rooms.find((r) => r.kind === 'cavern')
+    : levelId === 'contact'
+      ? rooms.find((r) => r.roomId === 'relays')
+      : [...rooms].reverse().find((r) => r.kind === 'content');
+}
+
 function placeBoss(b: Builder, levelId: string, rooms: RoomRect[]) {
   const def = BOSSES[levelId];
-  if (!def || levelId === 'github') return;
-  const room =
-    levelId === 'projects'
-      ? rooms.find((r) => r.kind === 'cavern')
-      : levelId === 'contact'
-        ? rooms.find((r) => r.roomId === 'relays')
-        : [...rooms].reverse().find((r) => r.kind === 'content');
-  if (!room) return;
+  const room = bossRoom(levelId, rooms);
+  if (!def || !room) return;
   const p = b.randomFree(room, rng(room.x * 31 + room.z), 1, 3) ?? { x: room.x + room.w / 2, z: room.z + room.d / 2 + 1.5 };
   b.spawns.push({ kind: 'boss', x: p.x, z: p.z, room: room.i, type: def.type });
+}
+
+/**
+ * Bot fabricators: destructible spawners that keep printing the level's bots while you're
+ * in their room. Every combat level gets 2–3, never in the entry or mini-boss room.
+ */
+function placeSpawners(b: Builder, level: Level, levelId: string, rooms: RoomRect[], rand: () => number) {
+  const types = levelId === 'projects' ? ['bug'] : enemyTypes(level);
+  if (!types.length) return;
+  const bossSpawn = b.spawns.find((s) => s.kind === 'boss');
+  const bossIdx = bossSpawn?.kind === 'boss' ? bossSpawn.room : bossRoom(levelId, rooms)?.i;
+  const candidates = rooms.filter((r) => r.i !== bossIdx && (r.kind === 'content' || r.kind === 'vault' || r.kind === 'cavern'));
+  if (!candidates.length) return;
+  // Spread them out: every other room from the second, then fill up to two by cycling rooms.
+  const order = [...candidates.filter((_, k) => k % 2 === 1), ...candidates.filter((_, k) => k % 2 === 0)];
+  const want = Math.min(3, Math.max(2, Math.ceil(candidates.length / 2)));
+  let placed = 0;
+  for (let k = 0; placed < want && k < order.length * 2; k++) {
+    const room = order[k % order.length];
+    const p = b.randomFree(room, rand, 1, 3) ?? b.randomFree(room, rand, 1, 2) ?? b.randomFree(room, rand, 0, 2);
+    if (!p) continue;
+    b.claim(p.x, p.z, 1);
+    const c = b.cell(Math.floor(p.x), Math.floor(p.z));
+    if (c) c.solid = true;
+    b.spawns.push({ kind: 'spawner', id: `${levelId}-fab-${placed}`, x: p.x, z: p.z, room: room.i, type: types[placed % types.length] });
+    placed++;
+  }
 }
 
 /** Energy barrier across the corridor into the final room, puzzle nodes + hint console in the room before. */
@@ -505,18 +549,20 @@ function buildProjects(b: Builder, level: Level, rooms: RoomRect[], rand: () => 
 }
 
 function buildTrophies(b: Builder, level: Level, rooms: RoomRect[], secret: RoomRect) {
+  const rand = rng(4242);
   for (const room of rooms) {
     const content = level.rooms.find((r) => r.id === room.roomId);
     if (!content) continue;
     const cx = room.x + room.w / 2;
     if (content.id === 'awards') {
-      b.spawns.push({ kind: 'console', x: cx, z: room.z + 1.5, roomId: content.id });
-      b.claim(cx, room.z + 1.5, 1);
-      const spots = b.spots(room, 2.4).filter((s) => Math.abs(s.x - cx) > 1.8 || s.z > room.z + 2);
+      b.spawns.push({ kind: 'console', x: cx, z: room.z + 2.5, roomId: content.id });
+      b.claim(cx, room.z + 2.5, 1);
+      const spots = b.spots(room, 2.4).filter((s) => Math.abs(s.x - cx) > 1.8 || s.z > room.z + 3);
       content.parts
         .filter((p) => !p.todo || p.body)
         .forEach((part, k) => {
-          const s = spots[k];
+          // Crowded rooms (puzzle nodes, hint consoles) fall back to any clear floor.
+          const s = spots[k] ?? b.randomFree(room, rand, 1, 2) ?? b.randomFree(room, rand, 0, 2);
           if (!s) return;
           b.spawns.push({ kind: 'terminal', x: s.x, z: s.z, roomId: content.id, partId: part.id });
           b.claim(s.x, s.z, 1);
@@ -527,8 +573,8 @@ function buildTrophies(b: Builder, level: Level, rooms: RoomRect[], secret: Room
       const c = b.cell(Math.floor(cx), Math.floor(room.z + room.d / 2));
       if (c) c.solid = true;
     } else if (content.id === 'shelves') {
-      b.spawns.push({ kind: 'console', x: room.x + 1.5, z: room.z + room.d / 2 + 2, roomId: content.id });
-      b.claim(room.x + 1.5, room.z + room.d / 2 + 2, 1);
+      b.spawns.push({ kind: 'console', x: room.x + 2.5, z: room.z + room.d / 2 + 2, roomId: content.id });
+      b.claim(room.x + 2.5, room.z + room.d / 2 + 2, 1);
       const ids = PROJECT_IDS;
       const spots = b.spots(room, 2.2).filter((s) => Math.abs(s.x - cx) > 1.5);
       ids.forEach((id, k) => {
@@ -541,11 +587,11 @@ function buildTrophies(b: Builder, level: Level, rooms: RoomRect[], secret: Room
     }
   }
   const scx = secret.x + secret.w / 2;
-  b.spawns.push({ kind: 'backroom', x: scx, z: secret.z + 1.5 });
-  b.claim(scx, secret.z + 1.5, 1);
+  b.spawns.push({ kind: 'backroom', x: scx, z: secret.z + 2.5 });
+  b.claim(scx, secret.z + 2.5, 1);
   // Lab-notebook terminals and Xiao Hu's bed.
   const content = level.rooms.find((r) => r.id === 'backroom');
-  const spots = b.spots(secret, 2.6).filter((s) => Math.abs(s.x - scx) > 1.8 || s.z > secret.z + 2);
+  const spots = b.spots(secret, 2.6).filter((s) => Math.abs(s.x - scx) > 1.8 || s.z > secret.z + 3);
   content?.parts
     .filter((p) => !p.todo || p.body)
     .filter((p) => p.id !== 'cat-corner')
@@ -569,12 +615,12 @@ function buildGitHub(b: Builder, level: Level, rooms: RoomRect[], feed: GitHubFe
     const content = level.rooms.find((r) => r.id === room.roomId);
     if (!content) continue;
     const cx = room.x + room.w / 2;
-    b.spawns.push({ kind: 'console', x: cx, z: room.z + 1.5, roomId: content.id });
-    b.claim(cx, room.z + 1.5, 1);
+    b.spawns.push({ kind: 'console', x: cx, z: room.z + 2.5, roomId: content.id });
+    b.claim(cx, room.z + 2.5, 1);
     if (content.id === 'contributions') {
       b.spawns.push({ kind: 'grid', x: room.x + 2, z: room.z + 3, w: room.w - 4, d: Math.min(7, room.d - 5) });
     } else if (content.id === 'repos') {
-      const spots = b.spots(room, 2.4).filter((s) => Math.abs(s.x - cx) > 1.8 || s.z > room.z + 2);
+      const spots = b.spots(room, 2.4).filter((s) => Math.abs(s.x - cx) > 1.8 || s.z > room.z + 3);
       feed.repos.slice(0, spots.length).forEach((_, k) => {
         const s = spots[k];
         b.spawns.push({ kind: 'repo', x: s.x, z: s.z, index: k });
@@ -633,7 +679,7 @@ function buildHub(): LevelMap {
   put('pad', cx, cz + 3, false);
   put('bunk', room.x + 2, room.z + 2);
   put('catbed', room.x + 4.5, room.z + 1.5);
-  put('locker', room.x + room.w - 2.5, room.z + 1.5);
+  put('locker', room.x + room.w - 2.5, room.z + 2.5);
   put('vendor', room.x + room.w - 1.5, room.z + 6);
   put('earth', room.x - 10, room.z - 12, false);
   // Path tiles from pad to star map.

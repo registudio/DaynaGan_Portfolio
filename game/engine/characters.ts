@@ -258,9 +258,9 @@ export function buildCat(): Rig {
 
 // ── Enemies ──────────────────────────────────────────────────────────────────
 
-export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss' | 'core' | 'arm' | 'queen' | 'swarm';
+export type EnemyType = 'wisp' | 'welder' | 'crawler' | 'bug' | 'packet' | 'drone' | 'boss' | 'core' | 'arm' | 'queen' | 'swarm' | 'spawner';
 
-export function buildEnemy(type: EnemyType): Rig {
+export function buildEnemy(type: EnemyType, accent = '#f43f5e'): Rig {
   const root = new THREE.Group();
   const body = group(root);
   const parts: Record<string, THREE.Object3D> = {};
@@ -421,6 +421,27 @@ export function buildEnemy(type: EnemyType): Rig {
       parts.core = core;
       break;
     }
+    case 'spawner': {
+      // Bot Fabricator: a hazard-striped pad with four pylons and a spinning core that prints bots.
+      blobShadow(0.9, root);
+      box(1.5, 0.3, 1.5, mat('#26262e', { pattern: 'panel' }), 0, 0.15, 0, body);
+      box(1.56, 0.08, 1.56, mat('#15151a', { pattern: 'hazard', accent }), 0, 0.33, 0, body);
+      box(0.8, 0.06, 0.8, mat('#050507', { emissive: accent, intensity: 0.6 }), 0, 0.38, 0, body);
+      for (const [x, z] of [
+        [-0.62, -0.62],
+        [0.62, -0.62],
+        [-0.62, 0.62],
+        [0.62, 0.62],
+      ]) {
+        box(0.2, 1.1, 0.2, mat('#3a3a44', { pattern: 'metal' }), x, 0.85, z, body);
+        box(0.26, 0.12, 0.26, glow(accent, 3), x, 1.44, z, body);
+      }
+      const core = group(body, 0, 1.05, 0);
+      box(0.42, 0.42, 0.42, glow(accent, 2.4), 0, 0, 0, core);
+      box(0.6, 0.06, 0.6, mat('#1f1f27'), 0, 0, 0, core).rotation.y = Math.PI / 4;
+      parts.core = core;
+      break;
+    }
     case 'boss': {
       floaty = true;
       blobShadow(1.0, root);
@@ -478,6 +499,10 @@ export function buildEnemy(type: EnemyType): Rig {
       }
       if (parts.craft) parts.craft.children.forEach((c) => c.userData.rotor && (c.rotation.y += dt * 30));
       if (parts.core && type === 'boss') parts.core.rotation.y = Math.sin(t * 0.8) * 0.4;
+      if (parts.core && type === 'spawner') {
+        parts.core.rotation.y += dt * (1.5 + speed * 6);
+        parts.core.position.y = 1.05 + Math.sin(t * 2) * 0.08;
+      }
       for (let i = 0; i < 6; i++) {
         const leg = parts[`leg${i}`];
         if (leg) leg.rotation.x = Math.sin(bob + i) * 0.5 * Math.min(1, speed);
