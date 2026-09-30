@@ -349,6 +349,51 @@ Plan:
 - *Mission stars:* ★ clear · ★ clean sweep (every trial + every fabricator; Peaceful mode waives fabricators) · ★ all golden screws — 24 in total, shown under each star-map island, in the star-map detail, in the objective line and on the mission-cleared banner.
 - *Rewards:* 12 stars → **Golden Wrench** (+1 wrench damage); 24 → *Completionist*; first screw → *Screw Loose*.
 
+## Round 6 — Professional Mode refinement (decided with the client)
+
+Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand with slow animated gradients; **no game visuals** in Professional Mode (the game stays behind the Play button). Everything respects `prefers-reduced-motion` and works without WebGL.
+
+**Site-wide**
+- Scroll progress bar + a side rail of section dots (active section highlighted).
+- Soft purple cursor spotlight on desktop (pointer: fine only).
+- Page-load intro: name draws in (~1.2 s), once per session, skippable, off for reduced motion.
+- Floating glass pill nav that shrinks on scroll with a sliding active indicator; contains section links, theme toggle and Play Game; on phones it opens a slide-up bottom-sheet menu.
+- Footer: back-to-top, social links (LinkedIn, GitHub, email), Play Game, "last updated" (build date).
+- Order: About → Education → Experience → Projects → Skills → Leadership → GitHub → Hobbies → Future Goals → Contact.
+
+**Hero / About**
+- Centrepiece: a horizontal carousel of all project 3D models (like the v1 archive hero) — models slide along the x-axis, each spinning on its turntable; wireframe blueprints until the CAD exports arrive.
+- Headline stays plain text for now (a custom animation will be supplied later).
+- A "Currently" status pill. CTAs: Download résumé, Contact me.
+
+**Education & Experience** (separate sections)
+- Scroll-drawn timeline line; each node lights up and its card slides in.
+- All details visible (no collapsing). Tech-stack chips (click → filters Projects) and count-up impact metrics.
+
+**Projects** (pinned showcase)
+- Section pins; one project per scroll step; the 3D viewer on one side swaps/rotates, text changes beside it.
+- Models come from CAD exports (`public/models/<project-id>.glb|.stl|.obj`); wireframe placeholders until then.
+- Viewer: drag to rotate / wheel to zoom, exploded view, hotspot annotations, auto-rotate when idle.
+- Filter chips by tech/skill; GitHub/demo links and a complete / in-progress status badge.
+
+**Skills & Awards**
+- Grouped chips with level bars that fill on scroll. Hovering a skill highlights the roles/projects that used it; clicking filters Projects.
+- Awards as trophy cards that flip on hover/focus to reveal the story. No certificates.
+
+**Leadership**
+- Role cards with count-up impact numbers, staggered rise, most recent first. No testimonials.
+
+**GitHub** (compact)
+- Animated contribution heatmap (wave fill), GitHub-pinned repos with language bars, terminal-style commit log that types in, stats counters.
+
+**Hobbies** — bento grid, icon + title + one-liner, one micro-animation per hobby; Xiao Hu gets the largest tile.
+
+**Future Goals** — orbit/trajectory arc; a marker travels Now → Next few years → Long term as you scroll; hover/tap a goal for its plan and timeframe.
+
+**Contact**
+- Big "Let's build something" CTA + form with floating labels and a send animation.
+- Copy-email button, inquiry chips (Internship / job · Project collaboration · Mentorship / advice · Just saying hi) that prefill the subject, "Usually replies within 2 days".
+
 ## Improvement backlog (suggested)
 
 ### Performance
