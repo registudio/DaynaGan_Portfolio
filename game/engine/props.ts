@@ -810,3 +810,20 @@ export function buildGateDoor(span: number, alongX: boolean, laser: boolean) {
   g.userData.panel = panel;
   return g;
 }
+
+/** Golden screw collectible: hex head, threaded shank, slow spin and hover. */
+export function buildScrew() {
+  const g = new THREE.Group();
+  const s = group(g, 0, 0.55, 0);
+  const gold = mat('#f5c542', { pattern: 'metal', emissive: '#b8860b', intensity: 0.35 });
+  box(0.3, 0.08, 0.3, gold, 0, 0.18, 0, s);
+  box(0.22, 0.08, 0.34, gold, 0, 0.18, 0, s).rotation.y = Math.PI / 3;
+  box(0.1, 0.03, 0.26, mat('#7a5a10'), 0, 0.225, 0, s);
+  for (let k = 0; k < 4; k++) box(0.13, 0.05, 0.13, gold, 0, 0.1 - k * 0.07, 0, s).rotation.y = k * 0.4;
+  box(0.06, 0.06, 0.06, gold, 0, -0.2, 0, s);
+  s.userData.spin = 1.4;
+  s.userData.hover = true;
+  const glint = box(0.05, 0.05, 0.05, glow('#fff7cc', 2.4), 0.12, 0.3, 0.12, s);
+  glint.userData.blink = true;
+  return g;
+}

@@ -57,6 +57,7 @@ export type Spawn =
   | { kind: 'transmitter'; x: number; z: number }
   | { kind: 'exit'; x: number; z: number }
   | { kind: 'home'; x: number; z: number }
+  | { kind: 'screw'; id: string; x: number; z: number }
   | { kind: 'enemy'; x: number; z: number; type: string; room: number }
   | { kind: 'boss'; x: number; z: number; room: number; type: string }
   | { kind: 'spawner'; id: string; x: number; z: number; room: number; type: string }
@@ -348,16 +349,44 @@ function roomSize(parts: number): { w: number; d: number } {
   return { w, d: parts > 6 ? 15 : 13 };
 }
 
+const RANGED = new Set(['welder', 'drone']);
+
+/**
+ * Encounter groups with readable roles: a pressure pack of melee bots at the room's middle,
+ * ranged support at the back (far side from where you enter), and — in some rooms — a
+ * fabricator as the reinforcement source (placed separately).
+ */
 function spawnEnemies(b: Builder, level: Level, rand: () => number, peaceful: boolean, rooms: RoomRect[], count = 2) {
   const types = enemyTypes(level);
   if (!types.length || peaceful) return;
-  for (const room of rooms) {
+  const melee = types.filter((t) => !RANGED.has(t));
+  const ranged = types.filter((t) => RANGED.has(t));
+  const pressure = melee.length ? melee : types;
+  const support = ranged.length ? ranged : ['drone'];
+  rooms.forEach((room, r) => {
     const n = count + Math.floor(rand() * 2);
+    // Pressure: clustered around the room centre.
     for (let k = 0; k < n; k++) {
-      const p = b.randomFree(room, rand, 0, 3);
-      if (p) b.spawns.push({ kind: 'enemy', x: p.x, z: p.z, type: types[k % types.length], room: room.i });
+      const p = b.randomFree(room, rand, 0, Math.max(3, Math.floor(Math.min(room.w, room.d) / 3)));
+      if (p) b.spawns.push({ kind: 'enemy', x: p.x, z: p.z, type: pressure[k % pressure.length], room: room.i });
     }
-  }
+    // Ranged support from the second combat room on, near the back wall.
+    if (r === 0) return;
+    for (let k = 0; k < 1 + (r > 2 ? 1 : 0); k++) {
+      // "Back" = the side opposite the corridor you arrive through.
+      const into = b.corridors.find((c) => c.b === room.i);
+      const fromX = !!into && into.cells[0].x < room.x;
+      for (let t = 0; t < 30; t++) {
+        const along = 2 + rand() * ((fromX ? room.d : room.w) - 4);
+        const depth = 2 + rand() * 2.5;
+        const x = fromX ? room.x + room.w - depth : room.x + along;
+        const z = fromX ? room.z + along : room.z + room.d - depth;
+        if (!b.isFree(x, z, 0) || b.nearDoor(x, z)) continue;
+        b.spawns.push({ kind: 'enemy', x: Math.floor(x) + 0.5, z: Math.floor(z) + 0.5, type: support[k % support.length], room: room.i });
+        break;
+      }
+    }
+  });
 }
 
 function entryRoom(b: Builder, room: RoomRect, what: string) {
@@ -457,6 +486,7 @@ export function buildLevel(
   } else b.spawns = b.spawns.filter((s) => s.kind !== 'boss');
   placeHazards(b, levelId, rooms, rand);
   buildTrials(b, level, levelId, rooms, rand, opts.peaceful);
+  placeScrews(b, levelId, rooms, rand);
   // Portal home in the last room (opens once the mission is cleared).
   const last = [...rooms].reverse().find((r) => r.kind !== 'secret' && r.kind !== 'entry');
   const hp = last && (b.randomFree(last, rand, 1, 2) ?? b.randomFree(last, rand, 0, 2));
@@ -727,6 +757,33 @@ function buildTrials(b: Builder, level: Level, levelId: string, rooms: RoomRect[
         points,
       });
     });
+}
+
+export const SCREWS_PER_MISSION = 3;
+
+/**
+ * Golden screws: hidden collectibles, tucked into corners away from the doors (one inside a
+ * trial room when there is one). Deterministic, so saved ids stay valid.
+ */
+function placeScrews(b: Builder, levelId: string, rooms: RoomRect[], rand: () => number) {
+  const trial = rooms.filter((r) => r.kind === 'trial');
+  const others = rooms.filter((r) => r.kind === 'content' || r.kind === 'vault' || r.kind === 'cavern');
+  const order = [...trial.slice(0, 1), ...others.filter((_, k) => k % 2 === 1), ...others.filter((_, k) => k % 2 === 0)];
+  let n = 0;
+  for (const room of order) {
+    if (n >= SCREWS_PER_MISSION) break;
+    const corners = [
+      { x: room.x + 1, z: room.z + 1 },
+      { x: room.x + room.w - 2, z: room.z + 1 },
+      { x: room.x + 1, z: room.z + room.d - 2 },
+      { x: room.x + room.w - 2, z: room.z + room.d - 2 },
+    ].sort(() => rand() - 0.5);
+    const spot = corners.find((c) => b.isFree(c.x + 0.5, c.z + 0.5, 0) && !b.nearDoor(c.x + 0.5, c.z + 0.5, 3));
+    if (!spot) continue;
+    b.claim(spot.x + 0.5, spot.z + 0.5, 0);
+    b.spawns.push({ kind: 'screw', id: `${levelId}-screw-${n}`, x: spot.x + 0.5, z: spot.z + 0.5 });
+    n++;
+  }
 }
 
 /** Energy barrier across the corridor into the final room, puzzle nodes + hint console in the room before. */

@@ -67,3 +67,20 @@ test('Xiao Hu learns tricks as missions are cleared', async () => {
     for (const trick of CAT_TRICKS) assert.equal(t[trick.id], k + 1 >= trick.need, `${trick.id} after ${k + 1}`);
   }
 });
+
+test('mission stars: clear, clean sweep (trials + fabricators), all screws', async () => {
+  const { missionStars } = await import('../game/engine/missions.ts');
+  const counts = { fabs: ['about-fab-0', 'about-fab-1'], trials: ['about-trial-0'], screws: ['about-screw-0', 'about-screw-1', 'about-screw-2'] };
+  const save = emptySave();
+  assert.equal(missionStars(save, 'about', counts, false).got, 0);
+  save.cleared.push('about');
+  save.trials = ['about-trial-0'];
+  assert.equal(missionStars(save, 'about', counts, false).sweep, false, 'fabricators still standing');
+  assert.equal(missionStars(save, 'about', counts, true).sweep, true, 'Peaceful mode has no fabricators');
+  save.spawners = ['about-fab-0', 'about-fab-1'];
+  save.screws = ['about-screw-0', 'about-screw-2'];
+  const s = missionStars(save, 'about', counts, false);
+  assert.deepEqual([s.got, s.screwCount, s.screws], [2, 2, false]);
+  save.screws.push('about-screw-1');
+  assert.equal(missionStars(save, 'about', counts, false).got, 3);
+});

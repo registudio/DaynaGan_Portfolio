@@ -22,6 +22,9 @@ import {
   BOSSES,
   CAT_TRICKS,
   catTricks,
+  missionStars,
+  STAR_REWARD,
+  type MissionCounts,
   chips,
   contactUnlocked,
   COOLDOWNS,
@@ -64,6 +67,7 @@ import {
   buildPressurePlate,
   buildReleaseButton,
   buildSocket,
+  buildScrew,
 } from './props.ts';
 import { heatLevel } from './heat.ts';
 import { batchStatic } from './batch.ts';
@@ -76,7 +80,7 @@ import { buildDecor, buildMonument, buildNatureGate, buildPiece, runeColour } fr
 import { emptySave, loadSave, loadSettings, persist, Store, type Action, type Difficulty, type Hud, type Panel, type SaveData, type Settings } from './store.ts';
 import { levelFragments, roomIntro, summarize, type Fragment } from './lore.ts';
 import { glow, UNIT_BOX } from './voxels.ts';
-import { canStep } from './terrain.ts';
+import { canStep, MAX_STEP } from './terrain.ts';
 import { matchesTopic, projectPlan, signalPath, TOUR_TOPICS, type TourTopic } from './exploration.ts';
 import { Ambient, Bursts, LightPool, World, type LightSource } from './world.ts';
 
@@ -1141,7 +1145,10 @@ export class Game {
           object: obj,
           accent: color,
           done: () => this.save.built.includes(room.id),
-          use: () => this.openProject(room),
+          use: () => {
+            if (this.assembly?.room.id === room.id) this.toggleOverclock();
+            else this.openProject(room);
+          },
         });
         break;
       }
@@ -1358,6 +1365,28 @@ export class Game {
       case 'trial':
         this.spawnTrial(s);
         break;
+      case 'screw': {
+        if (this.save.screws?.includes(s.id)) break;
+        const obj = this.place(buildScrew(), s.x, s.z, 0, false);
+        obj.traverse((o) => (o.userData.spin || o.userData.hover) && this.spinners.push(o));
+        const it = this.inter({
+          id: s.id, kind: 'part', x: s.x, z: s.z, radius: 0.85, verb: 'Collect', label: 'Golden screw', object: obj, auto: true, done: () => false,
+          use: () => {
+            this.save.screws = [...(this.save.screws ?? []), s.id];
+            this.markDirty();
+            this.removeInter(it);
+            obj.removeFromParent();
+            this.audio.sfx('skill');
+            this.bursts.spawn(new THREE.Vector3(s.x, this.world!.heightAt(s.x, s.z) + 0.6, s.z), '#fde047', 18, 3);
+            const st = this.stars(this.sceneId);
+            this.floatText(this.player.pos.clone().add(new THREE.Vector3(0, 2.3, 0)), `GOLDEN SCREW ${st.screwCount}/3`, 'skill');
+            this.award('screw-loose');
+            this.afterStars();
+            this.refreshHud();
+          },
+        });
+        break;
+      }
       case 'home':
         this.homeSpot = { x: s.x, z: s.z };
         if (this.save.cleared.includes(this.sceneId)) this.openHomePortal(false);
@@ -1461,6 +1490,12 @@ export class Game {
         }
       }
     } else this.openPlanetGate(pz, false);
+    if (!solved && def.gate !== 'bridge')
+      this.inter({
+        id: `${pz.id}:gate`, kind: 'barrier', x: pz.gate.x, z: pz.gate.z, radius: 2.2, verb: 'Inspect', label: def.gate === 'lava' ? 'Lava flow' : 'Sealed gate',
+        sub: def.name, summary: `Opens when: ${def.hint}`, object: this.level, accent: '#fde68a',
+        done: () => st.solved.includes(pz.id), enabled: () => !st.solved.includes(pz.id), use: () => this.say(def.hint, 4500, true),
+      });
     // Hint stone.
     const hint = buildPiece('runestone', 4);
     this.place(hint, pz.hint.x, pz.hint.z);
@@ -1669,7 +1704,16 @@ export class Game {
     const done = this.trialDone(s.id);
     const rt = { id: s.id, type: s.type, room: s.room, gate: `${s.id}:gate`, flipped: 0, wave: 0, waveBots: [] as Enemy[], started: false } as Parameters<typeof this.trials.set>[1];
     this.trials.set(s.id, rt);
-    if (!done) this.createGate(rt.gate, s.gate.cells, s.type === 'lasers', s.gate);
+    if (!done) {
+      this.createGate(rt.gate, s.gate.cells, s.type === 'lasers', s.gate);
+      // Explain the lock right at the door.
+      const info = TRIAL_INFO[s.type];
+      this.inter({
+        id: `${s.id}:door`, kind: 'barrier', x: s.gate.x, z: s.gate.z, radius: 2.2, verb: 'Inspect', label: 'Locked door',
+        sub: info.name, summary: `Opens when: ${info.task}`, object: this.level, accent: '#f59e0b',
+        done: () => this.trialDone(s.id), enabled: () => !this.trialDone(s.id), use: () => this.say(`Locked. ${info.task} ${info.hint}`, 4500, true),
+      });
+    }
     const complete = () => this.completeTrial(s.id);
     for (const pt of s.points) {
       if (pt.role === 'cover') {
@@ -1763,6 +1807,7 @@ export class Game {
     if (rt.entryGate) this.openGate(rt.entryGate);
     const info = TRIAL_INFO[rt.type];
     this.store.toast(`🔓 TRIAL COMPLETE · ${info.name} — ${info.done}`, 'gear', 3600);
+    this.afterStars();
     this.say(info.done, 2800, true);
     if ((this.save.trials?.length ?? 0) >= 5) this.award('trailblazer');
     this.refreshHud();
@@ -1893,6 +1938,32 @@ export class Game {
       'pest-bugs': ['bug', 'crawler'],
     };
     return map[level?.meta.enemies ?? ''] ?? ['wisp'];
+  }
+
+  // ── Mission stars ───────────────────────────────────────────────────────────
+
+  missionCounts(id: string): MissionCounts {
+    const map = this.levelPreview(id);
+    const ids = (kind: string) => map.spawns.filter((s) => s.kind === kind).map((s) => (s as { id: string }).id);
+    return { fabs: ids('spawner'), trials: ids('trial'), screws: ids('screw') };
+  }
+
+  stars(id: string) {
+    return missionStars(this.save, id, this.missionCounts(id), this.settings.peaceful);
+  }
+
+  totalStars() {
+    return MISSION_ORDER.reduce((n, id) => n + this.stars(id).got, 0);
+  }
+
+  /** Check star milestones after anything that can earn a star. */
+  private afterStars() {
+    const total = this.totalStars();
+    if (total >= STAR_REWARD && !this.save.achievements.includes('golden-wrench')) {
+      this.award('golden-wrench');
+      this.store.toast('GOLDEN WRENCH — your wrench now hits for +1 damage', 'gear', 5000);
+    }
+    if (total >= MISSION_ORDER.length * 3) this.award('completionist');
   }
 
   // ── Portal home ─────────────────────────────────────────────────────────────
@@ -2658,7 +2729,7 @@ export class Game {
     this.comboT = 0.6;
     const finisher = this.combo === 3;
     const range = finisher ? 2.4 : 1.9;
-    const dmg = finisher ? 3 : 2;
+    const dmg = (finisher ? 3 : 2) + (this.save.achievements.includes('golden-wrench') ? 1 : 0);
     // Half-angle of the swing; the drawn arc and the hit test use the same value.
     const half = finisher ? 1.75 : 1.35;
     const dir = this.aimDir(2.8, -1);
@@ -2874,6 +2945,7 @@ export class Game {
       if (c) c.solid = false;
       this.save.spawners = [...(this.save.spawners ?? []), e.fab.id];
       if (this.save.spawners.length >= 5) this.award('fab-breaker');
+      this.afterStars();
       this.dropHeart(e.pos);
       const left = this.enemies.filter((x) => x.fab).length;
       this.store.toast(left ? `Fabricator destroyed — ${left} left in this mission` : 'All fabricators in this mission destroyed', 'info');
@@ -3954,19 +4026,25 @@ export class Game {
     station: THREE.Vector3;
     spawnT: number;
     wave: Enemy[];
-    state: 'ok' | 'jammed' | 'away';
+    state: 'ok' | 'jammed' | 'away' | 'fault';
     shown: number;
+    /** Decisions: power faults to reset, optional overclock, a relay fabricator to take out. */
+    faults: number[];
+    fault: { obj: THREE.Object3D; it: Inter } | null;
+    overclock: boolean;
+    relay: Enemy | null;
+    relayDone: boolean;
   } | null = null;
 
   private startAssembly(room: Room) {
     const station = this.inters.find((i) => i.id === `assembly:${room.id}`);
     if (!station) return this.completeBuild(room);
     const dur = { story: 30, normal: 45, hard: 55 }[this.settings.difficulty ?? 'normal'];
-    this.assembly = { room, t: 0, dur, vault: this.world!.roomAt(station.pos.x, station.pos.z), station: station.pos.clone(), spawnT: 1.5, wave: [], state: 'ok', shown: -1 };
+    this.assembly = { room, t: 0, dur, vault: this.world!.roomAt(station.pos.x, station.pos.z), station: station.pos.clone(), spawnT: 1.5, wave: [], state: 'ok', shown: -1, faults: [0.35, 0.7], fault: null, overclock: false, relay: null, relayDone: false };
     this.store.set({ panel: null });
     this.audio.sfx('emp');
     this.shake = 0.25;
-    this.say(`Assembling ${room.title}! Keep the bugs off the station for ${dur} seconds!`, 3800, true);
+    this.say(`Assembling ${room.title}! Keep the bugs off the station for ${dur} seconds! (E at the station overclocks it.)`, 4200, true);
     this.syncAssemblyHud();
   }
 
@@ -3976,9 +4054,31 @@ export class Game {
     const p = this.player;
     const away = this.world!.roomAt(p.pos.x, p.pos.z) !== a.vault;
     const jammed = this.enemies.some((e) => e.spec.speed > 0 && e.pos.distanceTo(a.station) < 1.9 + e.spec.radius);
-    a.state = away ? 'away' : jammed ? 'jammed' : 'ok';
-    if (a.state === 'ok') a.t += dt;
+    a.state = a.fault ? 'fault' : away ? 'away' : jammed ? 'jammed' : 'ok';
+    if (a.state === 'ok') a.t += dt * (a.overclock ? 1.6 : 1);
     const k = Math.min(1, a.t / a.dur);
+    // Power fault: the build stalls until a breaker somewhere in the vault is reset.
+    if (!a.fault && a.faults.length && k >= a.faults[0]) {
+      a.faults.shift();
+      this.assemblyFault(a);
+    }
+    // Relay fabricator at the halfway mark: feeds the waves until destroyed.
+    if (!a.relay && !a.relayDone && k >= 0.5) {
+      const r = this.map.rooms[a.vault];
+      const spot = this.freeNear(new THREE.Vector3(r.x + (a.station.x > r.x + r.w / 2 ? 2.5 : r.w - 2.5), 0, r.z + (a.station.z > r.z + r.d / 2 ? 2.5 : r.d - 2.5)));
+      const fab = this.addEnemy('spawner', spot.x, spot.z, a.vault, '#22d3ee');
+      fab.hp = 6;
+      fab.fab = { type: 'bug', id: `${a.room.id}-relay`, kids: [], t: 2 };
+      a.relay = fab;
+      this.shake = Math.max(this.shake, 0.3);
+      this.say('A relay fabricator just teleported in! Take it out to slow the waves — or hold the station.', 4200, true);
+    }
+    if (a.relay && !this.enemies.includes(a.relay)) {
+      a.relay = null;
+      a.relayDone = true;
+      a.t = Math.min(a.dur, a.t + a.dur * 0.08);
+      this.store.toast('Relay destroyed — waves slowed, +8% assembly', 'gear', 2600);
+    }
     // The blueprint visibly pulls itself together as the bar fills.
     this.blueprints.get(a.room.id)?.setExplode(0.6 * (1 - k));
     if (a.state === 'ok' && Math.random() < dt * 6) this.bursts.spawn(a.station.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 1.6, -1.3)), '#22d3ee', 2, 1.5);
@@ -3986,8 +4086,8 @@ export class Game {
     a.spawnT -= dt;
     a.wave = a.wave.filter((e) => this.enemies.includes(e));
     if (a.spawnT <= 0 && a.wave.length < 6) {
-      a.spawnT = (k > 0.6 ? 2.4 : 3.2) * this.difficulty().cooldown;
-      const count = 1 + (k > 0.5 ? 1 : 0) + (this.difficulty().extra ? 1 : 0);
+      a.spawnT = (k > 0.6 ? 2.4 : 3.2) * this.difficulty().cooldown * (a.overclock ? 0.7 : 1) * (a.relay ? 0.75 : a.relayDone ? 1.3 : 1);
+      const count = 1 + (k > 0.5 ? 1 : 0) + (this.difficulty().extra ? 1 : 0) + (a.overclock ? 1 : 0);
       const r = this.map.rooms[a.vault];
       for (let n = 0, tries = 0; n < count && tries < 30; tries++) {
         const x = r.x + 1.5 + Math.random() * (r.w - 3);
@@ -4004,10 +4104,58 @@ export class Game {
     this.syncAssemblyHud();
     if (a.t >= a.dur) {
       this.assembly = null;
+      this.clearAssemblyFault(a);
+      if (a.relay && this.enemies.includes(a.relay)) this.killEnemy(a.relay);
       for (const e of a.wave) if (this.enemies.includes(e)) this.killEnemy(e);
       this.store.set({ assembly: null });
       this.completeBuild(a.room);
     }
+  }
+
+  private assemblyFault(a: NonNullable<Game['assembly']>) {
+    const r = this.map.rooms[a.vault];
+    // Somewhere away from the station, so resetting it means leaving the station exposed.
+    let spot = a.station.clone();
+    for (let t = 0; t < 40; t++) {
+      const x = r.x + 1.5 + Math.random() * (r.w - 3);
+      const z = r.z + 1.5 + Math.random() * (r.d - 3);
+      if (this.world!.solid(x, z) || Math.hypot(x - a.station.x, z - a.station.z) < 5) continue;
+      spot = new THREE.Vector3(Math.floor(x) + 0.5, 0, Math.floor(z) + 0.5);
+      break;
+    }
+    const obj = this.place(buildBreaker(), spot.x, spot.z, 0, false);
+    (obj.userData.lamp as THREE.Mesh).material = glow('#ef4444', 2);
+    const it = this.inter({
+      id: `${a.room.id}:fault`, kind: 'trial', x: spot.x, z: spot.z, radius: 1.5, verb: 'Reset', label: 'Tripped breaker', sub: 'Assembly stalled',
+      object: obj, accent: '#ef4444', done: () => false,
+      use: () => {
+        this.clearAssemblyFault(a);
+        this.audio.sfx('build');
+        this.say('Power restored — back to the station!', 2200, true);
+      },
+    });
+    a.fault = { obj, it };
+    this.audio.sfx('error');
+    this.shake = Math.max(this.shake, 0.25);
+    this.say('Power fault! Reset the breaker — the assembly is stalled.', 3200, true);
+  }
+
+  private clearAssemblyFault(a: NonNullable<Game['assembly']>) {
+    if (!a.fault) return;
+    this.removeInter(a.fault.it);
+    a.fault.it.ring?.removeFromParent();
+    a.fault.obj.removeFromParent();
+    a.fault = null;
+  }
+
+  /** E at the station while assembling: overclock (faster build, bigger waves). */
+  private toggleOverclock() {
+    const a = this.assembly;
+    if (!a) return false;
+    a.overclock = !a.overclock;
+    this.audio.sfx(a.overclock ? 'emp' : 'close');
+    this.store.toast(a.overclock ? 'OVERCLOCK — builds 60% faster, waves hit harder' : 'Overclock off', a.overclock ? 'warn' : 'info', 2200);
+    return true;
   }
 
   private syncAssemblyHud() {
@@ -4015,14 +4163,16 @@ export class Game {
     if (!a) return;
     const p = Math.floor((a.t / a.dur) * 100);
     const cur = this.store.get().assembly;
-    if (cur && a.shown === p && cur.state === a.state) return;
+    if (cur && a.shown === p && cur.state === a.state && cur.overclock === a.overclock && cur.relay === !!a.relay) return;
     a.shown = p;
-    this.store.set({ assembly: { title: a.room.title, p, state: a.state, left: Math.ceil(a.dur - a.t) } });
+    this.store.set({ assembly: { title: a.room.title, p, state: a.state, left: Math.ceil((a.dur - a.t) / (a.overclock ? 1.6 : 1)), overclock: a.overclock, relay: !!a.relay } });
   }
 
   private cancelAssembly(why: string) {
     if (!this.assembly) return;
     const room = this.assembly.room;
+    this.clearAssemblyFault(this.assembly);
+    if (this.assembly.relay && this.enemies.includes(this.assembly.relay)) this.killEnemy(this.assembly.relay);
     this.assembly = null;
     this.store.set({ assembly: null });
     this.syncBlueprint(room.id);
@@ -4226,7 +4376,12 @@ export class Game {
     this.markDirty();
     const level = this.portfolio.levels.find((l) => l.id === id);
     const gear = GEAR.find((g) => g.from === id);
-    this.store.set({ banner: { title: 'MISSION CLEARED', sub: level?.meta.mission ?? level?.title ?? '', id: Date.now() } });
+    const st = this.stars(id);
+    const starLine = `${'★'.repeat(st.got)}${'☆'.repeat(3 - st.got)}`;
+    this.store.set({ banner: { title: 'MISSION CLEARED', sub: `${starLine} · ${level?.meta.mission ?? level?.title ?? ''}`, id: Date.now() } });
+    this.afterStars();
+    if (st.got < 3)
+      this.defer(() => this.say(`${st.sweep ? '' : 'Bonus star: finish every trial and fabricator. '}${st.screws ? '' : `Bonus star: find the golden screws (${st.screwCount}/3).`}`, 5000), 5200);
     this.shake = Math.max(this.shake, 0.4);
     this.openHomePortal(true);
     this.defer(() => this.store.set({ banner: null }), 3800);
@@ -4292,7 +4447,11 @@ export class Game {
     this.store.set({
       objective: trial
         ? { mission: `Trial · ${TRIAL_INFO[trial.type].name}`, text: TRIAL_INFO[trial.type].task, done: false }
-        : { mission: id === 'hub' ? 'Station Hub' : level?.meta.mission ?? level?.title ?? '', text: obj.text, done: obj.done },
+        : {
+            mission: id === 'hub' ? 'Station Hub' : level?.meta.mission ?? level?.title ?? '',
+            text: MISSION_ORDER.includes(id) ? `${obj.text} · ★ ${this.stars(id).got}/3 · screws ${this.stars(id).screwCount}/3` : obj.text,
+            done: obj.done,
+          },
       chips: id === 'hub' ? null : chips(this.portfolio, this.save, id),
       save: { ...this.save },
       rev: this.store.get().rev + 1,
@@ -4370,7 +4529,7 @@ export class Game {
         i.el.className = `g-label${i.stat ? ' stat' : ''}${i.kind === 'banner' ? ' banner' : ''}`;
         const head = i.stat
           ? `<span class="big">${escapeHtml(i.stat.value)}</span><span class="s">${escapeHtml(i.stat.label)}</span>`
-          : `<span class="t">${escapeHtml(i.label)}</span>${i.sub ? `<span class="s">${escapeHtml(i.sub)}</span>` : ''}`;
+          : `<span class="t"><i class="g-sym" aria-hidden="true">${labelSymbol(i.kind)}</i>${escapeHtml(i.label)}</span>${i.sub ? `<span class="s">${escapeHtml(i.sub)}</span>` : ''}`;
         const more = i.summary && i.summary !== i.sub ? `<span class="x">${escapeHtml(i.summary)}</span>` : '';
         const bar = i.scan ? '<span class="bar"><i></i></span>' : '';
         i.el.innerHTML = `${head}${more}${bar}<span class="k">E · ${escapeHtml(i.verb === 'Scan' ? 'Open' : i.verb)} full entry</span>`;
@@ -4416,14 +4575,25 @@ export class Game {
       for (let x = 0; x < this.map.w; x++) {
         const cell = this.map.cells[z * this.map.w + x];
         if (hidden != null && cell.room === hidden) continue;
-        if (cell.t === 1) ctx.fillStyle = cell.solid ? '#3a3f55' : `hsl(${cell.surf === 'path' ? 265 : 210} 28% ${Math.min(78,36+cell.h*7)}%)`;
+        if (cell.t === 1) ctx.fillStyle = cell.solid ? '#3a3f55' : `hsl(${cell.surf === 'path' ? 265 : 210} 30% ${Math.min(80, 30 + Math.floor(cell.h * 2) * 5)}%)`; // one band per half block
         else if (cell.t === 2) ctx.fillStyle = cell.secret ? '#262a3a' : '#20243a';
         else continue;
         ctx.fillRect(x * S, z * S, S, S);
-        if (cell.t===1) for (const [dx,dz] of [[1,0],[0,1]]) {
-          const n=this.world?.cell(x+dx,z+dz);
-          if(n?.t===1&&Math.abs(n.h-cell.h)>0.01){ctx.fillStyle='#e2e8f0';ctx.fillRect(x*S+(dx?S-1:0),z*S+(dz?S-1:0),dx?1:S,dz?1:S);}
-        }
+        // Height edges: light ticks where you can step (stairs), heavy dark lines at ledges.
+        if (cell.t === 1)
+          for (const [dx, dz] of [
+            [1, 0],
+            [0, 1],
+          ]) {
+            const n = this.world?.cell(x + dx, z + dz);
+            if (n?.t !== 1) continue;
+            const dh = Math.abs(n.h - cell.h);
+            if (dh < 0.01) continue;
+            const ledge = dh > MAX_STEP + 1e-6;
+            ctx.fillStyle = ledge ? '#0b0d18' : '#e2e8f0';
+            const t = ledge ? 2 : 1;
+            if (ledge || (x + z) % 2 === 0) ctx.fillRect(x * S + (dx ? S - t : 0), z * S + (dz ? S - t : 0), dx ? t : S, dz ? t : S);
+          }
       }
     return c;
   }
@@ -4455,6 +4625,13 @@ export class Game {
       const done = i.done();
       if (i.kind === 'part' && this.scannerT <= 0 && i.pos.distanceTo(p) > 7) continue;
       dot(i.pos.x, i.pos.z, done ? '#475569' : i.kind === 'part' ? '#fde047' : i.kind === 'exit' || i.kind === 'pad' ? '#a78bfa' : '#67e8f9', done ? 1 : 1.5, done?'·':i.kind==='part'?'◆':i.kind==='exit'||i.kind==='pad'?'↗':'○');
+      // Above / below you.
+      const dh = i.pos.y - p.y;
+      if (!done && Math.abs(dh) > MAX_STEP + 0.1) {
+        ctx.fillStyle = dh > 0 ? '#fde68a' : '#93c5fd';
+        ctx.font = 'bold 7px sans-serif';
+        ctx.fillText(dh > 0 ? '▲' : '▼', i.pos.x * S + 5, i.pos.z * S - 4);
+      }
     }
     if (this.scannerT > 0) for (const e of this.enemies) dot(e.pos.x, e.pos.z, '#f43f5e', 1.2, '!');
     for (const e of this.enemies) if (e.fab) dot(e.pos.x, e.pos.z, '#f43f5e', 2.2, 'F');
@@ -4650,4 +4827,13 @@ function weakGpu(renderer: THREE.WebGLRenderer) {
   } catch {
     return false;
   }
+}
+
+/** One glyph per kind of thing, so meaning never relies on colour alone. */
+function labelSymbol(kind: string) {
+  const map: Record<string, string> = {
+    exit: '↗', pad: '↗', part: '◆', fragment: '◆', piece: '◆', console: '▣', terminal: '▣', repo: '▣', npc: '☺',
+    trial: '⚙', hint: '?', landmark: '★', barrier: '⚠', relay: '⚡', assembly: '⚙', shelf: '▤', matrix: '✦',
+  };
+  return map[kind] ?? '•';
 }

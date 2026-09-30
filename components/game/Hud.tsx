@@ -51,7 +51,16 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
           </button>
         </div>
         <canvas ref={mini} className="g-minimap" width={300} height={300} aria-label="Minimap" />
-        <small className="g-map-legend">◆ Part · ○ Console · ↗ Exit · ! Bot · F Fabricator<br/>Light = higher · white seams = stairs · height {hud.navigation?.height ?? 0}m</small>
+        <details className="g-map-legend">
+          <summary>
+            Map key · <b>height {hud.navigation?.height ?? 0}</b>
+          </summary>
+          ◆ collectible · ○ console · ↗ exit · ! bot · F fabricator
+          <br />
+          lighter = higher · ▲▼ above/below you
+          <br />
+          dotted edge = stairs · thick dark edge = ledge
+        </details>
         {hud.objective && (
           <div className={`g-objective${hud.objective.done ? ' done' : ''}`}>
             <b>◆ {hud.objective.mission}</b>
@@ -90,17 +99,26 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
         <div className={`g-assembly ${hud.assembly.state}`} role="status">
           <div className="g-assembly-head">
             <b>ASSEMBLING · {hud.assembly.title}</b>
-            <span>{hud.assembly.state === 'ok' ? `${hud.assembly.left}s` : hud.assembly.state === 'jammed' ? 'JAMMED' : 'PAUSED'}</span>
+            <span>
+              {hud.assembly.overclock && hud.assembly.state === 'ok' ? '⚡ ' : ''}
+              {hud.assembly.state === 'ok' ? `${hud.assembly.left}s` : hud.assembly.state === 'jammed' ? 'JAMMED' : hud.assembly.state === 'fault' ? 'POWER FAULT' : 'PAUSED'}
+            </span>
           </div>
           <div className="g-assembly-bar">
             <i style={{ width: `${hud.assembly.p}%` }} />
           </div>
           <small>
-            {hud.assembly.state === 'jammed'
-              ? 'Bots on the station — knock them off!'
-              : hud.assembly.state === 'away'
-                ? 'Get back to the vault to keep building.'
-                : 'Hold the line — keep the bugs off the station.'}
+            {hud.assembly.state === 'fault'
+              ? 'Reset the tripped breaker in the vault to restore power.'
+              : hud.assembly.state === 'jammed'
+                ? 'Bots on the station — knock them off!'
+                : hud.assembly.state === 'away'
+                  ? 'Get back to the vault to keep building.'
+                  : hud.assembly.relay
+                    ? 'Relay fabricator active — destroy it to slow the waves.'
+                    : hud.assembly.overclock
+                      ? 'Overclocked — faster build, heavier waves. E at the station to stop.'
+                      : 'Hold the line · E at the station to overclock.'}
           </small>
         </div>
       )}

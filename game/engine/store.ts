@@ -83,6 +83,8 @@ export type SaveData = {
   spawners?: string[];
   /** Lore fragments collected from bots. */
   fragments?: string[];
+  /** Golden screws found (ids like `about-screw-0`). */
+  screws?: string[];
   /** Trial rooms completed (ids like `about-trial-0`). */
   trials?: string[];
   /** Planet Aurora: landmarks read, puzzles solved, regions discovered. */
@@ -203,7 +205,7 @@ export type Hud = {
   /** Mission just cleared banner. */
   banner: { title: string; sub: string; id: number } | null;
   /** Hold-the-line assembly in progress. */
-  assembly: { title: string; p: number; state: 'ok' | 'jammed' | 'away'; left: number } | null;
+  assembly: { title: string; p: number; state: 'ok' | 'jammed' | 'away' | 'fault'; left: number; overclock?: boolean; relay?: boolean } | null;
   /** Area title card shown on first entering a room. */
   area: { eyebrow: string; title: string; sub: string; id: number } | null;
   menu: null | 'pause';

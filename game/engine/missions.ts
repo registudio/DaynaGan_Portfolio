@@ -54,6 +54,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'puzzler', name: 'Puzzler', desc: 'Solve all three puzzles without Xiao Hu chewing the wires' },
   { id: 'good-kitty', name: 'Good Kitty', desc: 'Let Xiao Hu stun or fetch 5 times' },
   { id: 'combo', name: 'Three-Hit Wonder', desc: 'Land a full wrench combo on a mini-boss' },
+  { id: 'golden-wrench', name: 'Golden Wrench', desc: `Earn ${12} mission stars (+1 wrench damage)` },
+  { id: 'completionist', name: 'Completionist', desc: 'Earn all 24 mission stars' },
+  { id: 'screw-loose', name: 'Screw Loose', desc: 'Find your first golden screw' },
   { id: 'explorer', name: 'Explorer', desc: 'Discover every region of Planet Aurora' },
   { id: 'naturalist', name: 'Naturalist', desc: 'Solve every nature puzzle on Planet Aurora' },
   { id: 'trailblazer', name: 'Trailblazer', desc: 'Complete 5 trial rooms' },
@@ -184,3 +187,20 @@ export function catTricks(p: Portfolio, save: SaveData): Record<CatTrickId, bool
   const n = clearedCount(p, save);
   return Object.fromEntries(CAT_TRICKS.map((t) => [t.id, n >= t.need])) as Record<CatTrickId, boolean>;
 }
+
+// ── Mission stars (optional challenges) ──────────────────────────────────────
+
+export type MissionCounts = { fabs: string[]; trials: string[]; screws: string[] };
+export type Stars = { cleared: boolean; sweep: boolean; screws: boolean; got: number; screwCount: number };
+
+/** ★ clear the mission · ★ clean sweep (every trial + every fabricator) · ★ all golden screws. */
+export function missionStars(save: SaveData, levelId: string, counts: MissionCounts, peaceful: boolean): Stars {
+  const cleared = save.cleared.includes(levelId);
+  const fabsDone = peaceful || counts.fabs.every((id) => save.spawners?.includes(id));
+  const sweep = cleared && fabsDone && counts.trials.every((id) => save.trials?.includes(id));
+  const screwCount = counts.screws.filter((id) => save.screws?.includes(id)).length;
+  const screws = counts.screws.length > 0 && screwCount >= counts.screws.length;
+  return { cleared, sweep, screws, got: +cleared + +sweep + +screws, screwCount };
+}
+
+export const STAR_REWARD = 12;

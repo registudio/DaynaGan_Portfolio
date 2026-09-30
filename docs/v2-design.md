@@ -314,7 +314,7 @@ Planned per mission so each type appears 2–3 times; completed trials are saved
 
 Pushed directly to `main`: trackable project blueprints (pin a project; the HUD shows its next step with direction, distance and above/below), searchable codex, three interactive engineering labs (claw grip, sensor calibration, signal routing), topic tours (robotics / embedded / AI), chunked world batches and exposed-face terrain with baked corner shading, step-height traversal (`MAX_STEP` 0.4), ranged bots keep distance and melee bots flank, signal-routing / bit-flip puzzle explanations, safe ability practice at the station, depth-readability / text size / HUD scale / panel opacity settings, symbols on the minimap, focus-trapped modals with gamepad navigation, input-aware hotbar with cooldown seconds and lock reasons, lore cards queued during combat, and systematic disposal of effects and GPU resources. The commit contained unresolved stash conflict markers; they were resolved by keeping both sides.
 
-## Round 5 — selected (in progress)
+## Round 5 — selected (done)
 
 Owner picked from the latest suggestion list: **Features** 1, 2, 4, 5 · **Performance** 1–5 · **Gameplay** 1, 2, 3, 5 (plus 4) · **UI/UX** 1–5 · **HUD** 1–5 — and answered: *smoother, stylised 3D appearance* and *grow into a slightly longer game*. Main complaint: textures don't read as 3D and elevations are hard to tell apart.
 
@@ -323,6 +323,31 @@ Plan:
 - **Fix** — the planet's terrain was drawn twice after the merge (instanced blocks + face mesher); route it through the face mesher with per-terrain materials.
 - **Gaps in the chosen items** — encounter groups with readable roles (pressure / ranged support / reinforcement), interactive assembly defence (restore power, repair, interrupt a fabricator), locked-action explanations everywhere, elevation-aware minimap (height bands, stair marks, above/below arrows), toast priority during combat/boss/assembly.
 - **Longer game** — optional per-mission challenges (stars) and hidden collectibles.
+
+### Round 5 — what shipped
+
+**Depth & look** (`terrain.ts`, `edgepass.ts`, `world.ts`)
+- Tops brighten ~6% per block of height; contact shading into corners and against walls is stronger; risers are darker than tops and use a distinct texture; every ledge gets a light *lip* on its edge and a dark *seam* at its foot. All of this is baked into the terrain mesh, so it survives every quality tier.
+- Depth-edge post pass: contour lines on silhouettes and on creases (second derivative of the orthographic depth), so even ledges facing the camera are outlined. ~1 ms per frame. FXAA on the high preset.
+- Lighting: stronger directional sun, less ambient fill, softer room lights (7 → 4.5), bloom 0.32 (0.18 in depth-readability mode, which also strengthens the outlines), exposure 1.0. Spires floor deepened.
+- Bump relief from each texture on plates, grates, vents, treads, panels, stone and tile.
+
+**Fixes found on the way**
+- Merge regression: Planet Aurora's ground was drawn twice (instanced blocks from round 4 + Commit 2.0's face mesher) → planet now uses the face mesher with per-terrain materials.
+- Commit 2.0's `MAX_STEP = 0.4` made the planet's half-block terraces impassable → the step rule is 0.5 (half a block = stair, more = ledge); the planet generator relaxes every walkable step to ≤ 0.5 (mesas stay cliffs); sky islands sit at height 4 with a stepped causeway to the vine bridge. The planet reachability test now uses the step rule.
+
+**Gaps filled in the chosen items**
+- *Gameplay 2 — encounter roles:* each combat room has a pressure pack of melee bots mid-room and, from the second room on, ranged support at the far side from its entrance (missions without a ranged bot borrow drones); fabricators remain the reinforcement source.
+- *Gameplay 4 — interactive assembly defence:* power faults at ~35% and ~70% stall the build until a breaker somewhere in the vault is reset; E at the station toggles *overclock* (60% faster, bigger/faster waves); a relay fabricator teleports in at 50% (destroy it: waves slow and +8% progress).
+- *UI/UX 2 — symbols:* every world label carries a kind glyph (↗ exit, ◆ collectible, ▣ console, ⚙ trial, ⚠ barrier, ★ landmark…).
+- *UI/UX 3 — locked actions explained where they are:* every locked trial door and nature gate has an *Inspect* prompt stating exactly what opens it.
+- *HUD 1 — elevation-aware minimap:* one colour band per half block, dotted light edges for stairs and heavy dark edges for ledges, ▲/▼ beside anything above or below you, and a collapsible map key with your current height.
+- Already covered by Commit 2.0 and verified: features 1, 2, 4, 5; performance 1–5; gameplay 1, 3, 5; UI/UX 1, 4, 5; HUD 2–5 (toasts and lore cards queue during combat).
+
+**Longer game**
+- *Golden screws:* three hidden per mission (corners away from doors, one inside a trial room when there is one).
+- *Mission stars:* ★ clear · ★ clean sweep (every trial + every fabricator; Peaceful mode waives fabricators) · ★ all golden screws — 24 in total, shown under each star-map island, in the star-map detail, in the objective line and on the mission-cleared banner.
+- *Rewards:* 12 stars → **Golden Wrench** (+1 wrench damage); 24 → *Completionist*; first screw → *Screw Loose*.
 
 ## Improvement backlog (suggested)
 

@@ -102,6 +102,12 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
                 <text y={h + 46} textAnchor="middle" className="g-isle-t">
                   {l.title.toUpperCase()}
                 </text>
+                <text y={h + 60} textAnchor="middle" className="g-isle-stars">
+                  {(() => {
+                    const g = game.stars(id).got;
+                    return '★'.repeat(g) + '☆'.repeat(3 - g);
+                  })()}
+                </text>
               </g>
             );
           })}
@@ -119,7 +125,23 @@ export default function StarMap({ game, hud }: { game: Game; hud: Hud }) {
           </p>
           <p className="g-sub">{level?.meta.kicker}</p>
           <p>
-            Data chips {c.got}/{c.total} · {hud.save.cleared.includes(focus) ? '★ Cleared' : 'Not cleared'}
+            Data chips {c.got}/{c.total} · {hud.save.cleared.includes(focus) ? 'Cleared' : 'Not cleared'}
+          </p>
+          {(() => {
+            const st = game.stars(focus);
+            return (
+              <ul className="g-stars" aria-label={`${st.got} of 3 stars`}>
+                <li className={st.cleared ? 'on' : ''}>{st.cleared ? '★' : '☆'} Clear the mission</li>
+                <li className={st.sweep ? 'on' : ''}>{st.sweep ? '★' : '☆'} Clean sweep — every trial &amp; fabricator</li>
+                <li className={st.screws ? 'on' : ''}>
+                  {st.screws ? '★' : '☆'} Golden screws {st.screwCount}/3
+                </li>
+              </ul>
+            );
+          })()}
+          <p className="g-sub">
+            Total stars {game.totalStars()}/{MISSION_ORDER.length * 3}
+            {game.totalStars() < 12 ? ` · ${12 - game.totalStars()} more for the Golden Wrench` : ' · Golden Wrench earned'}
           </p>
           {level?.meta.enemies && level.meta.enemies !== 'none' && <p className="g-sub">Hostiles: {level.meta.enemies.replace(/-/g, ' ')}</p>}
           {locked ? (
