@@ -424,6 +424,14 @@ Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand
   - **Contact:** "Contact" → docks, then the form rises underneath.
 - The build starts while the stage scrolls into view, so nav jumps never land on a blank screen. Full-bleed stage; `html { overflow-x: clip }` keeps the page from scrolling sideways. Reduced motion / no JS: plain heading + vertical list. axe: still 0 violations.
 
+### Round 9 — a motion design per section, performance, archive
+- **Per-section openers (`ScrollStory` variants):** About Me — *assemble* (letters fly in from scattered positions and lock together); Education — *layers* (four offset outlines collapse into the word, "one layer deeper each time"); My Experience — *rise* (kept) → horizontal timeline; Projects — *blueprint* (outlined word on a CAD grid with dimension lines and corner marks, then a fill sweeps across like a render pass); Contact — *signal* (the word decodes from scrambled glyphs inside expanding radio rings). All dock into the heading position.
+- **Performance (measured, 1440×900 headless, median frame while scrolling):** 136 ms → 16.7 ms; phone 62 → 16.7 ms; long tasks 700 → 160 ms. Causes and fixes: the backdrop re-blurred three 60vmax blobs every frame (now unblurred soft gradients on composited layers); the spotlight repainted the whole screen and restyled the document on every mouse move (now one transformed element, mouse only); story letters used blur filters and colour changes (now transform/opacity/clip only); story scroll handlers ran everywhere (now only near their section); mobile address-bar resizes re-laid out the stories (ignored); the timeline handler interleaved reads/writes (batched); the project viewer rendered every frame (on-demand); DPR capped at 1.5.
+- **Scroll blocking on touch:** the sticky 3D viewer captured swipes; rotation is now opt-in on touch via a "✋ Rotate" tool. A wide toolbar and the spotlight were widening the phone layout to 421 px — fixed.
+- Removed the hero scroll cue and hover effects on non-interactive elements (stat cards, leadership cards, repo cards, heatmap cells).
+- **Archived in Professional mode:** Hobbies and Future Goals (content stays in portfolio.md and in the game; un-archive by removing them from `ARCHIVED` in ProSite.tsx).
+- Xiao Hu is male (content + comments updated).
+
 ## Improvement backlog (suggested)
 
 ### Performance

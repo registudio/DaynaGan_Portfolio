@@ -2059,6 +2059,7 @@ button.skill:focus-visible {
   position: absolute;
   inset: auto 0 0 0;
   pointer-events: none;
+  z-index: -1; /* behind the section number and the word */
 }
 .story.v-layers.live .story-layer {
   position: absolute;
