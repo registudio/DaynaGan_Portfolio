@@ -215,7 +215,7 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
         <HeroCarousel items={carousel} cad={cad} />
       </div>
       <div id="about-more" className="about-more">
-        <ScrollStory title="About Me" number={sectionNumber(level)} variant="assemble">
+        <ScrollStory title="About Me" number={sectionNumber(level)} variant="mask" caption={level.meta.kicker}>
       {stats && (
         <div className="stats">
           {stats.parts.map((s, i) => {
@@ -260,11 +260,16 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
   );
 }
 
-/** Education: "Education" collapses in from stacked layers, then a scroll-drawn timeline. */
+/** Education: "Education" wipes in along a hairline path through each school, then a scroll-drawn timeline. */
 function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="layers">
+      <ScrollStory
+        title={level.title}
+        number={sectionNumber(level)}
+        variant="path"
+        marks={level.rooms.map((r) => r.meta.short || r.title)}
+      >
       <div className="section-head">
         <Intro level={level} />
       </div>
@@ -568,7 +573,7 @@ function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const form = level.rooms.find((r) => r.id === 'form');
   return (
     <section id={level.id} className="section contact-section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="signal">
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="focus" caption={portfolio.site.email}>
       <div className="section-head">
         <Intro level={level} />
       </div>

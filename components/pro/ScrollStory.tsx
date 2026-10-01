@@ -4,11 +4,11 @@ import { useEffect, useRef } from 'react';
 
 /**
  * Pinned, scroll-driven section opener. Each section gets its own motion design (`variant`):
- *   assemble  (About)      — letters fly in from scattered positions and snap together
- *   layers    (Education)  — five offset copies of the word collapse into one, layer by layer
+ *   mask      (About)      — letters slide up from behind a baseline; a hairline rule draws under them
+ *   path      (Education)  — the word wipes in while a hairline timeline draws and its stops light up
  *   rise      (Experience) — letters rise and settle over a drifting outlined echo
  *   blueprint (Projects)   — an outlined CAD sketch with dimension lines, then a fill sweeps in
- *   signal    (Contact)    — the word decodes from scrambled characters inside radio rings
+ *   focus     (Contact)    — letters close in from wide spacing, an underline draws, a caption follows
  * Then every variant docks: the title shrinks and glides into the normal heading position.
  * `horizontal` adds a third phase where the children scroll sideways.
  *
@@ -16,23 +16,24 @@ import { useEffect, useRef } from 'react';
  * the scroll handler runs only while the section is near the viewport, and mobile address-bar
  * resizes don't trigger a re-layout. Without JS or with reduced motion: a plain heading.
  */
-export type StoryVariant = 'assemble' | 'layers' | 'rise' | 'blueprint' | 'signal';
-
-/** Deterministic pseudo-random −1…1 per letter, as a fixed-precision string (identical on server and client). */
-const scatter = (i: number) => ((Math.sin((i + 1) * 12.9898) * 43758.5453) % 1).toFixed(3);
-
-const GLYPHS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%&*+<>/\\=';
+export type StoryVariant = 'mask' | 'path' | 'rise' | 'blueprint' | 'focus';
 
 export default function ScrollStory({
   title,
   number,
   variant,
   horizontal = false,
+  caption,
+  marks,
   children,
 }: {
   title: string;
   number?: string;
   variant: StoryVariant;
+  /** Small line under the title (mask / focus variants). */
+  caption?: string;
+  /** Stops on the hairline timeline (path variant), e.g. schools in order. */
+  marks?: string[];
   /** Scroll the children sideways (a horizontal track) once the title has docked. */
   horizontal?: boolean;
   children: React.ReactNode;
@@ -60,7 +61,6 @@ export default function ScrollStory({
     let hh = 0;
     let target = { x: 0, y: 0, k: 1 };
     let last = { a: -1, b: -1, c: -1 };
-    const chars = variant === 'signal' ? [...h.querySelectorAll<HTMLElement>('.story-ch')] : [];
 
     const measure = () => {
       vh = innerHeight;
@@ -98,15 +98,6 @@ export default function ScrollStory({
       if (a === last.a && b === last.b && c === last.c) return;
       if (a !== last.a) {
         st.style.setProperty('--a', String(a));
-        // Signal: unresolved letters cycle through glyphs (deterministic per step, so no flicker at rest).
-        if (chars.length) {
-          const step = Math.floor(a * 40);
-          chars.forEach((el, i) => {
-            const done = a * (chars.length + 3) - i >= 1;
-            const ch = letters[i] === ' ' ? ' ' : done ? letters[i] : GLYPHS[(i * 7 + step * 13) % GLYPHS.length];
-            if (el.textContent !== ch) el.textContent = ch;
-          });
-        }
       }
       if (b !== last.b) {
         st.style.setProperty('--b', String(b));
@@ -165,7 +156,6 @@ export default function ScrollStory({
       h.style.transform = '';
       if (track.current) track.current.style.transform = '';
       if (after.current) after.current.style.marginTop = '';
-      chars.forEach((el, i) => (el.textContent = letters[i]));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [horizontal, variant, title]);
@@ -180,7 +170,7 @@ export default function ScrollStory({
           key={i}
           className={`story-ch${i < accent ? ' accent' : ''}`}
           aria-hidden
-          style={{ '--i': i, '--r': scatter(i) } as React.CSSProperties}
+          style={{ '--i': i } as React.CSSProperties}
         >
           {ch}
         </span>
@@ -198,25 +188,8 @@ export default function ScrollStory({
             </div>
           )}
           {variant === 'blueprint' && <div className="story-grid" aria-hidden />}
-          {variant === 'signal' && (
-            <div className="story-rings" aria-hidden>
-              <i />
-              <i />
-              <i />
-              <i />
-            </div>
-          )}
           <div className="story-head" ref={head} style={{ '--n': letters.length } as React.CSSProperties}>
             {number && <span className="story-num mono">{number}</span>}
-            {variant === 'layers' && (
-              <div className="story-layers" aria-hidden>
-                {[4, 3, 2, 1].map((l) => (
-                  <span key={l} className="story-layer" style={{ '--l': l } as React.CSSProperties}>
-                    {title}
-                  </span>
-                ))}
-              </div>
-            )}
             {variant === 'blueprint' ? (
               <div className="story-blueprint">
                 {word(' story-outline')}
@@ -242,6 +215,27 @@ export default function ScrollStory({
               </div>
             ) : (
               word()
+            )}
+            {(variant === 'mask' || variant === 'focus') && (
+              <div className="story-under" aria-hidden>
+                <i className="story-rule" />
+                {caption && <span className="story-caption mono">{caption}</span>}
+              </div>
+            )}
+            {variant === 'path' && marks && (
+              <div className="story-path" aria-hidden>
+                <i className="story-rule" />
+                {marks.map((m, i) => (
+                  <span
+                    key={m}
+                    className="story-mark"
+                    style={{ '--x': marks.length > 1 ? i / (marks.length - 1) : 0, '--k': i } as React.CSSProperties}
+                  >
+                    <b />
+                    <span className="mono">{m}</span>
+                  </span>
+                ))}
+              </div>
             )}
           </div>
           {horizontal && (

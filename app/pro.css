@@ -1954,8 +1954,8 @@ button.skill:focus-visible {
 }
 .story-ghost,
 .story-grid,
-.story-rings,
-.story-layers,
+.story-under,
+.story-path,
 .story-fill,
 .dim,
 .cross {
@@ -2046,42 +2046,98 @@ button.skill:focus-visible {
   will-change: transform, opacity;
 }
 
-/* 1 · assemble (About) — scattered letters fly in, spin and lock together. */
-.story.v-assemble.live .story-ch {
-  opacity: calc(0.1 + var(--l) * 0.9);
-  transform: translate3d(calc((1 - var(--l)) * var(--r) * 60vw), calc((1 - var(--l)) * (var(--r) * -1 + 0.4) * 60vh), 0)
-    rotate(calc((1 - var(--l)) * var(--r) * 540deg)) scale(calc(0.4 + var(--l) * 0.6));
+/* 1 · mask (About) — editorial reveal: letters slide up from behind a baseline. */
+.story.v-mask.live .story-word {
+  /* Clip at the baseline so letters emerge from beneath it. */
+  clip-path: inset(-0.1em -0.1em 0.02em -0.1em);
+}
+.story.v-mask.live .story-ch {
+  transform: translate3d(0, calc((1 - var(--l)) * 115%), 0);
+}
+/* Hairline rule + caption under the title (mask, focus). */
+.story.live .story-under {
+  /* Takes the title's width (never widens the heading block); the caption wraps if needed. */
+  width: 0;
+  min-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: clamp(14px, 2.4vh, 26px);
+  opacity: calc(1 - var(--b, 0) * 1.6);
+}
+.story.live .story-rule {
+  flex: 1 0 48px;
+  height: 1.5px;
+  background: linear-gradient(90deg, var(--violet-2), color-mix(in srgb, var(--violet-2) 15%, transparent));
+  transform-origin: left;
+  transform: scaleX(clamp(0, calc((var(--a, 0) - 0.25) * 1.8), 1));
+}
+.story.live .story-caption {
+  font-size: clamp(12px, 1.2vw, 15px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  text-align: right;
+  flex: 0 1 auto;
+  opacity: clamp(0, calc((var(--a, 0) - 0.6) * 3), 1);
+  transform: translate3d(0, calc((1 - clamp(0, calc((var(--a, 0) - 0.6) * 3), 1)) * 8px), 0);
 }
 
-/* 2 · layers (Education) — four offset echoes stack down into the word. */
-.story.v-layers.live .story-layers {
-  display: block;
-  position: absolute;
-  inset: auto 0 0 0;
-  pointer-events: none;
-  z-index: -1; /* behind the section number and the word */
+/* 2 · path (Education) — the word wipes in as a hairline path reaches each school. */
+.story.v-path.live .story-word {
+  /* Wipes in at the same rate the path below is drawn. */
+  clip-path: inset(-0.1em calc((1 - clamp(0, calc((var(--a, 0) - 0.15) * 1.5), 1)) * 100% - 0.1em) -0.25em -0.1em);
 }
-.story.v-layers.live .story-layer {
+.story.v-path.live .story-ch {
+  transform: none;
+}
+.story.v-path.live .story-path {
+  display: block;
+  position: relative;
+  height: 44px;
+  margin-top: clamp(18px, 3vh, 32px);
+  opacity: calc(1 - var(--b, 0) * 1.6);
+}
+.story.v-path.live .story-path .story-rule {
   position: absolute;
   left: 0;
-  bottom: 0;
-  white-space: nowrap;
-  font-weight: 700;
-  font-size: min(clamp(56px, 14vw, 230px), calc(172vw / var(--n, 9)));
-  line-height: 0.95;
-  letter-spacing: -0.045em;
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--violet-2);
-  opacity: calc((1 - var(--a, 0)) * 0.9 * (1 - var(--b, 0)) + 0.05 * (1 - var(--b, 0)));
-  transform: translate3d(calc(var(--l) * (1 - var(--a, 0)) * 3vw), calc(var(--l) * (1 - var(--a, 0)) * -9vh), 0);
-  will-change: transform, opacity;
+  right: 0;
+  top: 6px;
+  transform: scaleX(clamp(0, calc((var(--a, 0) - 0.15) * 1.5), 1));
 }
-.story.v-layers.live .story-layer:nth-child(odd) {
-  -webkit-text-stroke-color: #e879f9;
+.story.v-path.live .story-mark {
+  /* Lit once the drawing line passes this stop. */
+  --on: clamp(0, calc(((var(--a, 0) - 0.15) * 1.5 - var(--x)) * 12 + 1), 1);
+  position: absolute;
+  top: 0;
+  left: calc(var(--x) * 100%);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
 }
-.story.v-layers.live .story-ch {
-  opacity: var(--l);
-  transform: translate3d(0, calc((1 - var(--l)) * -0.6em), 0);
+.story.v-path.live .story-mark:first-child {
+  justify-items: start;
+  transform: translateX(-6px);
+}
+.story.v-path.live .story-mark:last-child {
+  justify-items: end;
+  transform: translateX(calc(-100% + 6px));
+}
+.story.v-path.live .story-mark b {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--violet-2);
+  background: var(--paper);
+  transform: scale(calc(0.5 + var(--on) * 0.5));
+  opacity: calc(0.3 + var(--on) * 0.7);
+}
+.story.v-path.live .story-mark span {
+  font-size: clamp(12px, 1.2vw, 15px);
+  letter-spacing: 0.14em;
+  color: var(--violet);
+  opacity: var(--on);
 }
 
 /* 3 · rise (Experience) — letters rise and settle over a drifting outlined echo. */
@@ -2225,49 +2281,12 @@ button.skill:focus-visible {
   border-width: 0 2px 2px 0;
 }
 
-/* 5 · signal (Contact) — decodes from scrambled glyphs inside expanding radio rings. */
-.story.v-signal.live .story-ch {
-  opacity: calc(0.35 + var(--l) * 0.65);
-  transform: translate3d(0, 0, 0) scale(calc(1.15 - var(--l) * 0.15));
-}
-.story.v-signal.live .story-rings {
-  display: block;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0;
-  height: 0;
-  opacity: calc(1 - var(--b, 0));
-}
-.story.v-signal.live .story-rings i {
-  position: absolute;
-  left: -30vmin;
-  top: -30vmin;
-  width: 60vmin;
-  height: 60vmin;
-  border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--violet-2) 55%, transparent);
-  will-change: transform, opacity;
-  animation: ping 3.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
-}
-.story.v-signal.live .story-rings i:nth-child(2) {
-  animation-delay: -0.8s;
-}
-.story.v-signal.live .story-rings i:nth-child(3) {
-  animation-delay: -1.6s;
-}
-.story.v-signal.live .story-rings i:nth-child(4) {
-  animation-delay: -2.4s;
-}
-@keyframes ping {
-  from {
-    transform: scale(0.15);
-    opacity: 0.9;
-  }
-  to {
-    transform: scale(1.6);
-    opacity: 0;
-  }
+/* 5 · focus (Contact) — letters close in from wide spacing; underline and caption follow. */
+.story.v-focus.live .story-ch {
+  /* All letters move together (a single focus pull), not one after another. */
+  --l: clamp(0, calc(var(--a, 0) * 1.5), 1);
+  opacity: calc(0.15 + var(--l) * 0.85);
+  transform: translate3d(calc((var(--i) - (var(--n) - 1) / 2) * (1 - var(--l)) * 0.32em), 0, 0);
 }
 
 /* Horizontal milestone track (Experience). */
@@ -2367,6 +2386,19 @@ button.skill:focus-visible {
 .story-after {
   position: relative;
   z-index: 3;
+}
+@media (max-width: 600px) {
+  .story.live .story-under {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .story.live .story-rule {
+    flex: 0 0 1.5px;
+  }
+  .story.live .story-caption {
+    text-align: left;
+  }
 }
 @media (max-width: 700px) {
   .story.live .mile-card {
