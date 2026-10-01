@@ -63,14 +63,14 @@ skills:
   - { id: isaac-sim, name: NVIDIA Isaac Sim, group: Robotics & simulation, max: 5, axis: 0.2 }
   - { id: nav2, name: Nav2, group: Robotics & simulation, max: 5, axis: 0.3 }
   - { id: rl, name: Reinforcement learning, group: Robotics & simulation, max: 5, axis: 0.05 }
-  - { id: cad, name: CAD, group: Hardware & prototyping, max: 5, axis: 0.8 }
-  - { id: inventor, name: Autodesk Inventor, group: Hardware & prototyping, max: 5, axis: 0.85 }
-  - { id: arduino, name: Arduino, group: Hardware & prototyping, max: 5, axis: 0.6 }
-  - { id: esp32, name: ESP32, group: Hardware & prototyping, max: 5, axis: 0.65 }
-  - { id: stm32, name: STM32, group: Hardware & prototyping, max: 5, axis: 0.7 }
-  - { id: soldering, name: Soldering, group: Hardware & prototyping, max: 5, axis: 1 }
-  - { id: assembly, name: Hands-on assembly, group: Hardware & prototyping, max: 5, axis: 0.95 }
-  - { id: 3d-printing, name: 3D printing, group: Hardware & prototyping, max: 5, axis: 0.9 }
+  - { id: cad, name: CAD, group: Design & fabrication, max: 5, axis: 0.8 }
+  - { id: inventor, name: Autodesk Inventor, group: Design & fabrication, max: 5, axis: 0.85 }
+  - { id: arduino, name: Arduino, group: Embedded systems, max: 5, axis: 0.6 }
+  - { id: esp32, name: ESP32, group: Embedded systems, max: 5, axis: 0.65 }
+  - { id: stm32, name: STM32, group: Embedded systems, max: 5, axis: 0.7 }
+  - { id: soldering, name: Soldering, group: Design & fabrication, max: 5, axis: 1 }
+  - { id: assembly, name: Hands-on assembly, group: Design & fabrication, max: 5, axis: 0.95 }
+  - { id: 3d-printing, name: 3D printing, group: Design & fabrication, max: 5, axis: 0.9 }
   - { id: leadership, name: Leadership, group: People, max: 5 }
 ---
 

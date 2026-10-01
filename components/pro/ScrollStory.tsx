@@ -4,12 +4,12 @@ import { useEffect, useRef } from 'react';
 import { squarify } from '@/lib/treemap';
 import { countUp } from './countUp';
 
-/** Mosaic tiles: a fixed little treemap (percent units), coloured along the software→hardware axis. */
-const MOSAIC = squarify(
+/** Grid-draw cells: a fixed little treemap (percent units); `d` = when each cell's outline draws. */
+const GRID = squarify(
   [9, 7, 6, 5, 5, 4, 3, 3, 3, 2, 2, 2, 1, 1].map((v, i) => ({ id: String(i), value: v })),
   100,
   100,
-).map((r, i) => ({ ...r, d: ((r.x + r.w / 2) / 100) * 0.7 + ((r.y + r.h / 2) / 100) * 0.3, t: (i * 0.37) % 1 }));
+).map((r) => ({ ...r, d: ((r.x + r.w / 2) / 100) * 0.7 + ((r.y + r.h / 2) / 100) * 0.3 }));
 
 /**
  * Pinned, scroll-driven section opener. Each section gets its own motion design (`variant`):
@@ -18,7 +18,7 @@ const MOSAIC = squarify(
  *   rise      (Experience) — letters fade in one after another, in place
  *   blueprint (Projects)   — an outlined CAD sketch with dimension lines, then a fill sweeps in
  *   focus     (Contact)    — letters close in from wide spacing, an underline draws, a caption follows
- *   mosaic    (Skills)     — a miniature treemap tiles over the word, then clears diagonally to reveal it
+ *   grid      (Skills)     — a thin treemap outline traces itself around the word as it fades in
  * Then every variant docks: the title shrinks and glides into the normal heading position.
  * `horizontal` adds a third phase where the children scroll sideways; `steps` instead holds the
  * content pinned under the title while scrolling advances through its `.pin-step` children
@@ -28,7 +28,7 @@ const MOSAIC = squarify(
  * the scroll handler runs only while the section is near the viewport, and mobile address-bar
  * resizes don't trigger a re-layout. Without JS or with reduced motion: a plain heading.
  */
-export type StoryVariant = 'mask' | 'path' | 'rise' | 'blueprint' | 'focus' | 'mosaic';
+export type StoryVariant = 'mask' | 'path' | 'rise' | 'blueprint' | 'focus' | 'grid';
 
 export default function ScrollStory({
   title,
@@ -250,26 +250,22 @@ export default function ScrollStory({
           {variant === 'blueprint' && <div className="story-grid story-fx" aria-hidden />}
           <div className="story-head" ref={head} style={{ '--n': letters.length } as React.CSSProperties}>
             {number && <span className="story-num mono">{number}</span>}
-            {variant === 'mosaic' ? (
-              <div className="story-mosaic-wrap">
-                {word()}
-                <span className="story-mosaic" aria-hidden>
-                  {MOSAIC.map((m) => (
-                    <i
+            {variant === 'grid' ? (
+              <div className="story-grid-wrap">
+                <svg className="story-cells" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                  {GRID.map((m) => (
+                    <rect
                       key={m.id}
-                      style={
-                        {
-                          left: `${m.x}%`,
-                          top: `${m.y}%`,
-                          width: `${m.w}%`,
-                          height: `${m.h}%`,
-                          '--d': m.d.toFixed(3),
-                          '--t': m.t.toFixed(3),
-                        } as React.CSSProperties
-                      }
+                      x={m.x + 0.4}
+                      y={m.y + 0.8}
+                      width={Math.max(0, m.w - 0.8)}
+                      height={Math.max(0, m.h - 1.6)}
+                      pathLength={1}
+                      style={{ '--d': m.d.toFixed(3) } as React.CSSProperties}
                     />
                   ))}
-                </span>
+                </svg>
+                {word()}
               </div>
             ) : variant === 'blueprint' ? (
               <div className="story-blueprint">

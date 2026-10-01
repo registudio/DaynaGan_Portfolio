@@ -524,12 +524,12 @@ function skillTiles(portfolio: Portfolio): SkillTile[] {
   });
 }
 
-/** Skills & Awards: mosaic opener, then an interactive treemap and flip-card awards. */
+/** Skills & Awards: grid-draw opener, then an interactive treemap and flip-card awards. */
 function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const awards = level.rooms.find((r) => r.id === 'awards');
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="mosaic">
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="grid">
       <div className="section-head">
         <Intro level={level} />
       </div>
@@ -537,7 +537,7 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
       {awards && (
         <>
           <h3 className="sub-title" data-reveal>
-            Awards &amp; recognition
+            Awards &amp; Recognition
           </h3>
           <div className="awards">
             {visible(awards.parts).map((a, i) => (
@@ -572,18 +572,57 @@ function Leadership({ portfolio, level }: { portfolio: Portfolio; level: Level }
   return (
     <section id={level.id} className="section">
       <SectionHead level={level} />
-      <div className="grid-2 lead-grid">
-        {rooms.map((room, i) => (
-          <article className="card role-card glass" key={room.id} id={`${level.id}-${room.id}`} data-reveal style={{ '--i': i } as React.CSSProperties}>
-            <div className="t-head">
-              <h3>{room.title}</h3>
-              <span className="t-period">{room.meta.period}</span>
+      {/* Impact ledger: one ruled row per role, the headline number right-aligned. */}
+      <div className="ledger" role="list">
+        {rooms.map((room, i) => {
+          const parts = visible(room.parts);
+          const [metric, metricLabel] = (room.meta.metrics ?? '').split(';')[0].split('|').map((x) => x.trim());
+          const m = metric?.match(/^([\d.]+)(.*)$/);
+          const years = (room.meta.period ?? '').match(/\d{4}/g) ?? [];
+          const yearText = years.length > 1 && years[0] !== years[1] ? `${years[0]} – ${years[1].slice(2)}` : years[0] ?? '';
+          return (
+            <div role="listitem" key={room.id} id={`${level.id}-${room.id}`} data-reveal style={{ '--i': i } as React.CSSProperties}>
+              <ExpandCard
+                interactive
+                illuminate
+                className="ledger-row"
+                title={room.title}
+                summary={
+                  <>
+                    <span className="ledger-year mono">
+                      {yearText}
+                      {/present/i.test(room.meta.period ?? '') && ' – now'}
+                    </span>
+                    <div className="ledger-main">
+                      <h3>{room.title}</h3>
+                      <p className="ledger-role">{room.meta.role}</p>
+                      <p className="ledger-what">{parts.map((p) => p.title).join(' · ')}</p>
+                    </div>
+                    <div className="ledger-metric">
+                      {m && (
+                        <>
+                          <b data-count={m[1]} data-suffix={m[2]}>
+                            {metric}
+                          </b>
+                          <span>{metricLabel}</span>
+                        </>
+                      )}
+                    </div>
+                  </>
+                }
+                details={
+                  <div className="mile-detail">
+                    <span className="eyebrow">{room.meta.period}</span>
+                    <h3>{room.title}</h3>
+                    <p className="t-sub">{room.meta.role}</p>
+                    <Metrics value={room.meta.metrics} />
+                    <PartList portfolio={portfolio} parts={parts} />
+                  </div>
+                }
+              />
             </div>
-            <p className="t-sub">{room.meta.role}</p>
-            <Metrics value={room.meta.metrics} />
-            <PartList portfolio={portfolio} parts={visible(room.parts)} />
-          </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -742,9 +781,10 @@ export default function ProSite({
         return <Leadership key={level.id} portfolio={portfolio} level={level} />;
       case 'github':
         return (
-          <section id={level.id} key={level.id} className="section">
-            <SectionHead level={level} />
-            <GitHubPanel feed={github} site={portfolio.site} />
+          <section id={level.id} key={level.id} className="section section-story">
+            <ScrollStory title={level.title} number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={3}>
+              <GitHubPanel feed={github} site={portfolio.site} />
+            </ScrollStory>
           </section>
         );
       case 'contact':
