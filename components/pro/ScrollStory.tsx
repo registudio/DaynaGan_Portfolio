@@ -96,6 +96,10 @@ export default function ScrollStory({
         const i = Number(el.dataset.step ?? 0);
         el.classList.toggle('on', i <= n);
         el.classList.toggle('now', i === Math.max(0, n));
+        if (el.classList.contains('pin-tab')) {
+          if (i === Math.max(0, n)) el.setAttribute('aria-current', 'step');
+          else el.removeAttribute('aria-current');
+        }
         if (i <= n)
           el.querySelectorAll('[data-count]').forEach((c) => {
             if (counted.has(c)) return;

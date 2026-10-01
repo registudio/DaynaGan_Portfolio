@@ -3435,6 +3435,51 @@ body.modal-open {
   }
 }
 
+
+/* ── Contact form: field errors, counter, draft note ───────────────────── */
+.float-wrap {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+.field-err {
+  font-size: var(--t-xs);
+  color: #be123c;
+}
+:root[data-theme='dark'] .field-err {
+  color: #fda4af;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .field-err {
+    color: #fda4af;
+  }
+}
+.pro-form [aria-invalid='true'] {
+  border-color: #e11d48;
+}
+.char-count {
+  justify-self: end;
+  font-size: var(--t-2xs);
+  color: var(--ink-3);
+}
+.char-count.near {
+  color: #b45309;
+}
+.draft-note {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+}
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--violet);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 /* ── Interaction language: one hover, press and focus treatment everywhere ── */
 /* Hover = lift + violet edge · press = settle (slight scale-down) · focus = violet ring. */
 :root {

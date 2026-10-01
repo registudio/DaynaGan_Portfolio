@@ -38,3 +38,49 @@ export function goTo(id: string) {
   history.replaceState(null, '', `#${id}`);
   return true;
 }
+
+/**
+ * Every resting point on the page, top to bottom: each section's start, each step of a
+ * pinned story, each card of a horizontal track, and each story's last frame. Used for
+ * keyboard stepping (↓ / ↑, Page Down / Up, Space).
+ */
+export function stopPoints(): number[] {
+  const pts = new Set<number>([0]);
+  const top = (n: Element) => n.getBoundingClientRect().top + scrollY;
+  for (const section of document.querySelectorAll<HTMLElement>('main.pro > section')) {
+    const story = section.querySelector<HTMLElement>('.story.live');
+    if (!story?.dataset.rest) {
+      if (!section.querySelector('.hero')) pts.add(Math.max(0, top(section) - 84));
+      continue;
+    }
+    const base = top(story);
+    const rest = base + Number(story.dataset.rest);
+    pts.add(rest);
+    const steps = Number(story.dataset.steps) || 0;
+    const hold = Number(story.dataset.hold) || 0;
+    for (let i = 1; i < steps; i++) pts.add(rest + (hold * (i + 0.3)) / steps);
+    const track = story.querySelector<HTMLElement>('.story-track');
+    const travel = Number(story.dataset.travel) || 0;
+    if (track && travel) {
+      const first = track.firstElementChild as HTMLElement;
+      const x0 = first.getBoundingClientRect().left;
+      for (const card of track.children) {
+        const x = card.getBoundingClientRect().left - x0;
+        if (x > 0) pts.add(rest + Math.min(x, travel));
+      }
+    }
+    // Content that continues below an intro-only story: its sections' own starts.
+    const after = story.nextElementSibling;
+    if (after?.classList.contains('story-after')) pts.add(top(after) - 200);
+  }
+  pts.add(document.documentElement.scrollHeight - innerHeight);
+  return [...pts].map(Math.round).sort((a, b) => a - b);
+}
+
+/** Scroll ranges during which a story is pinned (its stage fills the screen). */
+export function pinnedRanges(): [number, number][] {
+  return [...document.querySelectorAll<HTMLElement>('.story.live')].map((st) => {
+    const a = st.getBoundingClientRect().top + scrollY;
+    return [a, a + st.offsetHeight - innerHeight];
+  });
+}

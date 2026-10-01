@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { goTo } from './goTo';
+import { goTo, pinnedRanges, stopPoints } from './goTo';
 import { onScrollFrame } from './scrollLoop';
 import { detectQuality, sampleFrames, setQuality } from '@/lib/quality';
 
@@ -120,6 +120,31 @@ export default function RevealRoot() {
     };
     document.addEventListener('click', onClick);
     cleanups.push(() => document.removeEventListener('click', onClick));
+    // Keyboard stepping: ↓ / Page Down / Space move to the next resting point (a pinned step,
+    // an Experience card, the next section) instead of a fixed distance; ↑ / Page Up go back.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target as HTMLElement;
+      if (t.closest('input, textarea, select, [contenteditable], .modal, .pviewer-canvas, [role="slider"]') || document.body.classList.contains('modal-open')) return;
+      if (e.key === ' ' && t.closest('button, a, summary')) return;
+      const down = e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey);
+      const up = e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey);
+      if (!down && !up) return;
+      const pts = stopPoints();
+      const y = scrollY;
+      const target = down ? pts.find((p) => p > y + 4) : [...pts].reverse().find((p) => p < y - 4);
+      if (target == null) return;
+      // Only inside (or stepping into) a pinned story; plain sections scroll as usual.
+      const inPin = (v: number) => pinnedRanges().some(([a, b]) => v >= a - 4 && v <= b + 4);
+      if (!inPin(y) && !inPin(target)) return;
+      // Leaving a pinned story can be a few screens (its opener + the next one) — still one step.
+      if (Math.abs(target - y) > innerHeight * 4.5) return;
+      e.preventDefault();
+      scrollTo({ top: target, behavior: reduce ? 'instant' : 'smooth' });
+    };
+    addEventListener('keydown', onKey);
+    cleanups.push(() => removeEventListener('keydown', onKey));
+
     // Arriving with a hash: wait for the stories to measure, then jump.
     const initial = location.hash.slice(1);
     if (initial && document.getElementById(initial)) {
