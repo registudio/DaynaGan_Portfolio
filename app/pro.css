@@ -2099,7 +2099,8 @@ main.pro {
 }
 .story.live .story-num {
   font-size: clamp(14px, 1.4vw, 20px);
-  opacity: calc((0.4 + var(--a, 0) * 0.6) * (1 - var(--b, 0)));
+  /* Invisible until the opener starts (never a faint, low-contrast label). */
+  opacity: calc(clamp(0, var(--a, 0) * 1.6, 1) * (1 - var(--b, 0)));
 }
 .story.live .story-word {
   position: relative;

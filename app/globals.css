@@ -15,7 +15,7 @@
   --warn: #b45309;
   --shadow: 0 1px 2px rgb(40 20 80 / 0.06), 0 8px 24px -12px rgb(40 20 80 / 0.18);
   --radius: 14px;
-  --font: 'Space Grotesk', system-ui, sans-serif;
+  --font: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   --pixel: 'Pixelify Sans', 'IBM Plex Mono', monospace;
   --max: 1080px;

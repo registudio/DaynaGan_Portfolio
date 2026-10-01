@@ -34,16 +34,16 @@ export function webglAvailable() {
 }
 
 /**
- * One WebGL renderer for the whole page (hero carousel + project viewer): each Stage renders
- * its scene with it and copies the frame onto its own canvas. One GL context, one shader
- * cache, and a section's canvas keeps its own pointer listeners.
+ * One WebGL renderer for the whole page (hero carousel + project viewer). Its canvas moves
+ * into whichever Stage is drawing (only one is on screen at a time), so there is one GL
+ * context and shader cache and no per-frame copying between canvases.
  */
 let shared: { r: THREE.WebGLRenderer; users: number } | null = null;
 function acquire() {
   if (!shared) {
     const r = new THREE.WebGLRenderer({ antialias: quality() !== 'low', alpha: true, powerPreference: 'low-power' });
-    r.setPixelRatio(1);
     r.outputColorSpace = THREE.SRGBColorSpace;
+    r.domElement.style.display = 'block';
     shared = { r, users: 0 };
   }
   shared.users++;
@@ -52,24 +52,26 @@ function acquire() {
 function release() {
   if (shared && --shared.users <= 0) {
     shared.r.dispose();
+    shared.r.domElement.remove();
     shared = null;
   }
 }
 
 /**
- * A transparent canvas that fills `host`: camera, lights, resize and a render loop that
+ * A transparent 3D view that fills `host`: camera, lights, resize and a render loop that
  * pauses while off-screen or while the tab is hidden.
  */
 export class Stage {
   readonly renderer: THREE.WebGLRenderer;
-  /** This stage's own canvas (attach pointer listeners / controls here). */
-  readonly canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
+  /** Element for pointer listeners / controls (the host, so they survive canvas moves). */
+  readonly canvas: HTMLElement;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
   private raf = 0;
   private odd = false;
   private visible = true;
+  private w = 1;
+  private h = 1;
   private ro: ResizeObserver;
   private io: IntersectionObserver;
   private clock = new THREE.Clock();
@@ -85,9 +87,7 @@ export class Stage {
     fov = 34,
   ) {
     this.renderer = acquire();
-    this.canvas = document.createElement('canvas');
-    this.ctx = this.canvas.getContext('2d')!;
-    host.prepend(this.canvas);
+    this.canvas = host;
     this.camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 200);
     this.scene.add(new THREE.HemisphereLight('#f5f3ff', '#312e81', 2));
     const key = new THREE.DirectionalLight('#ffffff', 2.4);
@@ -111,31 +111,35 @@ export class Stage {
       if (!this.visible || document.hidden) return;
       // Low quality: 30 fps is plenty for a turntable and halves the GPU work.
       if (quality() === 'low' && (this.odd = !this.odd)) return;
-      if (this.tick(dt, this.clock.elapsedTime) === false && !this.dirty) return;
+      const claimed = this.claim();
+      if (this.tick(dt, this.clock.elapsedTime) === false && !this.dirty && !claimed) return;
       this.dirty = false;
-      this.draw();
+      this.renderer.render(this.scene, this.camera);
     };
     this.raf = requestAnimationFrame(loop);
   }
 
-  private draw() {
-    const { width: w, height: h } = this.canvas;
-    const size = this.renderer.getSize(new THREE.Vector2());
-    if (size.x !== w || size.y !== h) this.renderer.setSize(w, h, false);
-    this.renderer.render(this.scene, this.camera);
-    this.ctx.clearRect(0, 0, w, h);
-    this.ctx.drawImage(this.renderer.domElement, 0, 0);
+  /** Moves the shared canvas into this host (and sizes it) if it's elsewhere. */
+  private claim() {
+    const el = this.renderer.domElement;
+    if (el.parentElement === this.host) return false;
+    this.host.prepend(el);
+    this.fit();
+    return true;
+  }
+
+  private fit() {
+    const dpr = Math.min(devicePixelRatio, quality() === 'low' ? 1 : 1.5);
+    this.renderer.setPixelRatio(dpr);
+    this.renderer.setSize(this.w, this.h, false);
   }
 
   resize() {
-    const w = this.host.clientWidth || 1;
-    const h = this.host.clientHeight || 1;
-    // Capped at 1.5 (1 on low quality): sharp enough for wireframes, far cheaper on phones.
-    const dpr = Math.min(devicePixelRatio, quality() === 'low' ? 1 : 1.5);
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
-    this.camera.aspect = w / h;
+    this.w = this.host.clientWidth || 1;
+    this.h = this.host.clientHeight || 1;
+    this.camera.aspect = this.w / this.h;
     this.camera.updateProjectionMatrix();
+    if (this.renderer.domElement.parentElement === this.host) this.fit();
     this.dirty = true;
   }
 
@@ -144,7 +148,7 @@ export class Stage {
     this.ro.disconnect();
     this.io.disconnect();
     this.onTheme.disconnect();
-    this.canvas.remove();
+    if (this.renderer.domElement.parentElement === this.host) this.renderer.domElement.remove();
     release();
   }
 }

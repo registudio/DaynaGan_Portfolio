@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { detectQuality, sampleFrames, setQuality } from '@/lib/quality';
 import ProjectViewer from './ProjectViewer';
 import type { ShowcaseProject } from './ProjectShowcase';
 import ThemeToggle from './ThemeToggle';
@@ -31,6 +32,12 @@ export default function CaseStudy({
   next?: CaseLink;
 }) {
   const [part, setPart] = useState<string | null>(null);
+  // Same adaptive quality as the home page: device hints, then a short frame sample.
+  useEffect(() => {
+    setQuality(detectQuality());
+    const t = setTimeout(() => sampleFrames((ms) => ms > 24 && setQuality('low')), 2500);
+    return () => clearTimeout(t);
+  }, []);
   const sheet = `${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
   return (
     <>

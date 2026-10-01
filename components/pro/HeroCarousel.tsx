@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { quality } from '@/lib/quality';
 
 export type ShowcaseItem = { id: string; title: string };
 
@@ -41,8 +42,6 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       if (!webglAvailable()) return setGl(false);
       setGl(true);
       const reduce = reducedMotion();
-      const { quality } = await import('@/lib/quality');
-      const low = quality() === 'low';
       const row = new THREE.Group();
       const slots: InstanceType<typeof THREE.Group>[] = [];
       const holders: InstanceType<typeof THREE.Group>[] = [];
@@ -51,7 +50,11 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       let x = 0;
       let pointerY = 0;
       const stage = new Stage(host.current, (dt, t) => {
-        x += (-target.current * SPACING - x) * Math.min(1, dt * 4);
+        // Low quality (slow device): no idle turntable — only render while the row is moving.
+        const low = quality() === 'low';
+        const dx = -target.current * SPACING - x;
+        x += dx * Math.min(1, dt * 4);
+        let moving = Math.abs(dx) > 0.002;
         slots.forEach((s, i) => {
           // Each model sits at its nearest copy around the centre, so the row never rewinds.
           let off = (((i * SPACING + x) % loop) + loop) % loop;
@@ -59,12 +62,16 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
           holders[i].position.x = off;
           const d = Math.abs(off) / SPACING;
           const k = 1.25 - Math.min(1, d) * 0.5;
+          if (Math.abs(k - s.scale.x) > 0.001) moving = true;
           s.scale.setScalar(s.scale.x + (k - s.scale.x) * Math.min(1, dt * 5));
-          if (!reduce) s.rotation.y += dt * (0.35 + (1 - Math.min(1, d)) * 0.2);
+          if (!reduce && !low) s.rotation.y += dt * (0.35 + (1 - Math.min(1, d)) * 0.2);
           // The breathing explode re-poses every part each frame; held still on low quality.
           models[i]?.setExplode(reduce || low ? 0.15 : 0.12 + Math.sin(t * 0.9 + i) * 0.12);
         });
-        row.rotation.x += (pointerY * 0.12 - row.rotation.x) * 0.05;
+        const tilt = pointerY * 0.12 - row.rotation.x;
+        row.rotation.x += tilt * 0.05;
+        if (Math.abs(tilt) > 0.001) moving = true;
+        return moving || (!reduce && !low);
       });
       stage.camera.position.set(0, 1.6, 6.6);
       stage.camera.lookAt(0, -0.35, 0);
@@ -89,6 +96,8 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
         ring.position.set(0, -1.05, 0);
         disc.position.copy(ring.position);
         holder.add(ring, disc);
+        // Yield between models so building the row never blocks input for long.
+        if (i > 0) await new Promise((r) => setTimeout(r, 0));
         const m = await projectModel(item.id, cad[item.id], isDark());
         if (disposed) return m?.dispose();
         models.push(m);

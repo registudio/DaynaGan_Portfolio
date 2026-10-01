@@ -246,7 +246,11 @@ export default function ScrollStory({
         <div className="story-stage" ref={stage}>
           {variant === 'blueprint' && <div className="story-grid story-fx" aria-hidden />}
           <div className="story-head" ref={head} style={{ '--n': letters.length } as React.CSSProperties}>
-            {number && <span className="story-num mono">{number}</span>}
+            {number && (
+              <span className="story-num mono" aria-hidden>
+                {number}
+              </span>
+            )}
             {variant === 'grid' ? (
               <div className="story-grid-wrap">
                 <svg className="story-cells" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>

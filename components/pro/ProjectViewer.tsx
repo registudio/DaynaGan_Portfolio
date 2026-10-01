@@ -64,6 +64,15 @@ export default function ProjectViewer({
     let disposed = false;
     let cleanup = () => {};
     (async () => {
+      // Start the 3D once the page has loaded and gone idle, so it never competes with first
+      // paint (the case-study page shows the viewer straight away).
+      if (document.readyState !== 'complete') await new Promise((r) => addEventListener('load', r, { once: true }));
+      await new Promise<void>((r) => {
+        const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (idle) idle(() => r(), { timeout: 2000 });
+        else setTimeout(r, 600);
+      });
+      if (disposed) return;
       const THREE = await import('three');
       const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
       const { Stage, projectModel, isDark, reducedMotion, webglAvailable } = await import('./three/stage');
@@ -245,12 +254,20 @@ export default function ProjectViewer({
         },
       };
       // Auto-rotate keeps the GPU busy; off by default on low-quality devices.
-      const { quality } = await import('@/lib/quality');
+      const { quality, onQuality } = await import('@/lib/quality');
       const turn = !reduce && quality() !== 'low';
       wantSpin = turn;
       setSpin(turn);
+      // Downgraded mid-visit (slow frames measured): stop the idle turntable.
+      const offQuality = onQuality((q) => {
+        if (q === 'low') {
+          wantSpin = false;
+          setSpin(false);
+        }
+      });
       await show(initial.current);
       cleanup = () => {
+        offQuality();
         el.removeEventListener('wheel', wheel, { capture: true });
         controls.dispose();
         model?.dispose();
