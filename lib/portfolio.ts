@@ -24,7 +24,7 @@ export type Room = Part & { parts: Part[] };
 
 export type Level = Part & { rooms: Room[] };
 
-export type SkillDef = { id: string; name: string; group: string; max: number; start?: number };
+export type SkillDef = { id: string; name: string; group: string; max: number; start?: number; /** 0 = software … 1 = hardware */ axis?: number };
 
 export type Site = {
   name: string;

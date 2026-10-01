@@ -14,6 +14,7 @@ import {
 import { computeSkills, skillSources } from '@/lib/skills';
 import ContactForm from './ContactForm';
 import CopyEmail from './CopyEmail';
+import ExpandCard from './ExpandCard';
 import GitHubPanel from './GitHubPanel';
 import HeroCarousel from './HeroCarousel';
 import { HobbyIcon } from './HobbyIcon';
@@ -23,6 +24,7 @@ import ProHeader from './ProHeader';
 import ProjectShowcase, { type ShowcaseProject } from './ProjectShowcase';
 import RevealRoot from './RevealRoot';
 import ScrollStory from './ScrollStory';
+import SkillMap, { type SkillTile, type SkillUse } from './SkillMap';
 
 const Html = ({ html, className = 'prose' }: { html?: string; className?: string }) =>
   html ? <div className={className} dangerouslySetInnerHTML={{ __html: html }} /> : null;
@@ -162,10 +164,8 @@ function TechChips({ tags }: { tags: string[] }) {
   return (
     <ul className="chips tech">
       {tags.map((t) => (
-        <li key={t}>
-          <button className="chip chip-btn" data-filter={t} title={`Show projects using ${t}`}>
-            {t}
-          </button>
+        <li className="chip" key={t}>
+          {t}
         </li>
       ))}
     </ul>
@@ -260,7 +260,7 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
   );
 }
 
-/** Education: "Education" wipes in along a hairline path through each school, then a scroll-drawn timeline. */
+/** Education: "Education" wipes in along a hairline path, then an ascending staircase of schools. */
 function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   return (
     <section id={level.id} className="section section-story">
@@ -273,21 +273,50 @@ function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) 
       <div className="section-head">
         <Intro level={level} />
       </div>
-      <div className="timeline" data-timeline>
-        {level.rooms.map((room) => (
-          <article className="t-item card" key={room.id} id={`${level.id}-${room.id}`} data-reveal data-uses={uses(room)}>
-            <div className="t-head">
-              <h3>{room.title}</h3>
-              {period(room) && <span className="t-period">{period(room)}</span>}
-            </div>
-            <p className="t-sub">{room.meta.role || room.meta.qualification}</p>
-            <Metrics value={room.meta.metrics} />
-            {room.html && <Html html={room.html} />}
-            <div style={{ height: room.html ? 12 : 0 }} />
-            <PartList portfolio={portfolio} parts={visible(room.parts)} />
-            <TechChips tags={list(room.meta.tags)} />
-          </article>
-        ))}
+      {/* An ascending staircase — each school a step higher than the last. */}
+      <div className="stairs" style={{ '--n': level.rooms.length } as React.CSSProperties}>
+        {level.rooms.map((room, i) => {
+          const parts = visible(room.parts);
+          // Short, title-only parts are honours (Valedictorian, GPA, scholarships…).
+          const honours = parts.filter((p) => !p.meta.tags && !p.body && !p.meta.link);
+          return (
+            <article className="step" key={room.id} id={`${level.id}-${room.id}`} data-reveal style={{ '--i': i } as React.CSSProperties}>
+              <ExpandCard
+                className="step-card card glass"
+                title={room.title}
+                summary={
+                  <>
+                    <span className="mono step-period">{period(room) || 'Secondary school'}</span>
+                    <h3>{room.title}</h3>
+                    <p className="t-sub">{room.meta.qualification}</p>
+                    <Metrics value={room.meta.metrics} />
+                    {honours.length > 0 && (
+                      <ul className="honours">
+                        {honours.slice(0, 4).map((h) => (
+                          <li key={h.id}>{h.title}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                }
+                details={
+                  <div className="mile-detail">
+                    <span className="eyebrow">{period(room)}</span>
+                    <h3>{room.title}</h3>
+                    <p className="t-sub">{room.meta.qualification}</p>
+                    <Metrics value={room.meta.metrics} />
+                    {room.html && <Html html={room.html} />}
+                    <PartList portfolio={portfolio} parts={parts} />
+                  </div>
+                }
+              />
+              <div className="step-pillar" aria-hidden>
+                <span className="step-no">{String(i + 1).padStart(2, '0')}</span>
+                <span className="step-name mono">{room.meta.short || room.title}</span>
+              </div>
+            </article>
+          );
+        })}
       </div>
       </ScrollStory>
     </section>
@@ -327,28 +356,46 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
               <i />
               <span className="mono">{(room.meta.period ?? '').match(/\d{4}/)?.[0]}</span>
             </div>
-            <div className="mile-card card glass">
-              <span className="mono mile-count">
-                {String(i + 1).padStart(2, '0')} / {String(rooms.length).padStart(2, '0')}
-              </span>
-              <div className="t-head">
-                <h3>{room.title}</h3>
-              </div>
-              <p className="t-sub">
-                {room.meta.role} {period(room) && <span className="t-period">· {period(room)}</span>}
-              </p>
-              <Metrics value={room.meta.metrics} />
-              {room.html && <Html html={room.html} />}
-              <PartList portfolio={portfolio} parts={visible(room.parts)} />
-              <TechChips tags={list(room.meta.tags)} />
-            </div>
+            <ExpandCard
+              className="mile-card card glass"
+              title={room.title}
+              summary={
+                <>
+                  <span className="mono mile-count">
+                    {String(i + 1).padStart(2, '0')} / {String(rooms.length).padStart(2, '0')}
+                  </span>
+                  <h3>{room.title}</h3>
+                  <p className="t-sub">
+                    {room.meta.role} {period(room) && <span className="t-period">· {period(room)}</span>}
+                  </p>
+                  <Metrics value={room.meta.metrics} />
+                  {room.html && <Html html={room.html} />}
+                  {visible(room.parts).length > 0 && (
+                    <ul className="mile-points">
+                      {visible(room.parts)
+                        .filter((p) => !p.meta.tags)
+                        .map((p) => (
+                          <li key={p.id}>{p.title}</li>
+                        ))}
+                    </ul>
+                  )}
+                  <TechChips tags={list(room.meta.tags)} />
+                </>
+              }
+              details={
+                <div className="mile-detail">
+                  <span className="eyebrow">{period(room)}</span>
+                  <h3>{room.title}</h3>
+                  <p className="t-sub">{room.meta.role}</p>
+                  <Metrics value={room.meta.metrics} />
+                  {room.html && <Html html={room.html} />}
+                  <PartList portfolio={portfolio} parts={visible(room.parts)} />
+                  <TechChips tags={list(room.meta.tags)} />
+                </div>
+              }
+            />
           </article>
         ))}
-        <div className="mile mile-end">
-          <a className="btn" href="#projects">
-            See what I built →
-          </a>
-        </div>
       </ScrollStory>
     </section>
   );
@@ -369,7 +416,6 @@ function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
         body: rest.join(''),
         tags: list(room.meta.tags),
         skills: parseRequires(room.meta.requires).map((r) => skillName(r.skill)),
-        uses: uses(room).split(' ').filter(Boolean).map(skillName),
         repo: room.meta.repo,
         demo: room.meta.demo,
         parts: room.parts.map((p) => ({ id: p.id, title: p.title, html: p.html ?? '', did: p.meta.did, learned: p.meta.learned })),
@@ -384,53 +430,66 @@ function Projects({ portfolio, level, cad }: { portfolio: Portfolio; level: Leve
         <div className="section-head">
           <Intro level={level} />
         </div>
-        <ProjectShowcase projects={showcase(portfolio, level)} filters={list(level.meta.filters)} cad={cad} />
+        <ProjectShowcase projects={showcase(portfolio, level)} cad={cad} />
       </ScrollStory>
     </section>
   );
 }
 
-function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
+/** Where each skill was used (rooms that grant or require it) and which skills travel with it. */
+function skillTiles(portfolio: Portfolio): SkillTile[] {
   const levels = computeSkills(portfolio, null);
   const sources = skillSources(portfolio);
-  const groups = [...new Set(portfolio.site.skills.map((s) => s.group))];
+  const SECTION: Record<string, string> = { education: 'Education', experience: 'Experience', projects: 'Project', leadership: 'Leadership' };
+  // skill → room key → use
+  const uses = new Map<string, Map<string, SkillUse>>();
+  const roomSkills = new Map<string, Set<string>>();
+  const add = (skill: string, levelId: string, roomId: string, detail?: string) => {
+    const level = levelById(portfolio, levelId);
+    const room = level?.rooms.find((r) => r.id === roomId);
+    if (!level || !room || !SECTION[levelId]) return;
+    const key = `${levelId}/${roomId}`;
+    const m = uses.get(skill) ?? new Map<string, SkillUse>();
+    const u = m.get(key) ?? { section: SECTION[levelId], title: room.meta.short ? `${room.title}` : room.title, detail: [], period: period(room) || room.meta.year || undefined };
+    if (detail && !u.detail.includes(detail)) u.detail.push(detail);
+    m.set(key, u);
+    uses.set(skill, m);
+    roomSkills.set(key, (roomSkills.get(key) ?? new Set()).add(skill));
+  };
+  for (const src of sources) {
+    const [levelId, roomId, partId] = src.key.startsWith('build:') ? ['projects', src.key.slice(6)] : src.key.split('/');
+    const part = partId ? levelById(portfolio, levelId)?.rooms.find((r) => r.id === roomId)?.parts.find((p) => p.id === partId) : null;
+    add(src.skill, levelId, roomId, part?.title);
+  }
+  for (const room of levelById(portfolio, 'projects')?.rooms ?? [])
+    for (const r of parseRequires(room.meta.requires)) add(r.skill, 'projects', room.id);
+  return portfolio.site.skills.map((sk) => {
+    const co = new Map<string, number>();
+    for (const [key, set] of roomSkills)
+      if (set.has(sk.id)) for (const other of set) if (other !== sk.id) co.set(other, (co.get(other) ?? 0) + 1);
+    return {
+      id: sk.id,
+      name: sk.name,
+      group: sk.group,
+      level: levels[sk.id] ?? 0,
+      max: sk.max,
+      axis: sk.axis ?? null,
+      used: [...(uses.get(sk.id)?.values() ?? [])],
+      related: [...co].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id]) => id),
+    };
+  });
+}
+
+/** Skills & Awards: mosaic opener, then an interactive treemap and flip-card awards. */
+function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const awards = level.rooms.find((r) => r.id === 'awards');
   return (
-    <section id={level.id} className="section">
-      <SectionHead level={level} />
-      <p className="muted small hint-line">Hover a skill to light up where it was used · click to filter projects.</p>
-      <div className="skill-groups">
-        {groups.map((group, gi) => (
-          <div className="card skill-group glass" key={group} data-reveal style={{ '--i': gi } as React.CSSProperties}>
-            <h3>{group}</h3>
-            {portfolio.site.skills
-              .filter((s) => s.group === group)
-              .map((s) => {
-                const from = [...new Set(sources.filter((src) => src.skill === s.id).map((src) => src.label.split(' · ')[0]))];
-                return (
-                  <button
-                    className="skill"
-                    key={s.id}
-                    data-skill={s.id}
-                    data-filter={s.name}
-                    title={from.length ? `Used in ${from.join(', ')}` : undefined}
-                  >
-                    <span className="skill-row">
-                      <span>{s.name}</span>
-                      <span className="muted mono">
-                        {levels[s.id]}/{s.max}
-                      </span>
-                    </span>
-                    <span className="skill-bar" aria-label={`Level ${levels[s.id]} of ${s.max}`}>
-                      <i style={{ '--v': levels[s.id] / s.max } as React.CSSProperties} />
-                    </span>
-                    {from.length > 0 && <span className="skill-from">{from.join(' · ')}</span>}
-                  </button>
-                );
-              })}
-          </div>
-        ))}
+    <section id={level.id} className="section section-story">
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="mosaic">
+      <div className="section-head">
+        <Intro level={level} />
       </div>
+      <SkillMap skills={skillTiles(portfolio)} />
       {awards && (
         <>
           <h3 className="sub-title" data-reveal>
@@ -457,6 +516,7 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
           </div>
         </>
       )}
+      </ScrollStory>
     </section>
   );
 }
@@ -573,7 +633,7 @@ function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const form = level.rooms.find((r) => r.id === 'form');
   return (
     <section id={level.id} className="section contact-section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="focus" caption={portfolio.site.email}>
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="focus" caption={portfolio.site.email} end>
       <div className="section-head">
         <Intro level={level} />
       </div>
@@ -616,7 +676,10 @@ export default function ProSite({
   updated: string;
 }) {
   // Hobbies and Future Goals are archived in Professional mode for now (still in the game).
-  const levels = sectionLevels(portfolio).filter((l) => !ARCHIVED.has(l.id));
+  // Renumber what's shown so the section numbers stay consecutive (01 … 08).
+  const levels = sectionLevels(portfolio)
+    .filter((l) => !ARCHIVED.has(l.id))
+    .map((l, i) => ({ ...l, meta: { ...l.meta, eyebrow: `${String(i + 1).padStart(2, '0')} / ${l.title}` } }));
   const projects = levelById(portfolio, 'projects');
   const carousel = projects ? showcase(portfolio, projects).map((p) => ({ id: p.id, title: p.title })) : [];
   const render = (level: Level) => {

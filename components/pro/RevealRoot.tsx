@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { filterProjects } from './ProjectShowcase';
 
 /**
  * Page-wide motion for Professional mode: scroll reveals, number counters, timelines that
@@ -133,31 +132,6 @@ export default function RevealRoot() {
         root.classList.remove('spot');
       });
     }
-
-    // Skills: hovering one lights up the roles/projects that used it; chips filter Projects.
-    let litId: string | null = null;
-    const lit = (id: string | null) => {
-      if (id === litId) return; // pointerover fires constantly; only touch the DOM on change
-      litId = id;
-      document.querySelectorAll('.uses-lit').forEach((el) => el.classList.remove('uses-lit'));
-      if (id) document.querySelectorAll(`[data-uses~="${CSS.escape(id)}"]`).forEach((el) => el.classList.add('uses-lit'));
-    };
-    const over = (e: Event) => {
-      const s = (e.target as HTMLElement).closest<HTMLElement>('[data-skill]');
-      lit(s?.dataset.skill ?? null);
-    };
-    const click = (e: MouseEvent) => {
-      const f = (e.target as HTMLElement).closest<HTMLElement>('[data-filter]');
-      if (f) filterProjects(f.dataset.filter!);
-    };
-    document.addEventListener('pointerover', over);
-    document.addEventListener('focusin', over);
-    document.addEventListener('click', click);
-    cleanups.push(() => {
-      document.removeEventListener('pointerover', over);
-      document.removeEventListener('focusin', over);
-      document.removeEventListener('click', click);
-    });
 
     return () => cleanups.forEach((c) => c());
   }, []);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ProjectViewer from './ProjectViewer';
 
 export type ShowcaseProject = {
@@ -12,62 +12,35 @@ export type ShowcaseProject = {
   body: string;
   tags: string[];
   skills: string[];
-  /** Skill names the build exercises (for filtering). */
-  uses: string[];
   repo?: string;
   demo?: string;
   parts: { id: string; title: string; html: string; did?: string; learned?: string }[];
 };
 
-export const FILTER_EVENT = 'pro:filter';
-
-/** Ask the Projects showcase to filter by a tech/skill (from Skills, Experience chips…). */
-export function filterProjects(value: string) {
-  dispatchEvent(new CustomEvent(FILTER_EVENT, { detail: value }));
-  document.getElementById('projects')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-}
-
-const matches = (p: ShowcaseProject, f: string) => {
-  const q = f.toLowerCase();
-  return [...p.tags, ...p.skills, ...p.uses].some((t) => t.toLowerCase() === q || t.toLowerCase().includes(q));
-};
-
 /**
  * Pinned project stage: the 3D viewer stays put while each project's story scrolls past it,
- * one project per scroll step. Filter chips narrow the list by tech or skill.
+ * one project per scroll step.
  */
 export default function ProjectShowcase({
   projects,
-  filters,
   cad,
 }: {
   projects: ShowcaseProject[];
-  filters: string[];
   cad: Record<string, string>;
 }) {
-  const [filter, setFilter] = useState<string | null>(null);
-  const shown = useMemo(() => (filter ? projects.filter((p) => matches(p, filter)) : projects), [projects, filter]);
+  const shown = projects;
   const [active, setActive] = useState<string | undefined>(projects[0]?.id);
   const [part, setPart] = useState<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const on = (e: Event) => {
-      const v = (e as CustomEvent<string>).detail;
-      setFilter(projects.some((p) => matches(p, v)) ? v : null);
-    };
     const hash = () => {
       const id = location.hash.replace('#projects-', '');
-      if (projects.some((p) => p.id === id)) {
-        setFilter(null);
-        setActive(id);
-      }
+      if (projects.some((p) => p.id === id)) setActive(id);
     };
-    addEventListener(FILTER_EVENT, on);
     addEventListener('hashchange', hash);
     hash();
     return () => {
-      removeEventListener(FILTER_EVENT, on);
       removeEventListener('hashchange', hash);
     };
   }, [projects]);
@@ -91,21 +64,6 @@ export default function ProjectShowcase({
   const index = current ? shown.indexOf(current) : 0;
   return (
     <div className="showcase">
-      <div className="filter-bar" role="toolbar" aria-label="Filter projects">
-        <button className="fchip" aria-pressed={!filter} onClick={() => setFilter(null)}>
-          All <span>{projects.length}</span>
-        </button>
-        {filters.map((f) => (
-          <button key={f} className="fchip" aria-pressed={filter === f} onClick={() => setFilter(filter === f ? null : f)}>
-            {f} <span>{projects.filter((p) => matches(p, f)).length}</span>
-          </button>
-        ))}
-        {filter && !filters.includes(filter) && (
-          <button className="fchip" aria-pressed onClick={() => setFilter(null)}>
-            {filter} ×
-          </button>
-        )}
-      </div>
       <div className="show-grid">
         <div className="show-list" ref={list}>
           {shown.map((p, i) => (
@@ -126,10 +84,8 @@ export default function ProjectShowcase({
               {p.body && <div className="prose" dangerouslySetInnerHTML={{ __html: p.body }} />}
               <ul className="chips">
                 {p.tags.map((t) => (
-                  <li key={t}>
-                    <button className="chip chip-btn" onClick={() => setFilter(t)}>
-                      {t}
-                    </button>
+                  <li className="chip" key={t}>
+                    {t}
                   </li>
                 ))}
               </ul>
@@ -165,7 +121,6 @@ export default function ProjectShowcase({
               )}
             </article>
           ))}
-          {!shown.length && <p className="muted">No projects match that filter.</p>}
         </div>
         <div className="show-stage">
           {current && (

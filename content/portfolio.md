@@ -25,7 +25,6 @@
 #   profile   (levels only) replaces the intro text in Professional mode
 #   metrics   impact numbers shown in Professional mode, e.g. `metrics: 80+ | volunteers led; 3 | robots built`
 #   repo / demo  (projects) GitHub and live-demo links
-#   filters   (Projects level) the tech/skill filter chips
 #
 # Anything marked TODO is a placeholder for Dayna to fill in.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -53,23 +52,25 @@ companion: { name: Xiao Hu, meaning: Little Tiger }
 # ── SKILL TREE ───────────────────────────────────────────────────────────────
 # Levels are earned in-game from `grants:` lines below. `max` caps the level.
 # To change a proficiency, edit the grants lines (or `start` for a base level).
+# `axis` places a skill between pure software (0) and pure hardware (1) — it colours the
+# Professional-mode skills treemap. Skills without it (People) get their own colour.
 skills:
-  - { id: python, name: Python, group: Programming, max: 5 }
-  - { id: cpp, name: C++, group: Programming, max: 5 }
-  - { id: java, name: Java, group: Programming, max: 5 }
-  - { id: verilog, name: Verilog, group: Programming, max: 5 }
-  - { id: ros2, name: ROS 2, group: Robotics & simulation, max: 5 }
-  - { id: isaac-sim, name: NVIDIA Isaac Sim, group: Robotics & simulation, max: 5 }
-  - { id: nav2, name: Nav2, group: Robotics & simulation, max: 5 }
-  - { id: rl, name: Reinforcement learning, group: Robotics & simulation, max: 5 }
-  - { id: cad, name: CAD, group: Hardware & prototyping, max: 5 }
-  - { id: inventor, name: Autodesk Inventor, group: Hardware & prototyping, max: 5 }
-  - { id: arduino, name: Arduino, group: Hardware & prototyping, max: 5 }
-  - { id: esp32, name: ESP32, group: Hardware & prototyping, max: 5 }
-  - { id: stm32, name: STM32, group: Hardware & prototyping, max: 5 }
-  - { id: soldering, name: Soldering, group: Hardware & prototyping, max: 5 }
-  - { id: assembly, name: Hands-on assembly, group: Hardware & prototyping, max: 5 }
-  - { id: 3d-printing, name: 3D printing, group: Hardware & prototyping, max: 5 }
+  - { id: python, name: Python, group: Programming, max: 5, axis: 0 }
+  - { id: cpp, name: C++, group: Programming, max: 5, axis: 0.15 }
+  - { id: java, name: Java, group: Programming, max: 5, axis: 0 }
+  - { id: verilog, name: Verilog, group: Programming, max: 5, axis: 0.6 }
+  - { id: ros2, name: ROS 2, group: Robotics & simulation, max: 5, axis: 0.35 }
+  - { id: isaac-sim, name: NVIDIA Isaac Sim, group: Robotics & simulation, max: 5, axis: 0.2 }
+  - { id: nav2, name: Nav2, group: Robotics & simulation, max: 5, axis: 0.3 }
+  - { id: rl, name: Reinforcement learning, group: Robotics & simulation, max: 5, axis: 0.05 }
+  - { id: cad, name: CAD, group: Hardware & prototyping, max: 5, axis: 0.8 }
+  - { id: inventor, name: Autodesk Inventor, group: Hardware & prototyping, max: 5, axis: 0.85 }
+  - { id: arduino, name: Arduino, group: Hardware & prototyping, max: 5, axis: 0.6 }
+  - { id: esp32, name: ESP32, group: Hardware & prototyping, max: 5, axis: 0.65 }
+  - { id: stm32, name: STM32, group: Hardware & prototyping, max: 5, axis: 0.7 }
+  - { id: soldering, name: Soldering, group: Hardware & prototyping, max: 5, axis: 1 }
+  - { id: assembly, name: Hands-on assembly, group: Hardware & prototyping, max: 5, axis: 0.95 }
+  - { id: 3d-printing, name: 3D printing, group: Hardware & prototyping, max: 5, axis: 0.9 }
   - { id: leadership, name: Leadership, group: People, max: 5 }
 ---
 
@@ -407,7 +408,6 @@ biome: circuit-caverns
 light: #22d3ee
 enemies: short-circuit-bugs
 mission: Recover the parts and build every project
-filters: Embedded, ROS 2, Isaac Sim, Python, Reinforcement learning, ESP32, Soldering, CAD
 profile: Each build, taken apart — what it is, what I did and what I learnt. Drag the model to rotate it, explode it into parts, and tap a numbered hotspot to see what each part does.
 
 Each project's components are scattered through the caverns. Find them, bring them to the project's blueprint room, and build it.

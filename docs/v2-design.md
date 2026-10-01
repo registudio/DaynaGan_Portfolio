@@ -432,6 +432,16 @@ Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand
 - **Archived in Professional mode:** Hobbies and Future Goals (content stays in portfolio.md and in the game; un-archive by removing them from `ARCHIVED` in ProSite.tsx).
 - Xiao Hu is male (content + comments updated).
 
+### Round 11 — Experience lag, skills treemap, education staircase, end screen
+- **Experience lag (stalls mid-scroll):** three causes fixed — the story set `--a/--b/--c` on the whole stage, so every card restyled each frame (now only the title and its effect layers get them, and the track/line/window are moved directly by JS transforms); every glass card used `backdrop-filter` over the animated backdrop (now a near-opaque surface, no blur); the ghost title layer was a ~6000 px triple copy (now one). Measured main-thread cost through Experience ≈ 4 ms/frame; median frame 16.7 ms (20 ms at 4× CPU throttle).
+- **No scrolling inside cards:** milestone cards are compact (metrics, summary, part titles, tech) with a **Read more** button that opens the full story in a centred modal (`ExpandCard` + `Modal`: portal, focus trap, Esc/backdrop close). The trackpad never gets captured by an inner scroller, so the horizontal scroll stays smooth. "See what I built" removed.
+- **Projects:** skill filtering removed (and the `filters:` content line); the blueprint fill now covers descenders (the "j").
+- **Skills & Awards** gets its own opener — *mosaic*: the title is assembled by a squarified grid of violet→amber tiles that pop in left to right and dissolve to reveal the letters.
+- **Skills redesign (client Q&A):** an interactive **treemap** — tile area = proficiency, colour = where the skill sits between pure software (violet) and pure hardware (amber), people skills teal. Positions come from a new `axis` (0–1) per skill in portfolio.md (e.g. Python 0, ROS 2 0.35, Arduino 0.6, soldering 1). Levels read as words + a subtle meter. Clicking a tile opens a **centred modal** with "Where it was used" (education / experience / projects / leadership, with periods and the specific parts) and "Related skills" (by co-occurrence; clickable). Skills no longer jump to other sections. Labels fit their tiles (font capped by the longest word; tall slivers set vertically).
+- **Education is no longer a timeline:** an ascending **staircase** — each school is a step whose striped pillar grows with the level (SST → SP → NUS), the card on top shows the qualification, GPA and honours as amber ★ chips, with Read more for the details. Mobile: a stepped ladder.
+- **End screen:** on desktop the last screen shows the docked Contact heading, the form and the whole footer together (verified at 1280×720, 1366×768, 1440×900, 1536×864 and 1920×1080). Short laptop screens drop the intro line and use a compact form.
+- Section numbers are now consecutive (01–08) while Hobbies/Future are archived.
+
 ## Improvement backlog (suggested)
 
 ### Performance

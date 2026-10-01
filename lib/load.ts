@@ -26,6 +26,7 @@ const siteSchema = z.object({
       group: z.string(),
       max: z.number().int().min(1).default(5),
       start: z.number().int().min(0).optional(),
+      axis: z.number().min(0).max(1).optional(),
     }),
   ),
 });
