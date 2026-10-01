@@ -775,6 +775,7 @@ html.boot-pro:not(.booted) body::after {
   text-shadow: 0 4px 0 #6d28d9, 0 8px 0 #3b0f7a, 0 0 40px rgb(167 139 250 / 0.6);
 }
 .splash .sub {
+  text-wrap: balance;
   font-family: var(--mono);
   font-size: 14px;
   letter-spacing: 0.14em;

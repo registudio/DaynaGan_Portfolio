@@ -1757,6 +1757,8 @@ div.g-sub {
 .g-depth .g-label { background: rgb(8 12 22 / .9); border-radius: 6px; }
 @media (max-width: 700px) {
   .g-top-right { max-width: 175px; max-height: 55vh; }
+  /* Seven link buttons don't fit 175px: wrap them instead of clipping Pause and Pro. */
+  .g-links { flex-wrap: wrap; justify-content: flex-end; }
   .g-map-legend { font-size: 9px; max-width: 155px; }
   .g-next-step { max-width: 160px; font-size: 11px; }
   .g-hotbar { max-width: 96vw; }
@@ -1809,3 +1811,6 @@ div.g-sub {
   font-size: 11px;
   letter-spacing: 2px;
 }
+
+/* Short landscape phones: the controls card scrolls, so keep its dismiss button in reach. */
+.g-controls-card > .g-btn.primary { position: sticky; bottom: 0; }

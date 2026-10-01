@@ -79,7 +79,7 @@ export default function Splash({
   }, [visible]);
 
   return (
-    <div className={`splash${visible ? '' : ' gone'}`} role="dialog" aria-label="Choose a mode" aria-hidden={!visible}>
+    <div className={`splash${visible ? '' : ' gone'}`} role="dialog" aria-label="Choose a mode" aria-hidden={!visible} inert={!visible}>
       <canvas ref={canvas} className="stars" style={{ imageRendering: 'pixelated' }} aria-hidden />
       <div className="splash-card">
         <div className="sub">Computer Engineering · Robotics · Embedded</div>
