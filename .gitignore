@@ -19,3 +19,4 @@ next-env.d.ts
 *.STEP
 *.stp
 *.STP
+__pycache__/
