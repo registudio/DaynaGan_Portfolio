@@ -13,3 +13,9 @@ next-env.d.ts
 
 # Local test screenshots
 /*.png
+
+# Raw CAD stays out of git: convert to a compressed model.glb (see public/projects/README.md)
+*.step
+*.STEP
+*.stp
+*.STP
