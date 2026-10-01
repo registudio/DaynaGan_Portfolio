@@ -2835,170 +2835,132 @@ body.modal-open {
   color: var(--ink-2);
 }
 
-/* ── Education transcript switcher ─────────────────────────────────────── */
-.transcript {
-  display: grid;
-  grid-template-columns: minmax(170px, 0.32fr) 1fr;
-  gap: clamp(24px, 4vw, 64px);
-  align-items: start;
-  padding-top: clamp(4px, 2vh, 20px);
+/* ── Education: editorial rows that open as they scroll in ──────────────── */
+.edu-rows {
+  border-top: 1px solid var(--line);
 }
-.tx-tabs {
-  display: grid;
-  gap: 4px;
+.edu-row {
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 200px;
 }
-.pin-tab {
-  position: relative;
+.edu-toggle {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(270px, 0.3fr) 1fr auto;
+  gap: 8px 32px;
+  align-items: baseline;
+  width: 100%;
+  padding: 24px 4px;
+}
+.edu-toggle:focus-visible {
+  outline: 2px solid var(--violet-2);
+  outline-offset: 2px;
+}
+.edu-years {
+  font-size: clamp(30px, 3.6vw, 46px);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--violet);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.edu-name h3 {
+  margin: 0;
+  font-size: var(--t-xl);
+}
+.edu-qual {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-2);
+}
+.edu-plus {
+  font: 400 30px var(--mono);
+  color: var(--ink-3);
+  transition: transform 0.35s var(--ease-ui, ease), color 0.2s;
+}
+.edu-toggle:hover .edu-plus {
+  color: var(--violet);
+}
+.edu-row.open .edu-plus {
+  transform: rotate(45deg);
+}
+.edu-more {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.edu-row.open .edu-more {
+  grid-template-rows: 1fr;
+}
+.edu-more > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.edu-inner {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.3fr) 1fr;
+  gap: 16px 32px;
+  padding: 0 4px 28px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.5s 0.15s, transform 0.5s 0.15s;
+}
+.edu-row.open .edu-inner {
+  opacity: 1;
+  transform: none;
+}
+.edu-inner > * {
+  min-width: 0;
+}
+.edu-side {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.edu-gpa {
   display: grid;
   gap: 2px;
-  padding: 14px 0 16px;
-  color: var(--ink-3);
-  text-decoration: none;
-  border-top: 1px solid var(--line);
-  transition: color 0.3s;
 }
-.tx-tab-period {
-  font-size: var(--t-xs);
-  letter-spacing: 0.06em;
-}
-.tx-tab-name {
-  font-size: var(--t-xl);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-.tx-tab-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -1px;
-  height: 2px;
-  background: var(--violet-2);
-  transform-origin: left;
-  transform: scaleX(0);
-  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.pin-tab:hover,
-.pin-tab.now {
-  color: var(--ink);
-}
-.pin-tab.now .tx-tab-period {
-  color: var(--violet);
-}
-.pin-tab.on .tx-tab-bar {
-  transform: scaleX(1);
-}
-.pin-tab.on:not(.now) .tx-tab-bar {
-  opacity: 0.35;
-}
-.tx-panels {
-  display: grid;
-  gap: 24px;
-}
-.story.live .tx-panels > .tx-panel {
-  grid-area: 1 / 1;
-}
-/* Only the current school's record shows while pinned. */
-.story.live .tx-panel.on:not(.now) {
-  opacity: 0;
-  transform: translate3d(0, -28px, 0);
-  pointer-events: none;
-}
-.tx-sheet {
-  display: grid;
-  gap: 20px;
-  padding: clamp(20px, 2.6vw, 32px);
-  border-radius: 20px;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-}
-.tx-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: start;
-}
-.tx-head h3 {
-  margin: 6px 0 4px;
-  font-size: var(--t-xl);
-  letter-spacing: -0.02em;
-}
-.tx-head .t-sub {
-  margin: 0;
-}
-.tx-period {
-  font-size: var(--t-xs);
-  color: var(--violet);
-}
-.tx-gpa {
-  position: relative;
-  flex: 0 0 auto;
-  width: 112px;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  text-align: center;
-}
-.tx-gpa svg {
-  width: 96px;
-  height: 96px;
-  transform: rotate(-90deg);
-}
-.tx-gpa circle {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: 6;
-}
-.tx-gpa .tx-gpa-arc {
-  stroke: var(--violet-2);
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: calc(1 - var(--f));
-  transition: stroke-dashoffset 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s;
-}
-.story.live .tx-panel:not(.now) .tx-gpa-arc {
-  stroke-dashoffset: 1;
-}
-.tx-gpa b {
-  position: absolute;
-  top: 30px;
-  font-size: var(--t-xl);
-  letter-spacing: -0.03em;
+.edu-gpa b {
+  font-size: var(--t-2xl);
+  line-height: 1;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
-.tx-gpa > span {
-  font-size: var(--t-2xs);
+.edu-gpa > span,
+.edu-period {
+  font-size: var(--t-xs);
   color: var(--ink-3);
 }
-.tx-block {
+.edu-main {
   display: grid;
   gap: 8px;
+  align-content: start;
 }
-.tx-courses {
+.edu-courses {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 4px 18px;
+  columns: 2 220px;
+  column-gap: 24px;
   font-size: var(--t-sm);
   color: var(--ink-2);
 }
-.tx-courses li {
+.edu-courses li {
+  break-inside: avoid;
   padding: 5px 0;
   border-bottom: 1px dashed var(--line);
 }
-.tx-also {
-  margin: 0;
+.edu-also {
+  margin: 8px 0 0;
   font-size: var(--t-sm);
   color: var(--ink-2);
-  line-height: 1.6;
 }
-.tx-also .eyebrow {
+.edu-also .eyebrow {
   margin-right: 6px;
-}
-.tx-sheet .more-btn {
-  justify-self: start;
 }
 .honours {
   list-style: none;
@@ -3021,60 +2983,20 @@ body.modal-open {
   color: #d97706;
 }
 @media (max-width: 760px) {
-  .transcript {
+  .edu-toggle {
+    grid-template-columns: 1fr auto;
+  }
+  .edu-years {
+    grid-column: 1 / -1;
+  }
+  .edu-inner {
     grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .tx-tabs {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-  .pin-tab {
-    padding: 10px 0 4px;
-  }
-  .tx-tab-name {
-    font-size: var(--t-lg);
-  }
-  .tx-head {
-    flex-direction: column-reverse;
-  }
-  .tx-gpa {
-    flex-direction: row;
-    width: auto;
-    display: flex;
-    align-items: center;
-  }
-  .tx-gpa svg {
-    width: 56px;
-    height: 56px;
-  }
-  .tx-gpa b {
-    position: static;
-    font-size: var(--t-lg);
-  }
-  .tx-courses li:nth-child(n + 4):not(.muted) {
-    display: none;
-  }
-  .tx-courses li {
-    padding: 3px 0;
-  }
-  .tx-sheet {
-    gap: 12px;
-    padding: 18px;
-  }
-  .tx-head h3 {
-    font-size: var(--t-lg);
-  }
-  .tx-tab-period {
-    font-size: var(--t-2xs);
   }
 }
-@media (max-height: 760px) and (min-width: 761px) {
-  .tx-courses li:nth-child(n + 7):not(.muted) {
-    display: none;
-  }
-  .tx-sheet {
-    gap: 12px;
+@media (prefers-reduced-motion: reduce) {
+  .edu-more,
+  .edu-inner {
+    transition: none;
   }
 }
 
@@ -3793,9 +3715,6 @@ main.pro :focus-visible,
 :root[data-theme='dark'] .ledger-row:hover {
   background: color-mix(in srgb, var(--violet-2) 10%, transparent);
 }
-:root[data-theme='dark'] .tx-sheet {
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .skill-cat::before {
     background: color-mix(in srgb, var(--c) 14%, var(--surface));
@@ -3806,9 +3725,6 @@ main.pro :focus-visible,
   }
   :root:not([data-theme='light']) .ledger-row:hover {
     background: color-mix(in srgb, var(--violet-2) 10%, transparent);
-  }
-  :root:not([data-theme='light']) .tx-sheet {
-    background: color-mix(in srgb, var(--surface) 85%, transparent);
   }
 }
 

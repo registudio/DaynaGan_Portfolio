@@ -13,6 +13,7 @@ import {
 } from '@/lib/portfolio';
 import { computeSkills, skillSources } from '@/lib/skills';
 import ContactForm from './ContactForm';
+import AutoExpand from './AutoExpand';
 import CountStat from './CountStat';
 import CopyEmail from './CopyEmail';
 import ExpandCard from './ExpandCard';
@@ -254,69 +255,56 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
 }
 
 /** Education: "Education" wipes in along a hairline path, then an ascending staircase of schools. */
-function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
-  const rooms = level.rooms;
+function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
+  // Newest first; each row opens as it scrolls into view (AutoExpand).
+  const rooms = [...level.rooms].reverse();
+  const years = (room: Part) => {
+    const p = period(room);
+    const ys = p.match(/\d{4}/g) ?? [];
+    if (/present/i.test(p)) return `${ys[0]} – now`;
+    if (ys.length > 1) return `${ys[0]} – ${ys[1].slice(2)}`;
+    return ys[0] ?? 'Secondary';
+  };
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory
-        title={level.title}
-        number={sectionNumber(level)}
-        variant="path"
-        marks={rooms.map((r) => r.meta.short || r.title)}
-        steps={rooms.length}
-      >
-        {/* Transcript switcher: schools on the left, the current one's record on the right. */}
-        <div className="transcript">
-          <nav className="tx-tabs" aria-label="Schools">
-            {rooms.map((room, i) => (
-              <a key={room.id} href={`#${level.id}-${room.id}`} className="pin-tab" data-step={i}>
-                <span className="mono tx-tab-period">
-                  {(period(room).match(/\d{4}/g)?.join(' – ') ?? 'Secondary') + (/present/i.test(period(room)) ? ' – now' : '')}
-                </span>
-                <span className="tx-tab-name">{room.meta.short || room.title}</span>
-                <i className="tx-tab-bar" aria-hidden />
-              </a>
-            ))}
-          </nav>
-          <div className="tx-panels">
-            {rooms.map((room, i) => {
-              const parts = visible(room.parts);
-              const honours = parts.filter(
-                (p) => !p.meta.tags && !p.body && !p.meta.link && /honou?r|scholar|valedict|award|dean|gpa|merit|prize/i.test(p.title),
-              );
-              // Course lists can carry a TODO note and still be worth showing.
-              const courses = room.parts.filter((p) => p.meta.tags && /subject|module|core|course/i.test(p.title));
-              const courseList = courses.flatMap((c) => list(c.meta.tags));
-              const also = parts.filter((p) => !honours.includes(p) && !courses.includes(p));
-              const [gpa, gpaLabel] = (room.meta.metrics ?? '').split(';')[0].split('|').map((x) => x.trim());
-              const value = Number(gpa);
-              const max = Number(gpaLabel?.match(/out of ([\d.]+)/)?.[1] ?? 0);
-              return (
-                <article key={room.id} id={`${level.id}-${room.id}`} className="pin-step tx-panel" data-step={i}>
-                  <ExpandCard
-                    className="tx-sheet"
-                    title={room.title}
-                    summary={
-                      <>
-                        <header className="tx-head">
-                          <div>
-                            <span className="mono tx-period">{period(room) || 'Secondary school'}</span>
-                            <h3>{room.title}</h3>
-                            <p className="t-sub">{room.meta.qualification}</p>
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="path" marks={level.rooms.map((r) => r.meta.short || r.title)}>
+        <AutoExpand className="edu-rows">
+          {rooms.map((room) => {
+            const parts = visible(room.parts);
+            const honours = parts.filter(
+              (p) => !p.meta.tags && !p.body && !p.meta.link && /honou?r|scholar|valedict|award|dean|merit|prize/i.test(p.title),
+            );
+            // Course lists can carry a TODO note and still be worth showing.
+            const courses = room.parts.filter((p) => p.meta.tags && /subject|module|core|course/i.test(p.title));
+            const courseList = courses.flatMap((c) => list(c.meta.tags));
+            // The GPA already shows as the big figure, so its part isn't repeated.
+            const also = parts.filter((p) => !honours.includes(p) && !courses.includes(p) && !/^gpa\b/i.test(p.title));
+            const [gpa, gpaLabel] = (room.meta.metrics ?? '').split(';')[0].split('|').map((x) => x.trim());
+            const panel = `${level.id}-${room.id}-more`;
+            return (
+              <article key={room.id} id={`${level.id}-${room.id}`} className="edu-row">
+                <button type="button" className="edu-toggle" aria-expanded="false" aria-controls={panel}>
+                  <span className="edu-years">{years(room)}</span>
+                  <span className="edu-name">
+                    <h3>{room.title}</h3>
+                    <span className="edu-qual">{room.meta.qualification}</span>
+                  </span>
+                  <span className="edu-plus" aria-hidden>
+                    +
+                  </span>
+                </button>
+                <div className="edu-more" id={panel}>
+                  <div>
+                    <div className="edu-inner">
+                      <div className="edu-side">
+                        {gpa && gpaLabel && (
+                          <div className="edu-gpa">
+                            <b>
+                              <CountStat value={gpa} />
+                            </b>
+                            <span>GPA {gpaLabel.replace(/^GPA\s*/i, '')}</span>
                           </div>
-                          {max > 0 && Number.isFinite(value) && (
-                            <div className="tx-gpa" style={{ '--f': value / max } as React.CSSProperties}>
-                              <svg viewBox="0 0 80 80" aria-hidden>
-                                <circle cx="40" cy="40" r="34" pathLength={1} />
-                                <circle cx="40" cy="40" r="34" pathLength={1} className="tx-gpa-arc" />
-                              </svg>
-                              <b>
-                                <CountStat value={gpa} />
-                              </b>
-                              <span>{gpaLabel}</span>
-                            </div>
-                          )}
-                        </header>
+                        )}
                         {honours.length > 0 && (
                           <ul className="honours">
                             {honours.map((h) => (
@@ -324,40 +312,31 @@ function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) 
                             ))}
                           </ul>
                         )}
+                      </div>
+                      <div className="edu-main">
                         {courseList.length > 0 && (
-                          <div className="tx-block">
+                          <>
                             <span className="eyebrow">{courses[0].title}</span>
-                            <ul className="tx-courses">
-                              {courseList.slice(0, 8).map((c) => (
+                            <ul className="edu-courses">
+                              {courseList.map((c) => (
                                 <li key={c}>{c}</li>
                               ))}
-                              {courseList.length > 8 && <li className="muted">+{courseList.length - 8} more</li>}
                             </ul>
-                          </div>
+                          </>
                         )}
                         {also.length > 0 && (
-                          <p className="tx-also">
+                          <p className="edu-also">
                             <span className="eyebrow">Also</span> {also.map((a) => a.title).join(' · ')}
                           </p>
                         )}
-                      </>
-                    }
-                    details={
-                      <div className="mile-detail">
-                        <span className="eyebrow">{period(room)}</span>
-                        <h3>{room.title}</h3>
-                        <p className="t-sub">{room.meta.qualification}</p>
-                        <Metrics value={room.meta.metrics} />
-                        {room.html && <Html html={room.html} />}
-                        <PartList portfolio={portfolio} parts={parts} />
                       </div>
-                    }
-                  />
-                </article>
-              );
-            })}
-          </div>
-        </div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </AutoExpand>
       </ScrollStory>
     </section>
   );
