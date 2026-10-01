@@ -52,7 +52,7 @@ export default function Modal({
     return () => {
       removeEventListener('keydown', key);
       document.body.classList.remove('modal-open');
-      back?.focus?.();
+      back?.focus?.({ preventScroll: true });
     };
   }, [open]);
 

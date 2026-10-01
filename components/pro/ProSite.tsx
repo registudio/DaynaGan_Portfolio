@@ -445,7 +445,7 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   );
 }
 
-function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
+export function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
   const skillName = (id: string) => portfolio.site.skills.find((s) => s.id === id)?.name ?? id;
   return level.rooms
     .filter((r) => r.meta.tags || r.meta.status)
@@ -494,7 +494,14 @@ function skillTiles(portfolio: Portfolio): SkillTile[] {
     if (!level || !room || !SECTION[levelId]) return;
     const key = `${levelId}/${roomId}`;
     const m = uses.get(skill) ?? new Map<string, SkillUse>();
-    const u = m.get(key) ?? { section: SECTION[levelId], title: room.meta.short ? `${room.title}` : room.title, detail: [], period: period(room) || room.meta.year || undefined };
+    const u = m.get(key) ?? {
+      section: SECTION[levelId],
+      title: room.title,
+      detail: [],
+      period: period(room) || room.meta.year || undefined,
+      // In-page anchor of that role / project / school (opened at its resting state).
+      href: `${levelId}-${roomId}`,
+    };
     if (detail && !u.detail.includes(detail)) u.detail.push(detail);
     m.set(key, u);
     uses.set(skill, m);

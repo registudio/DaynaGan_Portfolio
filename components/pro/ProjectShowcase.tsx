@@ -112,8 +112,10 @@ export default function ProjectShowcase({
                   </li>
                 ))}
               </ol>
-              {(p.repo || p.demo) && (
-                <div className="show-links">
+              <div className="show-links">
+                <a className="btn small" href={`/projects/${p.id}`}>
+                  Case study →
+                </a>
                   {p.repo && (
                     <a className="btn small" href={p.repo} target="_blank" rel="noopener noreferrer">
                       GitHub repo ↗
@@ -124,8 +126,7 @@ export default function ProjectShowcase({
                       Live demo ↗
                     </a>
                   )}
-                </div>
-              )}
+              </div>
             </article>
           ))}
         </div>

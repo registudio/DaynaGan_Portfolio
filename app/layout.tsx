@@ -34,7 +34,7 @@ export const viewport: Viewport = {
 // Runs before first paint: applies the saved theme (no light/dark flash) and, for visitors
 // heading straight into Professional mode (saved choice or a section link), hides the main
 // menu and covers the page until the name intro takes over — no menu flash for return visitors.
-const bootScript = `try{var d=document.documentElement,t=localStorage.getItem('dg-theme');if(t==='light'||t==='dark')d.dataset.theme=t;var h=location.hash.slice(1),g=/^(play|tour|planet|splash)$/.test(h);if(!g&&(h||localStorage.getItem('dg-mode')==='pro'))d.classList.add('boot-pro')}catch(e){}`;
+const bootScript = `try{var d=document.documentElement,t=localStorage.getItem('dg-theme');if(t==='light'||t==='dark')d.dataset.theme=t;var h=location.hash.slice(1),g=/^(play|tour|planet|splash)$/.test(h);if(location.pathname==='/'&&!g&&(h||localStorage.getItem('dg-mode')==='pro'))d.classList.add('boot-pro')}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

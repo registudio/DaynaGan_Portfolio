@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { squarify } from '@/lib/treemap';
 import Modal from './Modal';
+import { goTo } from './goTo';
 
-export type SkillUse = { section: string; title: string; detail: string[]; period?: string };
+export type SkillUse = { section: string; title: string; detail: string[]; period?: string; href?: string };
 export type SkillTile = {
   id: string;
   name: string;
@@ -169,10 +170,22 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
                 <ul className="used-list">
                   {sel.used.map((u) => (
                     <li key={u.section + u.title}>
-                      <span className="mono used-section">{u.section}</span>
-                      <b>{u.title}</b>
-                      {u.period && <span className="muted small"> · {u.period}</span>}
-                      {u.detail.length > 0 && <span className="used-detail">{u.detail.join(' · ')}</span>}
+                      {/* Opens that role / project / school where it rests on the page. */}
+                      <button
+                        className="used-link"
+                        onClick={() => {
+                          setOpen(null);
+                          if (u.href) setTimeout(() => goTo(u.href!), 60);
+                        }}
+                      >
+                        <span className="mono used-section">{u.section}</span>
+                        <b>{u.title}</b>
+                        {u.period && <span className="muted small"> · {u.period}</span>}
+                        {u.detail.length > 0 && <span className="used-detail">{u.detail.join(' · ')}</span>}
+                        <span className="used-go" aria-hidden>
+                          View →
+                        </span>
+                      </button>
                     </li>
                   ))}
                 </ul>

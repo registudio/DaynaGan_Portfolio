@@ -18,7 +18,7 @@ export async function ogFonts() {
   ];
 }
 
-export function ShareCard() {
+export function ShareCard({ title, line, eyebrow = 'Portfolio' }: { title?: string; line?: string; eyebrow?: string } = {}) {
   const { site, levels } = loadPortfolio();
   const kicker = levels.find((l) => l.id === 'about')?.meta.kicker ?? '';
   const grid = 'linear-gradient(rgba(167,139,250,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,0.10) 1px, transparent 1px)';
@@ -54,12 +54,16 @@ export function ShareCard() {
         >
           D
         </div>
-        <span style={{ fontFamily: 'Plex Mono', fontSize: 24, letterSpacing: 4, color: '#c4b5fd', textTransform: 'uppercase' }}>Portfolio</span>
+        <span style={{ fontFamily: 'Plex Mono', fontSize: 24, letterSpacing: 4, color: '#c4b5fd', textTransform: 'uppercase' }}>
+          {title ? `${site.displayName} · ${eyebrow}` : eyebrow}
+        </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <span style={{ fontSize: 112, fontWeight: 700, letterSpacing: -4, lineHeight: 1 }}>{site.displayName}</span>
-        <span style={{ fontSize: 40, fontWeight: 500, color: '#c4b5fd' }}>{kicker}</span>
-        <span style={{ fontSize: 28, fontWeight: 500, color: '#d8d0f0', maxWidth: 900, lineHeight: 1.35 }}>{site.tagline}</span>
+        <span style={{ fontSize: title ? 92 : 112, fontWeight: 700, letterSpacing: -4, lineHeight: 1 }}>{title ?? site.displayName}</span>
+        {!title && <span style={{ fontSize: 40, fontWeight: 500, color: '#c4b5fd' }}>{kicker}</span>}
+        <span style={{ fontSize: 28, fontWeight: 500, color: '#d8d0f0', maxWidth: 1000, lineHeight: 1.35 }}>
+          {(line ?? site.tagline).slice(0, 220)}
+        </span>
       </div>
       <div style={{ display: 'flex', gap: 14, fontFamily: 'Plex Mono', fontSize: 22, color: '#a78bfa' }}>
         <span>Robotics</span>
