@@ -1,4 +1,3 @@
-import { activityLog } from '@/lib/activity';
 import type { GitHubFeed } from '@/lib/github';
 import type { Site } from '@/lib/portfolio';
 import { heatLevel } from '@/game/engine/heat';
@@ -28,10 +27,9 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
     );
   const now = Date.parse(feed.fetchedAt);
   const max = Math.max(1, ...feed.activity.map((d) => d.count));
-  const commits = activityLog(feed.events);
   const stats = [
     { n: feed.profile?.public_repos ?? 0, label: 'public repos' },
-    { n: feed.totalContributions ?? feed.activity.reduce((a, d) => a + d.count, 0), label: feed.totalContributions != null ? 'contributions this year' : 'recent public events' },
+    { n: feed.totalContributions ?? feed.activity.reduce((a, d) => a + d.count, 0), label: feed.totalContributions != null ? 'contributions in the last year' : 'recent public events' },
     { n: feed.totalStars, label: 'stars' },
     { n: feed.languages.length, label: 'languages' },
   ];
@@ -53,7 +51,11 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
           ))}
         </div>
       </div>
-      <div className="heat wave" aria-label="Contribution activity">
+      {/* Same layout as GitHub's graph: a column per week, Sunday at the top. */}
+      <div className="heat wave" role="img" aria-label={`Contribution activity, ${feed.activity.reduce((a, d) => a + d.count, 0)} contributions`}>
+        {Array.from({ length: feed.activity.length ? new Date(feed.activity[0].date + 'T00:00:00Z').getUTCDay() : 0 }, (_, k) => (
+          <i key={`pad-${k}`} className="pad" aria-hidden />
+        ))}
         {feed.activity.map((d, i) => (
           <i key={d.date} data-l={heatLevel(d.count, max)} title={`${d.date}: ${d.count}`} style={{ '--c': Math.floor(i / 7) } as React.CSSProperties} />
         ))}
@@ -93,30 +95,6 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
             ))}
             {!feed.pinned.length && <li className="muted">No public repositories yet.</li>}
           </ul>
-        </div>
-        <div>
-          <h3 className="gh-h">Recent activity</h3>
-          <div className="terminal" role="log" aria-label="Recent GitHub activity">
-            <div className="term-bar" aria-hidden>
-              <i />
-              <i />
-              <i />
-              <span className="mono">git log --oneline</span>
-            </div>
-            <ol className="term-lines">
-              {commits.map((c, i) => (
-                <li key={c.id} style={{ '--i': i } as React.CSSProperties}>
-                  <span className="t-hash">{/^[0-9a-f]{7,}$/i.test(c.sha) ? c.sha.slice(0, 7) : c.sha.slice(-7)}</span>{' '}
-                  <span className="t-repo">{c.repo}</span> <span className="t-msg">{c.message}</span>{' '}
-                  <span className="t-when">{ago(c.at, now)}</span>
-                </li>
-              ))}
-              {!commits.length && <li className="t-when">No recent public activity.</li>}
-              <li className="t-cursor" aria-hidden>
-                $ <i />
-              </li>
-            </ol>
-          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { loadPortfolio } from './load.ts';
+import { parseContributionCalendar } from './contributions';
 
 const repoSchema = z.object({
   name: z.string(),
@@ -200,6 +201,24 @@ export async function getGitHubFeed(): Promise<GitHubFeed> {
         activitySource = 'calendar';
       } catch (error) {
         console.warn('GitHub contribution calendar unavailable; using public events.', error);
+      }
+    }
+    // No token (or it failed): the public calendar page has the same graph as the profile.
+    if (activitySource === 'events') {
+      try {
+        const res = await fetch(`https://github.com/users/${encodeURIComponent(githubUsername)}/contributions`, {
+          headers: { Accept: 'text/html' },
+          signal: AbortSignal.timeout(8000),
+          next: { revalidate: 3600 },
+        });
+        if (!res.ok) throw new Error(`GitHub contributions page returned ${res.status}`);
+        const { days, total } = parseContributionCalendar(await res.text());
+        if (days.length < 30) throw new Error('GitHub contributions page had no calendar');
+        activity = days.slice(-DAYS);
+        totalContributions = total;
+        activitySource = 'calendar';
+      } catch (error) {
+        console.warn('GitHub public contribution calendar unavailable; using public events.', error instanceof Error ? error.message : error);
       }
     }
     if (activitySource === 'events') {

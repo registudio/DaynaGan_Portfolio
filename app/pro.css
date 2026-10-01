@@ -3862,6 +3862,19 @@ main.pro.case {
   margin-top: 0;
 }
 
+/* GitHub without the activity log: repositories across the full width. */
+.gh-cols {
+  grid-template-columns: 1fr;
+}
+.gh-cols .repo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
+.heat i.pad {
+  visibility: hidden;
+}
+
 /* ── Interaction language: one hover, press and focus treatment everywhere ── */
 /* Hover = lift + violet edge · press = settle (slight scale-down) · focus = violet ring. */
 :root {
