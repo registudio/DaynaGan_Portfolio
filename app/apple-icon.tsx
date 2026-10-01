@@ -16,9 +16,9 @@ export default async function AppleIcon() {
           justifyContent: 'center',
           fontSize: 112,
           fontWeight: 700,
-          color: '#f2f3ed',
+          color: '#fff',
           fontFamily: 'Space Grotesk',
-          background: 'linear-gradient(135deg, #1c3f73, #2f5d9e)',
+          background: 'linear-gradient(135deg, #7c3aed, #c026d3)',
         }}
       >
         D

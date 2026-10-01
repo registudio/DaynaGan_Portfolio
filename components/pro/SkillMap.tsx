@@ -24,8 +24,7 @@ const kind = (axis: number | null) =>
   axis == null ? 'People' : axis < 0.25 ? 'Software' : axis > 0.75 ? 'Hardware' : 'Software + hardware';
 
 /** One muted hue per category (no rainbow): depth varies a little with proficiency. */
-// Navy, slate blue, olive, ochre, rust, slate — from the export's navy / sage / olive scheme.
-const PALETTE = ['#1c3f73', '#3d5a80', '#4e6438', '#8a6a24', '#8a4636', '#475569'];
+const PALETTE = ['#6d28d9', '#4338ca', '#0e7490', '#a16207', '#9d174d', '#475569'];
 const HEAD = 30; // category header band
 
 /**

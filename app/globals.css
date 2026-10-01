@@ -1,25 +1,19 @@
 /* ── Tokens ─────────────────────────────────────────────────────────────── */
 :root {
-  /* Palette from the design export (Elements/): navy accent #1c3f73 on warm off-white /
-     near-black, with sage and olive neutrals. Token names kept from v1 (--violet = brand). */
-  --paper: #f4f5ef;
-  --surface: #fbfcf8;
-  --surface-2: #eceee4;
-  --tint: #e2e8f1;
-  --ink: #111412;
-  --ink-2: #3a4234;
-  --ink-3: #5a6452;
-  --line: #d6dbcc;
-  --violet: #1c3f73;
-  --violet-2: #2b5592;
-  --violet-soft: #cfdbec;
-  --accent-fill: #1c3f73;
-  --on-accent: #f2f3ed;
-  --accent-alt: #7a6bd0;
-  --gold: #9a6b16;
-  --ok: #4e6438;
-  --warn: #8a5a14;
-  --shadow: 0 1px 2px rgb(17 20 18 / 0.06), 0 8px 24px -12px rgb(17 20 18 / 0.18);
+  --paper: #faf8fc;
+  --surface: #ffffff;
+  --surface-2: #f3effa;
+  --tint: #ede9fe;
+  --ink: #1a1523;
+  --ink-2: #4a4458;
+  --ink-3: #6b6479;
+  --line: #e4ddf0;
+  --violet: #5b21b6;
+  --violet-2: #7c3aed;
+  --violet-soft: #ddd6fe;
+  --ok: #047857;
+  --warn: #b45309;
+  --shadow: 0 1px 2px rgb(40 20 80 / 0.06), 0 8px 24px -12px rgb(40 20 80 / 0.18);
   --radius: 14px;
   --font: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -29,45 +23,37 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --paper: #111412;
-    --surface: #181d15;
-    --surface-2: #212a1a;
-    --tint: #1c2a3d;
-    --ink: #f2f3ed;
-    --ink-2: #c9d0bf;
-    --ink-3: #a4af9b;
-    --line: #2d3727;
-    --violet: #a9c2ea;
-    --violet-2: #6f93cc;
-    --violet-soft: #22344d;
-    --accent-fill: #1c3f73;
-    --on-accent: #f2f3ed;
-    --accent-alt: #a78bfa;
-    --gold: #d6b06a;
-    --ok: #94a487;
-    --warn: #d9b26b;
+    --paper: #130e1d;
+    --surface: #1b1528;
+    --surface-2: #221a33;
+    --tint: #2a1f40;
+    --ink: #eee9f7;
+    --ink-2: #c3bad4;
+    --ink-3: #9088a3;
+    --line: #2f2645;
+    --violet: #c4b5fd;
+    --violet-2: #a78bfa;
+    --violet-soft: #3b2d5c;
+    --ok: #34d399;
+    --warn: #fbbf24;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -16px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
 }
 :root[data-theme='dark'] {
-  --paper: #111412;
-  --surface: #181d15;
-  --surface-2: #212a1a;
-  --tint: #1c2a3d;
-  --ink: #f2f3ed;
-  --ink-2: #c9d0bf;
-  --ink-3: #a4af9b;
-  --line: #2d3727;
-  --violet: #a9c2ea;
-  --violet-2: #6f93cc;
-  --violet-soft: #22344d;
-  --accent-fill: #1c3f73;
-  --on-accent: #f2f3ed;
-  --accent-alt: #a78bfa;
-  --gold: #d6b06a;
-  --ok: #94a487;
-  --warn: #d9b26b;
+  --paper: #130e1d;
+  --surface: #1b1528;
+  --surface-2: #221a33;
+  --tint: #2a1f40;
+  --ink: #eee9f7;
+  --ink-2: #c3bad4;
+  --ink-3: #9088a3;
+  --line: #2f2645;
+  --violet: #c4b5fd;
+  --violet-2: #a78bfa;
+  --violet-soft: #3b2d5c;
+  --ok: #34d399;
+  --warn: #fbbf24;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -16px rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
@@ -152,9 +138,9 @@ button {
   transform: translateY(-1px);
 }
 .btn.primary {
-  background: var(--accent-fill);
-  border-color: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--violet);
+  border-color: var(--violet);
+  color: var(--paper);
 }
 .btn.small {
   padding: 6px 12px;

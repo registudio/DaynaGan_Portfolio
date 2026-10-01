@@ -78,8 +78,8 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       stage.scene.add(row);
       // A glowing turntable ring under each model.
       const ringGeo = new THREE.RingGeometry(1.25, 1.29, 64);
-      const ringMat = new THREE.MeshBasicMaterial({ color: '#6f93cc', transparent: true, opacity: 0.45, side: THREE.DoubleSide });
-      const discMat = new THREE.MeshBasicMaterial({ color: '#1c3f73', transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false });
+      const ringMat = new THREE.MeshBasicMaterial({ color: '#a78bfa', transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+      const discMat = new THREE.MeshBasicMaterial({ color: '#7c3aed', transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false });
       const discGeo = new THREE.CircleGeometry(1.25, 64);
       for (const [i, item] of items.entries()) {
         const holder = new THREE.Group();
