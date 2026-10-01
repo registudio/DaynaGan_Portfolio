@@ -80,6 +80,26 @@ body {
 body.lock {
   overflow: hidden;
 }
+/* Browser surfaces carry the palette too: selection, caret, form accents and scrollbars. */
+::selection {
+  background: color-mix(in srgb, var(--violet-2) 32%, transparent);
+  color: var(--ink);
+}
+html {
+  accent-color: var(--violet-2);
+  caret-color: var(--violet-2);
+  scrollbar-color: color-mix(in srgb, var(--violet-2) 45%, var(--line)) transparent;
+}
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+p,
+li {
+  text-wrap: pretty;
+}
 a {
   color: var(--violet);
   text-underline-offset: 3px;
