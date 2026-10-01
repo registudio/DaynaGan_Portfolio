@@ -10,3 +10,6 @@ playwright-report/
 *.log
 next-env.d.ts
 .vercel
+
+# Local test screenshots
+/*.png

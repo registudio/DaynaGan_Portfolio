@@ -2664,9 +2664,9 @@ body.modal-open {
 .tile-name {
   font-weight: 700;
   line-height: 1.1;
-  overflow-wrap: break-word;
-  -webkit-hyphens: auto;
-  hyphens: auto;
+  /* Names never split mid-word; tiles size their label to fit instead (SkillMap --fit). */
+  overflow-wrap: normal;
+  word-break: keep-all;
   letter-spacing: -0.01em;
 }
 .tile-level {
@@ -2810,6 +2810,7 @@ body.modal-open {
 }
 .edu-toggle {
   all: unset;
+  color: inherit;
   box-sizing: border-box;
   cursor: pointer;
   display: grid;
@@ -2849,16 +2850,34 @@ body.modal-open {
 .edu-toggle:hover .edu-plus {
   color: var(--violet);
 }
-.edu-row.open .edu-plus {
+/* Static (no JS / reduced motion): every row open. Pinned: only the current step's row. */
+.edu-plus {
   transform: rotate(45deg);
+}
+.story.live .edu-row:not(.now) .edu-plus {
+  transform: none;
 }
 .edu-more {
   display: grid;
-  grid-template-rows: 0fr;
+  grid-template-rows: 1fr;
   transition: grid-template-rows 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.edu-row.open .edu-more {
-  grid-template-rows: 1fr;
+.story.live .edu-row:not(.now) .edu-more {
+  grid-template-rows: 0fr;
+}
+/* Rows are always visible while pinned (only their details open and close). */
+.story.live .edu-row.pin-step {
+  opacity: 1;
+  transform: none;
+}
+.story.live .edu-row:not(.now) .edu-years {
+  color: var(--ink-3);
+}
+.edu-years {
+  transition: color 0.3s;
+}
+.story.live .edu-toggle {
+  padding-block: clamp(12px, 2.2vh, 24px);
 }
 .edu-more > div {
   overflow: hidden;
@@ -2868,14 +2887,42 @@ body.modal-open {
   display: grid;
   grid-template-columns: minmax(270px, 0.3fr) 1fr;
   gap: 16px 32px;
-  padding: 0 4px 28px;
-  opacity: 0;
-  transform: translateY(-8px);
+  padding: 0 4px 24px;
   transition: opacity 0.5s 0.15s, transform 0.5s 0.15s;
 }
-.edu-row.open .edu-inner {
-  opacity: 1;
-  transform: none;
+.story.live .edu-row:not(.now) .edu-inner {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+/* Short screens and phones: collapsed rows shrink to one line; fewer course lines. */
+@media (max-height: 820px), (max-width: 760px) {
+  .story.live .edu-row:not(.now) .edu-qual {
+    display: none;
+  }
+  .story.live .edu-row:not(.now) .edu-years {
+    font-size: clamp(22px, 3vw, 30px);
+  }
+  .story.live .edu-row:not(.now) .edu-name h3 {
+    font-size: var(--t-lg);
+  }
+}
+/* Short screens and phones: fewer course lines so the open row fits under the title. */
+@media (max-height: 820px), (max-width: 760px) {
+  .story.live .edu-courses li:nth-child(n + 7):not(.muted) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .story.live .edu-courses li:nth-child(n + 5):not(.muted) {
+    display: none;
+  }
+  .story.live .edu-also {
+    display: none;
+  }
+  .story.live .edu-row .honours li {
+    font-size: 12px;
+    padding: 3px 9px;
+  }
 }
 .edu-inner > * {
   min-width: 0;
@@ -3051,7 +3098,11 @@ body.modal-open {
   margin: 0 auto;
   padding: 0 16px;
 }
+.story.live .story-pin {
+  overflow: hidden;
+}
 .story.live .story-pin-inner {
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
   height: 100%;
 }
 .story.live .pin-step {
@@ -3791,6 +3842,24 @@ main.pro.case {
 .more-go {
   font-size: var(--t-sm);
   color: var(--violet);
+}
+
+/* ── Skills & Awards pinned: the map, then the awards in the same spot ──── */
+.skills-pin {
+  display: grid;
+  gap: 48px;
+}
+.story.live .skills-pin > .pin-step {
+  grid-area: 1 / 1;
+  align-self: start;
+}
+.story.live .skills-pin > .pin-step.on:not(.now) {
+  opacity: 0;
+  transform: translate3d(0, -28px, 0);
+  pointer-events: none;
+}
+.story.live .skills-pin .sub-title {
+  margin-top: 0;
 }
 
 /* ── Interaction language: one hover, press and focus treatment everywhere ── */

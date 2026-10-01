@@ -14,7 +14,6 @@ import {
 } from '@/lib/portfolio';
 import { computeSkills, skillSources } from '@/lib/skills';
 import ContactForm from './ContactForm';
-import AutoExpand from './AutoExpand';
 import CountStat from './CountStat';
 import CopyEmail from './CopyEmail';
 import ExpandCard from './ExpandCard';
@@ -243,7 +242,7 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
 
 /** Education: "Education" wipes in along a hairline path, then an ascending staircase of schools. */
 function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
-  // Newest first; each row opens as it scrolls into view (AutoExpand).
+  // Newest first. Pinned: one row is open at a time, following the scroll (ScrollStory steps).
   const rooms = [...level.rooms].reverse();
   const years = (room: Part) => {
     const p = period(room);
@@ -254,9 +253,15 @@ function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
   };
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="path" marks={level.rooms.map((r) => r.meta.short || r.title)}>
-        <AutoExpand className="edu-rows">
-          {rooms.map((room) => {
+      <ScrollStory
+        title={level.title}
+        number={sectionNumber(level)}
+        variant="path"
+        marks={level.rooms.map((r) => r.meta.short || r.title)}
+        steps={rooms.length}
+      >
+        <div className="edu-rows">
+          {rooms.map((room, step) => {
             const parts = visible(room.parts);
             const honours = parts.filter(
               (p) => !p.meta.tags && !p.body && !p.meta.link && /honou?r|scholar|valedict|award|dean|merit|prize/i.test(p.title),
@@ -269,8 +274,9 @@ function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
             const [gpa, gpaLabel] = (room.meta.metrics ?? '').split(';')[0].split('|').map((x) => x.trim());
             const panel = `${level.id}-${room.id}-more`;
             return (
-              <article key={room.id} id={`${level.id}-${room.id}`} className="edu-row">
-                <button type="button" className="edu-toggle" aria-expanded="false" aria-controls={panel}>
+              <article key={room.id} id={`${level.id}-${room.id}`} className="edu-row pin-step" data-step={step}>
+                {/* Jumps to this school's step (RevealRoot routes in-page links to resting points). */}
+                <a className="edu-toggle" href={`#${level.id}-${room.id}`} aria-controls={panel}>
                   <span className="edu-years">{years(room)}</span>
                   <span className="edu-name">
                     <h3>{room.title}</h3>
@@ -279,7 +285,7 @@ function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
                   <span className="edu-plus" aria-hidden>
                     +
                   </span>
-                </button>
+                </a>
                 <div className="edu-more" id={panel}>
                   <div>
                     <div className="edu-inner">
@@ -305,9 +311,10 @@ function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
                           <>
                             <span className="eyebrow">{courses[0].title}</span>
                             <ul className="edu-courses">
-                              {courseList.map((c) => (
+                              {courseList.slice(0, 10).map((c) => (
                                 <li key={c}>{c}</li>
                               ))}
+                              {courseList.length > 10 && <li className="muted">+{courseList.length - 10} more</li>}
                             </ul>
                           </>
                         )}
@@ -323,7 +330,7 @@ function Timeline({ level }: { portfolio: Portfolio; level: Level }) {
               </article>
             );
           })}
-        </AutoExpand>
+        </div>
       </ScrollStory>
     </section>
   );
@@ -541,19 +548,18 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const awards = level.rooms.find((r) => r.id === 'awards');
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="grid">
-      <div className="section-head">
-        <Intro level={level} />
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="grid" steps={awards ? 2 : 1}>
+      {/* Pinned: the skills map, then the awards in its place. */}
+      <div className="skills-pin">
+      <div className="pin-step" data-step={0}>
+        <SkillMap skills={skillTiles(portfolio)} />
       </div>
-      <SkillMap skills={skillTiles(portfolio)} />
       {awards && (
-        <>
-          <h3 className="sub-title" data-reveal>
-            Awards &amp; Recognition
-          </h3>
+        <div className="pin-step" data-step={1}>
+          <h3 className="sub-title">Awards &amp; Recognition</h3>
           <div className="awards">
             {visible(awards.parts).map((a, i) => (
-              <div className="flip" key={a.id} tabIndex={0} data-reveal style={{ '--i': i } as React.CSSProperties}>
+              <div className="flip" key={a.id} tabIndex={0} style={{ '--i': i } as React.CSSProperties}>
                 <div className="flip-inner">
                   <div className="flip-face card">
                     <span className="trophy" aria-hidden>
@@ -570,8 +576,9 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
+      </div>
       </ScrollStory>
     </section>
   );

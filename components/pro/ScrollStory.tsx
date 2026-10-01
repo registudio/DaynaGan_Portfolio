@@ -99,6 +99,25 @@ export default function ScrollStory({
           else el.removeAttribute('aria-current');
         }
       });
+      // Keep the current step whole: if it runs past the bottom of the window (accordion rows
+      // on short screens), slide the content up by the overflow once it has finished opening.
+      clearTimeout(follow);
+      follow = setTimeout(fit, 650);
+    };
+    let follow: ReturnType<typeof setTimeout> | undefined;
+    const fit = () => {
+      const inner = win.current?.querySelector<HTMLElement>('.story-pin-inner');
+      const now = win.current?.querySelector<HTMLElement>('.pin-step.now');
+      if (!inner || !now || !win.current) return;
+      const prev = Number(inner.dataset.shift || 0);
+      const box = win.current.getBoundingClientRect();
+      const r = now.getBoundingClientRect();
+      // Positions without the current shift.
+      const top = r.top + prev;
+      const bottom = r.bottom + prev;
+      const shift = Math.max(0, Math.min(bottom - box.bottom + 12, top - box.top));
+      inner.dataset.shift = String(shift);
+      inner.style.transform = shift ? `translate3d(0, ${-shift}px, 0)` : '';
     };
 
     const measure = () => {
@@ -199,6 +218,7 @@ export default function ScrollStory({
     addEventListener('resize', onResize);
     return () => {
       clearTimeout(late);
+      clearTimeout(follow);
       io.disconnect();
       off();
       removeEventListener('resize', onResize);

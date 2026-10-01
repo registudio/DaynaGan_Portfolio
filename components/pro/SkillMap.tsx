@@ -37,6 +37,8 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
   // Unmeasured until mounted: tiles are only laid out once the real width is known (a
   // server-side guess wider than a phone widened the whole page before hydration).
   const [size, setSize] = useState({ w: 0, h: 560 });
+  // Inside a pinned story the map must fit under the docked title.
+  const [pinned, setPinned] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,8 +46,12 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
-      // Taller on phones, where categories stack.
-      setSize({ w, h: w < 600 ? Math.round(w * 2.1) : Math.round(Math.max(460, Math.min(640, w * 0.54))) });
+      const inPin = !!el.closest('.story-steps.live');
+      setPinned(inPin);
+      // Taller on phones, where categories stack; pinned, capped to the space under the title.
+      const free = innerHeight - (w < 600 ? 300 : 330);
+      const natural = w < 600 ? Math.round(w * 2.1) : Math.round(Math.max(460, Math.min(640, w * 0.54)));
+      setSize({ w, h: inPin ? Math.max(320, Math.min(natural, free)) : natural });
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -66,7 +72,8 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
     const total = groups.reduce((a, g) => a + g.value, 0);
     let y = 0;
     // Phones stack the categories full width; wider screens tile them.
-    const outer = phone
+    // Stacked bands on phones; when pinned (height capped) the categories tile instead.
+    const outer = phone && !pinned
       ? groups.map((g) => {
           const h = (g.value / total) * size.h;
           const r = { id: g.name, x: 0, y, w: size.w, h };
@@ -84,7 +91,7 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
       return { ...r, g, inner };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, size, phone]);
+  }, [groups, size, phone, pinned]);
 
   const byId = useMemo(() => new Map(skills.map((s) => [s.id, s])), [skills]);
   const colorOf = useMemo(() => new Map(groups.flatMap((g) => g.items.map((s) => [s.id, g.color] as const))), [groups]);
@@ -114,11 +121,11 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
               const byWidth = r.w > 240 ? 3 : r.w > 190 ? 2 : r.w > 150 ? 1 : 0;
               const tier = ['s', 'm', 'l', 'xl'][Math.min(byArea, byWidth)];
               // Tall slivers set their label vertically; every label shrinks to fit its longest word.
-              const tall = r.h > r.w * 2.2 && r.w < 90;
+              const tall = r.w < 90 && r.h > r.w * 1.5;
               const pad = phone || tier === 's' ? 10 : 18;
               const bare = tall || r.w < 110 || r.h < 100;
               const longest = Math.max(...s.name.split(/\s+/).map((x) => x.length));
-              const fit = ((tall ? r.h : r.w) - 6 - pad * 2) / (longest * 0.58);
+              const fit = ((tall ? r.h : r.w) - 6 - pad * 2) / (longest * 0.64);
               return (
                 <button
                   key={r.id}
