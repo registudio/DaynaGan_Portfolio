@@ -108,7 +108,7 @@ Closed for now — something is coming soon.
 id: about
 eyebrow: 01 / About
 title: Engineer in the making.
-kicker: Hardware · Software · Everything between
+kicker: Robotics & Computer Engineering
 biome: core-reactor
 light: #c026d3
 enemies: spark-wisps

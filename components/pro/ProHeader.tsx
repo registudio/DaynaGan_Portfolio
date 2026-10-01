@@ -89,7 +89,7 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
           </nav>
           <div className="pill-actions">
             <ThemeToggle />
-            <button className="btn small primary play-btn" onClick={() => setMode('game')}>
+            <button className="btn small primary play-btn" onClick={() => setMode('splash')}>
               ▶ <span>Play</span>
             </button>
             <button
@@ -126,7 +126,7 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
         </nav>
         <div className="sheet-actions">
           <ThemeToggle />
-          <button className="btn primary" onClick={() => setMode('game')}>
+          <button className="btn primary" onClick={() => setMode('splash')}>
             ▶ Play the game
           </button>
           <button className="btn" onClick={() => setSheet(false)}>

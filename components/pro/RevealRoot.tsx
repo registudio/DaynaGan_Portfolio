@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { goTo } from './goTo';
 
 /**
  * Page-wide motion for Professional mode: scroll reveals, number counters, timelines that
@@ -45,7 +46,8 @@ export default function RevealRoot() {
         requestAnimationFrame(step);
       }
     });
-    document.querySelectorAll('[data-count]').forEach((el) => counters.observe(el));
+    // Numbers inside pinned stepped stories count when their step is reached (ScrollStory).
+    document.querySelectorAll('[data-count]').forEach((el) => !el.closest('.story-steps') && counters.observe(el));
     cleanups.push(() => counters.disconnect());
 
     // Scroll-linked progress: timelines draw, their nodes light up, the goals marker travels.
@@ -101,6 +103,25 @@ export default function RevealRoot() {
       removeEventListener('scroll', queue);
       removeEventListener('resize', queue);
     });
+
+    // In-page links land on the section's resting state, not halfway through its opener.
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const a = (e.target as Element).closest?.('a[href^="#"]') as HTMLAnchorElement | null;
+      const id = a?.getAttribute('href')!.slice(1);
+      if (!id || !document.getElementById(id)) return;
+      e.preventDefault();
+      goTo(id);
+      if (a!.classList.contains('skip-link')) document.getElementById(id)?.focus({ preventScroll: true });
+    };
+    document.addEventListener('click', onClick);
+    cleanups.push(() => document.removeEventListener('click', onClick));
+    // Arriving with a hash: wait for the stories to measure, then jump.
+    const initial = location.hash.slice(1);
+    if (initial && document.getElementById(initial)) {
+      const t = setTimeout(() => goTo(initial), 750);
+      cleanups.push(() => clearTimeout(t));
+    }
 
     // Narrow screens: start the contribution heatmap at the latest weeks.
     document.querySelectorAll<HTMLElement>('.heat').forEach((h) => (h.scrollLeft = h.scrollWidth));

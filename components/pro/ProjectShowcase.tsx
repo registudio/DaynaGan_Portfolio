@@ -76,7 +76,7 @@ export default function ProjectShowcase({
               <div className="show-meta">
                 <span className="mono">{String(i + 1).padStart(2, '0')} / {String(shown.length).padStart(2, '0')}</span>
                 <span className={`badge${p.status === 'in-progress' ? ' wip' : ''}`}>
-                  {p.status === 'in-progress' ? '● In progress' : `✓ Complete${p.year ? ` · ${p.year}` : ''}`}
+                  {p.status === 'in-progress' ? '● In progress' : p.year ?? 'Complete'}
                 </span>
               </div>
               <h3>{p.title}</h3>

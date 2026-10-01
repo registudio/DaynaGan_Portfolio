@@ -60,9 +60,10 @@ export default function App({
     } catch {}
     if (m === 'pro') {
       history.replaceState(null, '', anchor ? `#${anchor}` : location.pathname);
-      requestAnimationFrame(() => {
-        if (anchor) document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
-      });
+      // Let the stories measure, then land on the section's resting state.
+      if (anchor) setTimeout(() => import('./pro/goTo').then((m) => m.goTo(anchor)), 750);
+    } else if (m === 'splash') {
+      history.replaceState(null, '', location.pathname);
     } else if (m === 'game') {
       setTour(anchor === 'tour');
       setPlanet(anchor === 'planet');
