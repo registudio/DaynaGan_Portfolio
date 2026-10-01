@@ -4,16 +4,21 @@ import { partOfObject, type ShowModel } from './blueprint';
 
 /**
  * Loads a CAD export (public/models/<project-id>.glb|.gltf|.stl|.obj) and wraps it in the
- * same API as the wireframe blueprints. Objects named after a part id (see portfolio.md)
- * become explodable, annotatable parts; with no named parts every top-level object is a part.
+ * same API as the wireframe blueprints. Objects named after a part id (see portfolio.md), or
+ * carrying an `explode` offset in their glTF extras, become explodable, annotatable parts; with
+ * no named parts every top-level object is a part.
  */
 export async function loadCad(url: string, projectId: string, dark = true): Promise<ShowModel> {
   const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
   let root: THREE.Object3D;
   const fallback = new THREE.MeshStandardMaterial({ color: '#c4b5fd', metalness: 0.35, roughness: 0.45 });
   if (ext === 'glb' || ext === 'gltf') {
-    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
-    root = (await new GLTFLoader().loadAsync(url)).scene;
+    const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([
+      import('three/examples/jsm/loaders/GLTFLoader.js'),
+      // Models converted from STEP are meshopt-compressed (see public/projects/README.md).
+      import('three/examples/jsm/libs/meshopt_decoder.module.js'),
+    ]);
+    root = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url)).scene;
   } else if (ext === 'stl') {
     const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
     const geo = await new STLLoader().loadAsync(url);
@@ -44,7 +49,7 @@ export async function loadCad(url: string, projectId: string, dark = true): Prom
   const known = new Set(def?.parts.map((p) => p.id));
   const named: THREE.Object3D[] = [];
   root.traverse((o) => {
-    if (o !== root && known.has(o.name) && !named.some((n) => isAncestor(n, o))) named.push(o);
+    if (o !== root && (known.has(o.name) || o.userData.explode) && !named.some((n) => isAncestor(n, o))) named.push(o);
   });
   const partObjs = named.length ? named : (root.children.length > 1 ? root.children : []);
   const parts = new Map<string, { obj: THREE.Object3D; base: THREE.Vector3; dir: THREE.Vector3 }>();
@@ -54,7 +59,9 @@ export async function loadCad(url: string, projectId: string, dark = true): Prom
     const geo = def?.parts.find((p) => p.id === id);
     const c = new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3());
     // Explode offsets are in display units; divide by the fit scale to get file units.
-    const dir = (geo ? new THREE.Vector3().fromArray(geo.explode) : c.normalize().multiplyScalar(0.7)).divideScalar(holder.scale.x);
+    // A part can carry its own explode offset in the file (glTF extras → userData.explode).
+    const own = obj.userData.explode as number[] | undefined;
+    const dir = (own ? new THREE.Vector3().fromArray(own) : geo ? new THREE.Vector3().fromArray(geo.explode) : c.normalize().multiplyScalar(0.7)).divideScalar(holder.scale.x);
     parts.set(id, { obj, base: obj.position.clone(), dir });
   });
 

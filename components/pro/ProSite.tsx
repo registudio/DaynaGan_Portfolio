@@ -28,6 +28,8 @@ import ProjectShowcase, { type ShowcaseProject } from './ProjectShowcase';
 import RevealRoot from './RevealRoot';
 import ScrollStory from './ScrollStory';
 import ToastStack from './Toasts';
+
+const NO_CAD: Record<string, string> = {};
 import SkillMap, { type SkillTile, type SkillUse } from './SkillMap';
 
 const Html = ({ html, className = 'prose' }: { html?: string; className?: string }) =>
@@ -209,7 +211,8 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
             </a>
           </div>
         </div>
-        <HeroCarousel items={carousel} cad={cad} />
+        {/* Wireframes only: real CAD exports run to megabytes, too heavy for the first screen. */}
+        <HeroCarousel items={carousel} cad={NO_CAD} />
       </div>
       <div id="about-more" className="about-more">
         <ScrollStory title="About Me" number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={2}>

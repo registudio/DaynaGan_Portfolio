@@ -644,6 +644,7 @@ The handheld input that drives the claw.
 id: drone
 year: 2026
 status: in-progress
+media: cad
 tags: Flight control, Embedded systems
 requires: soldering 3, 3d-printing 2, esp32 2
 needs: robot-claw, air-quality-sensor
@@ -671,12 +672,17 @@ Keeps the drone stable and turns stick inputs into motor commands.
 ### Frame
 id: frame
 
-The X-frame that holds everything together.
+A GEPRC Mk4 5-inch X-frame: carbon-fibre plates and arms, M3 standoffs and hardware holding everything together.
 
 ### Battery
 id: battery
 
-Powers the motors and electronics.
+Powers the motors and electronics. It straps down to the battery pad on the top plate.
+
+### Pogo landing module
+id: pogo
+
+A spring-loaded landing foot under the frame, with an interchangeable TPU sole. An LDC1612 inductive sensor reads a conductive target on the slider, so the drone can sense the spring's compression on touchdown.
 
 
 ## Determining the Mass of Jupiter

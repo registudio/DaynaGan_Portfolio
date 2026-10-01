@@ -487,6 +487,11 @@ Picked by the client from a 25-item suggestion list (Design 1–5, UI/UX 2 & 5, 
 - **Footer fix:** the sticky Contact stage overlaid the footer; the stage now ignores pointer events (its window keeps them).
 - **Responsive pass:** 13 viewports 320×568 → 2560×1440, no horizontal overflow; pinned steps slide (`fit()`) so the current step stays visible; screens ≤640 px tall (small phones, landscape) use the static layout (and the story cleanup now clears every scroll-driven inline style, which had left content invisible after switching); `.story { min-width: 0 }` fixed 2560 overflow; the splash menu card can shrink to 320 px; phone trims for summaries and About.
 
+### Drone CAD model
+- `PogoScoutv2.2.STEP` (117 MB, in Google Drive; `*.step` is gitignored) → `public/projects/drone/model.glb` (1.8 MB, ~160k triangles) via `scripts/cad/step_to_glb.py` (OpenCascade, keeps product names) and `scripts/cad/pack-drone.mjs` (glTF-Transform: group into parts, materials, upright, simplify, meshopt).
+- Parts: `frame` (GEPRC Mk4 5" carbon plates, arms, standoffs, hardware), `battery` (battery pad), `pogo` (new Drone part: spring-loaded landing foot with LDC1612 inductive sensing). Explode offsets travel in the file (glTF extras → `userData.explode`), and such nodes count as parts. The CAD has no motors, props or flight controller, so those cards have no hotspot.
+- `loadCad` registers the meshopt decoder. The hero carousel stays on wireframes so the first screen never downloads a CAD file; the model loads in the Projects viewer and on the case study.
+
 ## Improvement backlog (suggested)
 
 ### Performance
