@@ -31,6 +31,7 @@
 #   profile   (levels only) replaces the intro text in Professional mode
 #   metrics   impact numbers shown in Professional mode, e.g. `metrics: 80+ | volunteers led; 3 | robots built`
 #   repo / demo  (projects) GitHub and live-demo links
+#   tags: Placeholder  (projects) marks a template entry: kept here as an example, never shown
 #
 # Anything marked TODO is a placeholder for Dayna to fill in.
 # ─────────────────────────────────────────────────────────────────────────────

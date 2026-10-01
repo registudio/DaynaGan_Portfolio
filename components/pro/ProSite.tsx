@@ -427,6 +427,8 @@ export function showcase(portfolio: Portfolio, level: Level, assets: Record<stri
   const skillName = (id: string) => portfolio.site.skills.find((s) => s.id === id)?.name ?? id;
   return level.rooms
     .filter((r) => r.meta.tags || r.meta.status)
+    // Template entries (tagged Placeholder) stay in the file as examples but never reach visitors.
+    .filter((r) => !list(r.meta.tags).some((t) => /^placeholder$/i.test(t)))
     .map((room) => {
       const [summary = '', ...rest] = (room.html ?? '').split(/(?<=<\/p>)\n?/);
       return {

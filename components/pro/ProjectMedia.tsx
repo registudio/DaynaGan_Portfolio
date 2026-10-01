@@ -20,7 +20,9 @@ export default function ProjectMedia({
   onHover: (id: string | null) => void;
 }) {
   const parts = p.parts.map((x) => ({ id: x.id, title: x.title, note: x.did }));
-  if (p.media === 'diagram') return <AgentDiagram parts={parts} active={active} onHover={onHover} />;
+  // A photos project with nothing uploaded yet shows its parts as a diagram, not an empty frame.
+  if (p.media === 'diagram' || (p.media === 'photos' && !p.photos.length))
+    return <AgentDiagram parts={parts} active={active} onHover={onHover} />;
   if (p.media === 'photos') return <PhotoGallery photos={p.photos} title={p.title} />;
   return <ProjectViewer title={p.title} sheet={sheet} projectId={p.id} cad={cad} parts={parts} active={active} onHover={onHover} />;
 }

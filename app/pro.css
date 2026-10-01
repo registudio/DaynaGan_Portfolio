@@ -1295,6 +1295,16 @@ main.pro {
   font-weight: 500;
   text-decoration: none;
 }
+.gh-offline {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+.gh-offline p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--ink-2);
+}
 .gh-stats {
   display: flex;
   gap: 24px;
@@ -3701,7 +3711,7 @@ main.pro.case {
   fill: #f59e0b;
 }
 .dg-no-t {
-  fill: #fff;
+  fill: var(--paper);
   font: 600 12px var(--mono);
 }
 .dg-flow line {

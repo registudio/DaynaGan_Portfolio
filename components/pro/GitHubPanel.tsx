@@ -16,12 +16,14 @@ const ago = (iso: string, now: number) => {
 export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Site }) {
   if (feed.status === 'offline')
     return (
-      <div className="card">
-        <p className="mono" style={{ marginTop: 0 }}>
-          LIVE FEED TEMPORARILY OFFLINE
+      <div className="card gh-offline">
+        <span className="gh-handle mono">@{site.githubUsername}</span>
+        <p>
+          GitHub&rsquo;s live activity couldn&rsquo;t be loaded just now. Repositories, commit history and contributions are
+          all on the profile.
         </p>
         <a className="btn" href={site.github} target="_blank" rel="noopener noreferrer">
-          View GitHub profile →
+          Open GitHub profile ↗
         </a>
       </div>
     );
