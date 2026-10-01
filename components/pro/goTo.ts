@@ -7,6 +7,8 @@ export function sectionTop(id: string): number | null {
   const el = document.getElementById(id);
   if (!el) return null;
   const section = el.closest('section') ?? el;
+  // The hero section's own anchor is the top of the page.
+  if (el === section && section.querySelector('.hero')) return 0;
   const story = section.querySelector<HTMLElement>('.story.live');
   const top = (n: Element) => n.getBoundingClientRect().top + scrollY;
   if (!story?.dataset.rest) return Math.max(0, top(el) - 84);

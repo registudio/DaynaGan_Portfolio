@@ -442,6 +442,19 @@ Direction: motion between "rich but tasteful" and "bold showpiece"; purple brand
 - **End screen:** on desktop the last screen shows the docked Contact heading, the form and the whole footer together (verified at 1280×720, 1366×768, 1440×900, 1536×864 and 1920×1080). Short laptop screens drop the intro line and use a compact form.
 - Section numbers are now consecutive (01–08) while Hobbies/Future are archived.
 
+### Round 12 — resting-state navigation, pinned sections, ledger and categorised treemap
+- **Navigation:** nav links, hero CTAs, hash arrivals and mode switches land on a section's *resting state* (title docked, content in place) via `goTo` — never mid-opener. "Contact me" lands on the form. The brand goes to the top; "About" goes to About Me. Sub-section tags (e.g. `#experience-dso`, `#education-nus`, `#projects-drone`) scroll the track / step / list to that item.
+- **Global:** Play opens the main menu (splash), not the station. The name intro replays every time Professional mode opens, like a loading screen. The nav's edge fade no longer dims "About". The cursor glow is visible in light mode too.
+- **Hero:** kicker line and "Blueprint 0x / 06" removed; the carousel loops infinitely (always moves the way you ask); circular dots.
+- **Pinned stepped stories (`ScrollStory steps`)** — the content holds under the docked title while scrolling advances through `.pin-step`s (count-ups fire when reached; phones/short screens show one step at a time). Used by:
+  - **About** — plain type on the backdrop (no cards): count-up stats → who I am → currently. Subheader "Robotics & Computer Engineering".
+  - **Education** — *transcript switcher* (client's pick from five proposals: credential stack, transcript switcher, editorial rows, level-up meter, bento): schools on the left, the current school's record on the right with a GPA ring, honours, coursework and a Read more modal. Subheader is one solid colour.
+  - **GitHub** — overview + heatmap → repositories → activity log.
+- **Experience:** title fades in place (no echo, single colour); the whole card opens its details; a border draws around the card on hover; the modal opens over an illuminated backdrop. *Interim implementations* — swap in the client's imported Count Up / Illuminate / Border Draw components when they're pushed (`countUp.ts`, `.illuminate-bg` in `Modal`, `.border-draw` in `ExpandCard`).
+- **Projects:** hovering a component card brings its project on stage immediately (previously only the project crossing the viewport middle responded), highlights requested during a model load are applied when it arrives, highlight shaders are precompiled; hotspot numbers match numbered component cards; zoom % readout (click to reset); status shows the year when complete.
+- **Skills & Awards:** *grid-draw* opener (a thin treemap outline traces itself around the title). Treemap is now **categorised** like the reference: category blocks with header bands, one muted hue per category with depth by proficiency (Programming, Robotics & simulation, Embedded systems, Design & fabrication, People — Hardware was split in two). "Awards & Recognition".
+- **Leadership & Community:** an *impact ledger* — ruled rows (years · organisation, role, focus · headline number right-aligned); a row opens its details.
+
 ## Improvement backlog (suggested)
 
 ### Performance

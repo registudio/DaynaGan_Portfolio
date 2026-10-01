@@ -82,7 +82,7 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
           <nav ref={nav} className="pill-nav" aria-label="Sections">
             <span className="pill-glow" ref={pill} aria-hidden />
             {sections.map((s) => (
-              <a key={s.id} href={`#${s.id}`} aria-current={active === s.id}>
+              <a key={s.id} href={`#${s.id === 'about' ? 'about-more' : s.id}`} aria-current={active === s.id}>
                 {s.label}
               </a>
             ))}
