@@ -325,7 +325,7 @@ function ProForm({
       </label>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn primary send-btn" disabled={status === 'sending'}>
-          <span>{status === 'sending' ? 'Sending…' : `${submitLabel} ↗`}</span>
+          <span>{status === 'sending' ? 'Sending…' : submitLabel}</span>
         </button>
         {status === 'error' && error && !error.ok && (
           <span className="form-status err" role="alert">

@@ -360,7 +360,7 @@
 .g-toast {
   padding: 6px 10px;
   background: rgb(12 10 24 / 0.86);
-  border-left: 4px solid var(--g-cyan);
+  border: 1px solid color-mix(in srgb, var(--g-cyan) 60%, transparent);
   animation: g-in 0.25s ease-out;
   font-size: calc(14px * var(--g-ui));
 }
@@ -1732,7 +1732,7 @@ div.g-sub {
 .g-root input[type=search], .g-root select { background: #1e293b; color: #f1f5f9; padding: 9px 12px; border: 1px solid #64748b; border-radius: 8px; max-width: 100%; }
 .g-search { display: grid; gap: 8px; margin-bottom: 20px; }
 .g-map-legend { font: 10px/1.5 system-ui; color: #d1d5e8; width: 150px; margin-left: auto; }
-.g-next-step { display: grid; gap: 6px; max-width: 250px; padding: 12px; background: var(--g-panel); border: 1px solid #64748b; border-left: 3px solid #c4b5fd; border-radius: 10px; font-size: calc(12px * var(--g-ui)); }
+.g-next-step { display: grid; gap: 6px; max-width: 250px; padding: 12px; background: var(--g-panel); border: 1px solid #c4b5fd66; border-radius: 10px; font-size: calc(12px * var(--g-ui)); }
 .g-next-step small { color: #c4b5fd; letter-spacing: .08em; }
 .g-next-step span { color: #e2e8f0; }
 .g-next-step button { pointer-events: auto; justify-self: start; color: #e2e8f0; text-decoration: underline; }

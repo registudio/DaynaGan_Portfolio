@@ -46,7 +46,7 @@ export default function ExpandCard({
       {details && (
         <>
           <button className="btn small more-btn" onClick={() => setOpen(true)} aria-haspopup="dialog">
-            Read more <span aria-hidden>↗</span>
+            Read more
           </button>
           <Modal open={open} onClose={() => setOpen(false)} label={title} wide illuminate={illuminate}>
             {details}

@@ -565,11 +565,11 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
               <div className="flip" key={a.id} tabIndex={0} style={{ '--i': i } as React.CSSProperties}>
                 <div className="flip-inner">
                   <div className="flip-face card">
-                    <span className="trophy" aria-hidden>
-                      {a.meta.icon || awards.meta.icon || '🏆'}
-                    </span>
                     <b>{a.title}</b>
-                    <span className="mono muted">{period(a) || '—'}</span>
+                    <span className="award-meta mono">
+                      {a.meta.org && <span className="award-org">{a.meta.org}</span>}
+                      {period(a) && <span className="muted">{period(a)}</span>}
+                    </span>
                   </div>
                   <div className="flip-face flip-back card">
                     <span className="eyebrow">{a.meta.org}</span>

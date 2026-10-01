@@ -181,7 +181,7 @@ html {
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--violet-2), #c026d3);
+  background: linear-gradient(135deg, #7c3aed, #c026d3);
   color: #fff;
   display: grid;
   place-items: center;
@@ -1029,7 +1029,7 @@ main.pro {
   place-items: center;
   border-radius: 50%;
   background: var(--violet-2);
-  color: #fff;
+  color: var(--paper);
   font-size: var(--t-2xs);
   font-weight: 600;
 }
@@ -1051,7 +1051,7 @@ main.pro {
   border-radius: 50%;
   border: 2px solid #fff;
   background: var(--violet-2);
-  color: #fff;
+  color: var(--paper);
   font: 600 12px var(--mono);
   pointer-events: auto;
   cursor: pointer;
@@ -1185,6 +1185,9 @@ main.pro {
 }
 .flip-inner {
   position: relative;
+  /* Both faces share one grid cell, so the card grows to fit the longer face. */
+  display: grid;
+  align-items: stretch;
   height: 100%;
   min-height: 150px;
   transform-style: preserve-3d;
@@ -1198,8 +1201,7 @@ main.pro {
   outline: 2px solid var(--violet-2);
 }
 .flip-face {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
   display: flex;
   flex-direction: column;
   /* Top-aligned so every card's icon and title sit on the same line, whatever the title length. */
@@ -1216,9 +1218,14 @@ main.pro {
   font-size: var(--t-xs);
   margin-top: auto;
 }
-.trophy {
-  font-size: var(--t-lg);
-  filter: saturate(0.8);
+.award-meta {
+  display: grid;
+  gap: 2px;
+  margin-top: auto;
+  font-size: var(--t-xs);
+}
+.award-org {
+  color: var(--violet);
 }
 .flip-back {
   transform: rotateY(180deg);
@@ -1755,18 +1762,8 @@ main.pro {
   font-size: clamp(42px, 8vw, 84px);
   line-height: 1;
   letter-spacing: -0.035em;
-  background: linear-gradient(100deg, var(--ink) 20%, var(--violet-2) 60%, #e879f9);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  background-size: 200% 100%;
-  animation: sheen 8s ease-in-out infinite alternate;
+  color: var(--ink);
   padding-bottom: 0.08em;
-}
-@keyframes sheen {
-  to {
-    background-position: 100% 0;
-  }
 }
 .copy-email {
   position: relative;
