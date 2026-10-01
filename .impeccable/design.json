@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T00:00:00Z",
+  "title": "Design System: Dayna Gan — Portfolio",
+  "extensions": {
+    "colorMeta": {
+      "violet": { "role": "primary", "displayName": "Bench-Light Violet (day)", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ede9fe"] },
+      "lilac": { "role": "primary", "displayName": "Bench-Light Violet (night)" },
+      "violet-2": { "role": "primary", "displayName": "Solder Violet (day)" },
+      "lilac-2": { "role": "primary", "displayName": "Solder Violet (night)" },
+      "aurora-magenta": { "role": "secondary", "displayName": "Aurora Magenta" },
+      "aurora-indigo": { "role": "secondary", "displayName": "Aurora Indigo" },
+      "blueprint-ink": { "role": "tertiary", "displayName": "Blueprint Ink" },
+      "night-paper": { "role": "neutral", "displayName": "Night Paper", "tonalRamp": ["#0d0a18", "#130e1d", "#1b1528", "#221a33", "#2a1f40", "#2f2645", "#3b2d5c", "#4a3b70"] },
+      "paper": { "role": "neutral", "displayName": "Day Paper" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Section takeover titles and the hero name." },
+      "label": { "displayName": "Parts Label", "purpose": "Dates, tags, counters, hints. Never sentences." },
+      "pixel": { "displayName": "Pixel", "purpose": "Game mode and the brand mark only." }
+    },
+    "shadows": [
+      { "name": "bench", "value": "0 1px 2px rgb(40 20 80 / 0.06), 0 8px 24px -12px rgb(40 20 80 / 0.18)", "purpose": "Cards, nav pill and panels (light). Night: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -16px rgb(0 0 0 / .6)." }
+    ],
+    "motion": [
+      { "name": "ease-ui", "value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "UI state changes, nav glow, sheet." },
+      { "name": "lift", "value": "transform 150ms", "purpose": "1px hover lift on buttons and chips." },
+      { "name": "reveal", "value": "opacity 0.7s ease, transform 0.7s ease", "purpose": "Scroll reveal, staggered 70ms." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "600px" },
+      { "name": "md", "value": "760px" },
+      { "name": "nav", "value": "820px" },
+      { "name": "lg", "value": "900px" }
+    ]
+  },
+  "components": [
+    { "name": "Button", "kind": "button", "refersTo": "button", "description": "Default pill action.", "html": "<button class=\"ds-btn\">Contact me →</button>", "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid var(--line,#2f2645);background:var(--surface,#1b1528);color:var(--ink,#eee9f7);font:500 15px 'Space Grotesk',system-ui,sans-serif;cursor:pointer;transition:transform .15s,border-color .15s}.ds-btn:hover{border-color:var(--violet-2,#a78bfa);transform:translateY(-1px)}.ds-btn:focus-visible{outline:2px solid var(--violet-2,#a78bfa);outline-offset:3px}" },
+    { "name": "Primary Button", "kind": "button", "refersTo": "button-primary", "description": "One per view.", "html": "<button class=\"ds-btn-primary\">Download résumé</button>", "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid var(--violet,#c4b5fd);background:var(--violet,#c4b5fd);color:var(--paper,#130e1d);font:500 15px 'Space Grotesk',system-ui,sans-serif;cursor:pointer;transition:transform .15s}.ds-btn-primary:hover{transform:translateY(-1px)}.ds-btn-primary:focus-visible{outline:2px solid var(--violet-2,#a78bfa);outline-offset:3px}" },
+    { "name": "Chip", "kind": "chip", "refersTo": "chip", "description": "Mono tag.", "html": "<span class=\"ds-chip\">ROS 2</span>", "css": ".ds-chip{font:400 12.5px 'IBM Plex Mono',monospace;padding:3px 9px;border-radius:999px;background:var(--tint,#2a1f40);color:var(--ink-2,#c3bad4)}" },
+    { "name": "Card", "kind": "card", "refersTo": "card", "description": "One item per card.", "html": "<div class=\"ds-card\"><small>01 / 04</small><h3>DSO National Laboratories</h3><p>Software Engineer Intern</p></div>", "css": ".ds-card{background:var(--surface,#1b1528);border:1px solid var(--line,#2f2645);border-radius:14px;padding:22px;color:var(--ink,#eee9f7);font-family:'Space Grotesk',system-ui,sans-serif;box-shadow:0 1px 2px rgb(0 0 0/.3),0 12px 32px -16px rgb(0 0 0/.6)}.ds-card small{font:400 12.5px 'IBM Plex Mono',monospace;color:var(--ink-3,#9088a3)}.ds-card h3{margin:8px 0 4px;font-size:21px}.ds-card p{margin:0;color:var(--ink-2,#c3bad4)}" },
+    { "name": "Nav Pill", "kind": "nav", "refersTo": "nav-pill", "description": "Floating blurred header.", "html": "<nav class=\"ds-nav\"><a aria-current=\"true\">About</a><a>Projects</a><a>Contact</a></nav>", "css": ".ds-nav{display:inline-flex;gap:4px;padding:6px;border-radius:999px;border:1px solid var(--line,#2f2645);background:color-mix(in srgb,var(--surface,#1b1528) 86%,transparent);backdrop-filter:blur(12px);font:400 14px 'Space Grotesk',system-ui,sans-serif}.ds-nav a{padding:7px 11px;border-radius:999px;color:var(--ink-2,#c3bad4);cursor:pointer}.ds-nav a:hover,.ds-nav a[aria-current=true]{color:var(--violet,#c4b5fd)}.ds-nav a[aria-current=true]{background:var(--tint,#2a1f40)}" }
+  ],
+  "narrative": {
+    "northStar": "The Night Lab Bench",
+    "overview": "The site is an engineer's workbench after hours: a violet task light over blueprints, labelled parts and a project half-assembled. Precise and tactile.",
+    "keyCharacteristics": ["Dark-first, with a fully supported light paper theme.", "Space Grotesk carries the voice; IBM Plex Mono for every label.", "Engineering artefacts are the decoration.", "Scroll-driven, slow motion, off under reduced motion."],
+    "rules": [
+      { "name": "The Task-Light Rule", "body": "Violet marks what to look at or touch.", "section": "colors" },
+      { "name": "The Two-Theme Rule", "body": "No colour literal in a component.", "section": "colors" },
+      { "name": "The Parts-Label Rule", "body": "Dates, counts, tags, units and hints in mono; sentences never.", "section": "typography" },
+      { "name": "The One-Shadow Rule", "body": "One shadow token; hover is a 1px lift plus a violet border.", "section": "elevation" }
+    ],
+    "dos": ["Do resolve every colour through a token that has both a light and a night value.", "Do set dates, tags, counts and hints in IBM Plex Mono.", "Do show the real artefact wherever a claim about a build is made.", "Do give every animation a static reduced-motion state.", "Do keep hover feedback to a 1px lift and a violet border."],
+    "donts": ["Don't use gradient text.", "Don't put thick coloured stripes on one side of cards.", "Don't animate width, height, padding or margin.", "Don't let a takeover title leave a viewport empty for long.", "Don't use the same emoji or icon tile on every card in a grid.", "Don't use magenta, cyan or gold for text in professional mode."]
+  }
+}
