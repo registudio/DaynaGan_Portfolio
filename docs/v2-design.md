@@ -475,6 +475,18 @@ Picked by the client from a 25-item suggestion list (Design 1–5, UI/UX 2 & 5, 
 - **Toast stack** — under the navbar (export placement): email copied, draft saved, message sent.
 - Not adopted: the export's Newsreader / Inter typography (only the colour scheme was requested).
 
+### Round 15 — projects folder, supplementary projects, pinned Education/Skills, GitHub accuracy, responsive pass
+- **Quick content fixes:** hero shows the first name only; About drops the stats step; Experience is newest first; blueprint dimension reads `W 6767 mm`; the award icon is editable per room (`icon:` meta, default 🏆); the University Engineering Scholarship flip card is top-aligned so its text no longer sits high.
+- **Projects folder:** `public/projects/<id>/` per project (`model.glb|gltf|stl`, `report.pdf`, `photos/*`), read at build time by `projectAssets()` in `lib/load.ts`; `README.md` files explain what goes where. A folder `model.*` overrides the old CAD lookup.
+- **Media per project** (`media:` meta): `cad` (3D viewer: Robot Claw), `diagram` (Dreamer × SMAClite: an SVG architecture diagram of the world-model agent, `AgentDiagram.tsx`), `photos` (ROSA, Isaac Sim, Jupiter: `PhotoGallery.tsx`, "Photos coming soon" until uploaded), `blueprint`. `report: yes` shows "Read the report ↗" once `report.pdf` exists, "Report coming soon" until then.
+- **Supplementary projects:** `tier: supplementary` rooms leave the pinned showcase and the hero carousel for a "More projects" card grid, each linking to its own `/projects/<id>` case study; the game skips them. Added *Determining the Mass of Jupiter* (SST Investigative Skills in Science, SSEF 2020, with Nguyen Ngoc Bao Tram; method to fill from the report) and five placeholder rooms `sample-one`…`sample-five` with folders.
+- **Pinned Education:** one row per step; the current row opens and the others close as you scroll (`.story.live .edu-row:not(.now)` collapses). Courses capped at 10 with "+N more".
+- **Pinned Skills & Awards:** treemap step, then awards step; the treemap height is capped under the docked title and tiles (instead of stacking) on pinned phones.
+- **GitHub:** stats come from the public contributions calendar (`lib/contributions.ts`, parsed without a token) so the year total and heatmap match the profile; the heatmap is Sunday-aligned. Live commits/terminal removed. A `GITHUB_TOKEN` in Vercel still enables GraphQL (pinned repos).
+- **Contact:** shown email is the placeholder `hello@example.com`; messages go to `CONTACT_TO_EMAIL`, else the private `inbox:` field, so nothing is sent to the placeholder. Swap in the Resend address when provided.
+- **Footer fix:** the sticky Contact stage overlaid the footer; the stage now ignores pointer events (its window keeps them).
+- **Responsive pass:** 13 viewports 320×568 → 2560×1440, no horizontal overflow; pinned steps slide (`fit()`) so the current step stays visible; screens ≤640 px tall (small phones, landscape) use the static layout (and the story cleanup now clears every scroll-driven inline style, which had left content invisible after switching); `.story { min-width: 0 }` fixed 2560 overflow; the splash menu card can shrink to 320 px; phone trims for summaries and About.
+
 ## Improvement backlog (suggested)
 
 ### Performance

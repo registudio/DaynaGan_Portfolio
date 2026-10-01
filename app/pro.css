@@ -1987,6 +1987,11 @@ main.pro {
 .section-story {
   padding-top: 0;
 }
+/* A story never grows past its container (as a grid item it would size to its content, and
+   the full-bleed stage's centring assumes the container's width). */
+.story {
+  min-width: 0;
+}
 /* Static fallback (no JS / reduced motion): a normal heading, content below. */
 .story-stage {
   position: relative;
@@ -3873,6 +3878,32 @@ main.pro.case {
 }
 .heat i.pad {
   visibility: hidden;
+}
+
+/* Phones: pinned content trimmed to fit under the docked title. */
+@media (max-width: 600px) {
+  .story.live .mile-card .prose,
+  .story.live .mile-card > p {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .story.live .mile-card .chips.tech {
+    margin-top: 8px;
+  }
+  .story.live .about-now {
+    gap: 8px;
+  }
+  .story.live .about-now .currently {
+    gap: 8px;
+  }
+  .story.live .about-now .currently div {
+    padding-bottom: 8px;
+  }
+  .story.live .about-pin {
+    padding-top: 4px;
+  }
 }
 
 /* ── Interaction language: one hover, press and focus treatment everywhere ── */

@@ -759,6 +759,10 @@ html.boot-pro:not(.booted) body::after {
   gap: 18px;
   justify-items: center;
   max-width: 560px;
+  /* A grid item otherwise refuses to shrink below its widest line (overflowed 320px phones). */
+  min-width: 0;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
 }
 .splash h1 {
   font-family: var(--pixel);
@@ -832,7 +836,9 @@ html.boot-pro:not(.booted) body::after {
 }
 .splash-links {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 14px;
   margin-top: 12px;
 }
 .splash-links a {

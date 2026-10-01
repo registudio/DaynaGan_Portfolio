@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { squarify } from '@/lib/treemap';
 import { onScrollFrame } from './scrollLoop';
 
@@ -64,13 +64,23 @@ export default function ScrollStory({
   const win = useRef<HTMLDivElement>(null);
   const line = useRef<HTMLElement>(null);
   const letters = [...title];
+  // Screens too short to pin content under a docked title (small phones, phones in landscape)
+  // get the static layout: a plain heading with the content flowing below it.
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    const mq = matchMedia('(max-height: 640px)');
+    const on = () => setShort(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
 
   useEffect(() => {
     const w = wrap.current;
     const st = stage.current;
     const h = head.current;
     if (!w || !st || !h) return;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || short) return;
     w.classList.add('live');
     let vh = 0;
     let vw = 0;
@@ -227,6 +237,21 @@ export default function ScrollStory({
       w.style.height = '';
       st.style.height = '';
       h.style.transform = '';
+      st.style.removeProperty('--dock');
+      fx.forEach((el) => el.style.removeProperty('--a'));
+      fx.forEach((el) => el.style.removeProperty('--b'));
+      // Clear the scroll-driven inline styles too, or switching to the static layout (a phone
+      // rotated to landscape) would leave the content invisible.
+      if (win.current) {
+        win.current.style.opacity = '';
+        win.current.style.transform = '';
+      }
+      const pinInner = st.querySelector<HTMLElement>('.story-pin-inner');
+      if (pinInner) {
+        pinInner.style.transform = '';
+        delete pinInner.dataset.shift;
+      }
+      if (line.current) line.current.style.transform = '';
       if (track.current) track.current.style.transform = '';
       if (after.current) {
         after.current.style.marginTop = '';
@@ -234,7 +259,7 @@ export default function ScrollStory({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [horizontal, variant, title, end, steps]);
+  }, [horizontal, variant, title, end, steps, short]);
 
   const word = (extra = '') => (
     <h2 className={`story-word${extra}`} style={{ '--n': letters.length } as React.CSSProperties}>
