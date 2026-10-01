@@ -2590,6 +2590,7 @@ body.modal-open {
 .skillmap-box {
   position: relative;
   width: 100%;
+  overflow: clip;
 }
 /* A category block: header band + its tiles (positioned in JS). */
 .skill-cat {
@@ -3297,6 +3298,21 @@ body.modal-open {
   .contact-section .link-list .btn {
     padding-block: 8px;
   }
+}
+
+
+/* ── Low quality tier (lib/quality): keep the design, drop the costly extras ── */
+:root[data-quality='low'] .aurora i {
+  animation: none;
+}
+:root[data-quality='low'] .spotlight {
+  display: none !important;
+}
+:root[data-quality='low'] .story.live .story-ch {
+  transform: none !important;
+}
+:root[data-quality='low'] .heat.wave i {
+  transition: none;
 }
 
 @media print {

@@ -109,7 +109,7 @@ export default function ProjectViewer({
         }
       }, 32);
       stage.scene.add(holder);
-      const controls = new OrbitControls(stage.camera, stage.renderer.domElement);
+      const controls = new OrbitControls(stage.camera, stage.canvas);
       controls.enableDamping = true;
       controls.enablePan = false;
       controls.autoRotateSpeed = 1.4;
@@ -118,7 +118,7 @@ export default function ProjectViewer({
       stage.camera.position.set(4.6, 3.2, 5.2);
       // Touch screens: the sticky viewer covers much of the screen, so dragging it must scroll the
       // page. Rotation is opt-in there (the "Rotate" tool); on mouse/trackpad it's always on.
-      const canvas = stage.renderer.domElement;
+      const canvas = stage.canvas;
       const setDrag = (on: boolean) => {
         controls.enabled = on;
         canvas.style.touchAction = on ? 'none' : 'pan-y';
@@ -144,7 +144,7 @@ export default function ProjectViewer({
       let last: string | null = null;
       const move = (e: PointerEvent) => {
         if (!model) return;
-        const r = stage.renderer.domElement.getBoundingClientRect();
+        const r = stage.canvas.getBoundingClientRect();
         ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
         ray.setFromCamera(ptr, stage.camera);
         const hit = ray.intersectObject(holder, true).find((h) => h.object.type === 'Mesh');
@@ -161,8 +161,8 @@ export default function ProjectViewer({
         model?.setHighlight(null);
         hover.current(null);
       };
-      stage.renderer.domElement.addEventListener('pointermove', move);
-      stage.renderer.domElement.addEventListener('pointerleave', leave);
+      stage.canvas.addEventListener('pointermove', move);
+      stage.canvas.addEventListener('pointerleave', leave);
 
       let loading = 0;
       const show = async (id: string) => {
@@ -239,7 +239,11 @@ export default function ProjectViewer({
           reportZoom();
         },
       };
-      setSpin(!reduce);
+      // Auto-rotate keeps the GPU busy; off by default on low-quality devices.
+      const { quality } = await import('@/lib/quality');
+      const turn = !reduce && quality() !== 'low';
+      wantSpin = turn;
+      setSpin(turn);
       await show(initial.current);
       cleanup = () => {
         el.removeEventListener('wheel', wheel, { capture: true });

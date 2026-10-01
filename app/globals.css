@@ -723,7 +723,8 @@ main.pro {
   transition: opacity 0.5s ease, visibility 0.5s;
 }
 /* Return visitors bound for Professional mode: no menu, a plain cover until the intro runs. */
-html.boot-pro:not(.booted) .splash {
+html.boot-pro:not(.booted) .splash,
+html.boot-pro .splash.gone {
   display: none;
 }
 html.boot-pro:not(.booted) body::after {

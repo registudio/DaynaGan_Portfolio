@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMode } from '../App';
 import ThemeToggle from './ThemeToggle';
+import { onScrollFrame } from './scrollLoop';
 
 type Section = { id: string; label: string };
 
@@ -29,16 +30,24 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
       { rootMargin: '-45% 0px -50% 0px' },
     );
     els.forEach((el) => io.observe(el));
+    // Page height only changes on resize/layout, so it isn't re-read on every scroll frame.
+    let max = 0;
+    const measure = () => (max = document.documentElement.scrollHeight - innerHeight);
     const onScroll = () => {
-      const max = document.documentElement.scrollHeight - innerHeight;
-      bar.current?.style.setProperty('--p', String(max > 0 ? scrollY / max : 0));
+      bar.current?.style.setProperty('--p', String(max > 0 ? Math.min(1, scrollY / max) : 0));
       setCompact(scrollY > 40);
     };
-    addEventListener('scroll', onScroll, { passive: true });
+    measure();
+    const late = setTimeout(measure, 1500); // pinned stories set their heights after mount
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.body);
+    const off = onScrollFrame(onScroll);
     onScroll();
     return () => {
       io.disconnect();
-      removeEventListener('scroll', onScroll);
+      off();
+      ro.disconnect();
+      clearTimeout(late);
     };
   }, [sections]);
 

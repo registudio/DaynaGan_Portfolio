@@ -67,6 +67,8 @@ export default function App({
       if (anchor) setTimeout(() => import('./pro/goTo').then((m) => m.goTo(anchor)), 750);
     } else if (m === 'splash') {
       history.replaceState(null, '', location.pathname);
+      // The menu is now in use: let it fade normally from here on.
+      document.documentElement.classList.remove('boot-pro');
     } else if (m === 'game') {
       setTour(anchor === 'tour');
       setPlanet(anchor === 'planet');

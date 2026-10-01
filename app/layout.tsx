@@ -8,6 +8,7 @@ import '@fontsource/pixelify-sans/latin-400.css';
 import '@fontsource/pixelify-sans/latin-600.css';
 import './globals.css';
 import './pro.css';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { loadPortfolio } from '@/lib/load';
 
 const site = loadPortfolio().site;
@@ -41,7 +42,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: bootScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Real-visitor Core Web Vitals in the Vercel dashboard (Speed Insights). */}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

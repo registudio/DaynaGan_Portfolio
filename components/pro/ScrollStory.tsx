@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { squarify } from '@/lib/treemap';
 import { countUp } from './countUp';
+import { onScrollFrame } from './scrollLoop';
 
 /** Grid-draw cells: a fixed little treemap (percent units); `d` = when each cell's outline draws. */
 const GRID = squarify(
@@ -178,15 +179,6 @@ export default function ScrollStory({
 
     // Only listen while the section is near the viewport.
     let active = false;
-    let queued = false;
-    const onScroll = () => {
-      if (queued || !active) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        update();
-      });
-    };
     const io = new IntersectionObserver(
       ([e]) => {
         active = e.isIntersecting;
@@ -206,12 +198,13 @@ export default function ScrollStory({
     measure();
     io.observe(w);
     const late = setTimeout(measure, 700); // fonts can change sizes after first paint
-    addEventListener('scroll', onScroll, { passive: true });
+    // Shared page-wide scroll frame (see scrollLoop).
+    const off = onScrollFrame(() => active && update());
     addEventListener('resize', onResize);
     return () => {
       clearTimeout(late);
       io.disconnect();
-      removeEventListener('scroll', onScroll);
+      off();
       removeEventListener('resize', onResize);
       w.classList.remove('live');
       stepEls.forEach((el) => el.classList.remove('on', 'now'));

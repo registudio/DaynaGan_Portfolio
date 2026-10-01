@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { goTo } from './goTo';
+import { onScrollFrame } from './scrollLoop';
+import { detectQuality, sampleFrames, setQuality } from '@/lib/quality';
 
 /**
  * Page-wide motion for Professional mode: scroll reveals, number counters, timelines that
@@ -53,14 +55,12 @@ export default function RevealRoot() {
     // Scroll-linked progress: timelines draw, their nodes light up, the goals marker travels.
     const timelines = [...document.querySelectorAll<HTMLElement>('[data-timeline]')];
     const orbits = [...document.querySelectorAll<HTMLElement>('[data-orbit]')];
-    let queued = false;
     const progress = (el: HTMLElement, start = 0.75, end = 0.35) => {
       const r = el.getBoundingClientRect();
       return reduce ? 1 : Math.min(1, Math.max(0, (innerHeight * start - r.top) / (r.height + innerHeight * (start - end))));
     };
     const timelineItems = timelines.map((t) => [...t.querySelectorAll<HTMLElement>('.t-item')]);
     const onScroll = () => {
-      queued = false;
       // Read every rect first, then write — interleaving them forced a layout per item.
       const reads = timelines.map((t, i) => {
         const r = t.getBoundingClientRect();
@@ -90,19 +90,23 @@ export default function RevealRoot() {
         o.querySelectorAll<HTMLElement>('.goal').forEach((g, i) => g.classList.toggle('reached', p >= (n === 1 ? 0 : i / (n - 1)) - 0.02));
       }
     };
-    const queue = () => {
-      if (!queued) {
-        queued = true;
-        requestAnimationFrame(onScroll);
-      }
-    };
-    addEventListener('scroll', queue, { passive: true });
-    addEventListener('resize', queue);
-    onScroll();
-    cleanups.push(() => {
-      removeEventListener('scroll', queue);
-      removeEventListener('resize', queue);
-    });
+    if (timelines.length || orbits.length) {
+      cleanups.push(onScrollFrame(onScroll));
+      addEventListener('resize', onScroll);
+      onScroll();
+      cleanups.push(() => removeEventListener('resize', onScroll));
+    }
+
+    // Adaptive quality: device hints now, then a short frame sample once the page settles.
+    setQuality(detectQuality());
+    const settle = setTimeout(
+      () =>
+        sampleFrames((ms) => {
+          if (ms > 24) setQuality('low');
+        }),
+      2500,
+    );
+    cleanups.push(() => clearTimeout(settle));
 
     // In-page links land on the section's resting state, not halfway through its opener.
     const onClick = (e: MouseEvent) => {

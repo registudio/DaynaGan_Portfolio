@@ -33,7 +33,9 @@ const HEAD = 30; // category header band
  */
 export default function SkillMap({ skills }: { skills: SkillTile[] }) {
   const box = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 1000, h: 560 });
+  // Unmeasured until mounted: tiles are only laid out once the real width is known (a
+  // server-side guess wider than a phone widened the whole page before hydration).
+  const [size, setSize] = useState({ w: 0, h: 560 });
   const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export default function SkillMap({ skills }: { skills: SkillTile[] }) {
         <span className="mono legend-size">Tile size = proficiency</span>
       </div>
       <div className="skillmap-box" ref={box} style={{ height: size.h }} role="group" aria-label="Skills by category — select one for details">
-        {layout.map(({ g, x, y, w, h, inner }, gi) => (
+        {size.w > 0 && layout.map(({ g, x, y, w, h, inner }, gi) => (
           <div
             key={g.name}
             className="skill-cat"

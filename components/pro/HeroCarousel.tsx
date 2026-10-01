@@ -26,12 +26,23 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
     let disposed = false;
     let cleanup = () => {};
     (async () => {
+      // Start the 3D once the page has loaded and gone idle (the name intro covers this
+      // moment anyway), so it never competes with first paint and hydration.
+      if (document.readyState !== 'complete') await new Promise((r) => addEventListener('load', r, { once: true }));
+      await new Promise<void>((r) => {
+        const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (idle) idle(() => r(), { timeout: 2000 });
+        else setTimeout(r, 600);
+      });
+      if (disposed) return;
       const THREE = await import('three');
       const { Stage, projectModel, isDark, reducedMotion, webglAvailable } = await import('./three/stage');
       if (disposed || !host.current) return;
       if (!webglAvailable()) return setGl(false);
       setGl(true);
       const reduce = reducedMotion();
+      const { quality } = await import('@/lib/quality');
+      const low = quality() === 'low';
       const row = new THREE.Group();
       const slots: InstanceType<typeof THREE.Group>[] = [];
       const holders: InstanceType<typeof THREE.Group>[] = [];
@@ -50,7 +61,8 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
           const k = 1.25 - Math.min(1, d) * 0.5;
           s.scale.setScalar(s.scale.x + (k - s.scale.x) * Math.min(1, dt * 5));
           if (!reduce) s.rotation.y += dt * (0.35 + (1 - Math.min(1, d)) * 0.2);
-          models[i]?.setExplode(reduce ? 0.15 : 0.12 + Math.sin(t * 0.9 + i) * 0.12);
+          // The breathing explode re-poses every part each frame; held still on low quality.
+          models[i]?.setExplode(reduce || low ? 0.15 : 0.12 + Math.sin(t * 0.9 + i) * 0.12);
         });
         row.rotation.x += (pointerY * 0.12 - row.rotation.x) * 0.05;
       });
