@@ -65,6 +65,46 @@ export function loadRenderedPortfolio(): Portfolio {
 
 const MODEL_EXT = ['.glb', '.gltf', '.stl', '.obj'];
 
+const PHOTO_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif'];
+
+/** What a project folder (public/projects/<id>/) holds; see public/projects/README.md. */
+export type ProjectAssets = { model?: string; report?: string; photos: string[] };
+
+/**
+ * Documents uploaded per project: `model.<glb|gltf|stl|obj>`, `report.pdf` and anything in
+ * `photos/`. Read at build time, keyed by project id.
+ */
+export function projectAssets(): Record<string, ProjectAssets> {
+  const root = path.join(process.cwd(), 'public', 'projects');
+  const out: Record<string, ProjectAssets> = {};
+  let ids: string[] = [];
+  try {
+    ids = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch {
+    return out;
+  }
+  for (const id of ids) {
+    const dir = path.join(root, id);
+    const files = fs.readdirSync(dir);
+    const a: ProjectAssets = { photos: [] };
+    for (const ext of MODEL_EXT) {
+      const f = files.find((x) => x.toLowerCase() === `model${ext}`);
+      if (f && !a.model) a.model = `/projects/${id}/${f}`;
+    }
+    const report = files.find((x) => /^report\.pdf$/i.test(x));
+    if (report) a.report = `/projects/${id}/${report}`;
+    try {
+      a.photos = fs
+        .readdirSync(path.join(dir, 'photos'))
+        .filter((f) => PHOTO_EXT.some((e) => f.toLowerCase().endsWith(e)))
+        .sort()
+        .map((f) => `/projects/${id}/photos/${f}`);
+    } catch {}
+    out[id] = a;
+  }
+  return out;
+}
+
 /**
  * CAD exports dropped into public/models/ as `<project-id>.<glb|gltf|stl|obj>`, keyed by
  * project id. Projects without one show their wireframe blueprint.
@@ -84,5 +124,7 @@ export function cadModels(): Record<string, string> {
         const id = f.slice(0, -ext.length);
         out[id] ??= `/models/${f}`;
       }
+  // A model in the project's own folder takes precedence.
+  for (const [id, a] of Object.entries(projectAssets())) if (a.model) out[id] = a.model;
   return out;
 }

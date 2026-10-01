@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import CaseStudy, { type CaseLink } from '@/components/pro/CaseStudy';
 import { showcase } from '@/components/pro/ProSite';
-import { cadModels, loadRenderedPortfolio } from '@/lib/load';
+import { cadModels, loadRenderedPortfolio, projectAssets } from '@/lib/load';
 import { levelById } from '@/lib/portfolio';
 
 // Every project gets a static page; unknown ids are a 404.
@@ -11,7 +11,7 @@ export const dynamicParams = false;
 function projects() {
   const portfolio = loadRenderedPortfolio();
   const level = levelById(portfolio, 'projects');
-  return { portfolio, list: level ? showcase(portfolio, level) : [] };
+  return { portfolio, list: level ? showcase(portfolio, level, projectAssets()) : [] };
 }
 
 const plain = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').trim();

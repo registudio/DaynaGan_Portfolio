@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { detectQuality, sampleFrames, setQuality } from '@/lib/quality';
-import ProjectViewer from './ProjectViewer';
+import ProjectMedia, { ReportLink } from './ProjectMedia';
 import type { ShowcaseProject } from './ProjectShowcase';
 import ThemeToggle from './ThemeToggle';
 
@@ -63,7 +63,8 @@ export default function CaseStudy({
       <main className="pro case" id="main">
         <section className="case-hero">
           <span className="eyebrow mono">
-            Case study · {sheet} · {p.status === 'in-progress' ? 'In progress' : (p.year ?? 'Complete')}
+            {p.tier === 'supplementary' ? 'Supplementary project' : 'Case study'} · {sheet} ·{' '}
+            {p.status === 'in-progress' ? 'In progress' : (p.year ?? 'Complete')}
           </span>
           <h1>{p.title}</h1>
           <div className="prose lead" dangerouslySetInnerHTML={{ __html: p.summary }} />
@@ -79,15 +80,7 @@ export default function CaseStudy({
 
         <section className="case-grid" aria-label="Model and components">
           <div className="case-viewer">
-            <ProjectViewer
-              title={p.title}
-              sheet={sheet}
-              projectId={p.id}
-              cad={cad}
-              parts={p.parts.map((x) => ({ id: x.id, title: x.title, note: x.did }))}
-              active={part}
-              onHover={setPart}
-            />
+            <ProjectMedia project={p} cad={cad} sheet={sheet} active={part} onHover={setPart} />
           </div>
           <div>
             <h2 className="case-h">Components</h2>
@@ -131,8 +124,9 @@ export default function CaseStudy({
           </section>
         )}
 
-        {(p.repo || p.demo) && (
+        {(p.repo || p.demo || p.report || p.reportExpected) && (
           <div className="show-links">
+            <ReportLink project={p} small={false} />
             {p.repo && (
               <a className="btn" href={p.repo} target="_blank" rel="noopener noreferrer">
                 GitHub repo ↗

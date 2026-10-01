@@ -18,6 +18,12 @@
 #   grants    skill XP given when the room/part is scanned or built,
 #             e.g. `grants: python +1, soldering +1`
 #   requires  skill levels needed (project builds), e.g. `requires: soldering 3`
+#   media     (projects) what the stage shows: cad (3D model), photos, diagram (an
+#             architecture diagram of the parts) or blueprint (default wireframe)
+#   report    (projects) `yes` when a report exists: public/projects/<id>/report.pdf
+#   tier      (projects) `supplementary` = listed under "More projects" with its own case
+#             study page instead of on the main stage (and kept out of the game)
+#   Files for each project go in public/projects/<id>/ (see the README there).
 #   needs     other project ids that must be built first
 #   link      a project/room this points to (cross-link), e.g. `link: projects/rosa-ros2`
 #   status    complete | in-progress | todo
@@ -458,6 +464,7 @@ Bottom shell with vents so air can reach the sensors.
 
 ## Dreamer × SMAClite
 id: dreamer-smaclite
+media: diagram
 year: 2026
 status: complete
 tags: Python, Reinforcement learning, R2-Dreamer, SMAClite
@@ -506,6 +513,8 @@ The multi-agent team controlled by the policy.
 
 ## ROSA × ROS 2
 id: rosa-ros2
+media: photos
+report: yes
 year: 2024
 status: complete
 tags: ROS 2, LangChain, ROSA, NVIDIA Isaac Sim, Python
@@ -550,6 +559,7 @@ Differential drive, receiving velocity commands published by the agent.
 
 ## Isaac Sim × Nav2
 id: isaac-nav2
+media: photos
 year: 2024
 status: complete
 tags: NVIDIA Isaac Sim, ROS 2, Nav2, Omni.Anim.People
@@ -590,6 +600,7 @@ The Isaac Sim warehouse scene used for every test run.
 
 ## Remote-controlled robot claw
 id: robot-claw
+media: cad
 status: in-progress
 tags: Servos, Microcontrollers, CAD, 3D Printing
 requires: cad 2, arduino 2
@@ -666,6 +677,110 @@ The X-frame that holds everything together.
 id: battery
 
 Powers the motors and electronics.
+
+
+## Determining the Mass of Jupiter
+id: jupiter-mass
+tier: supplementary
+year: 2020
+status: complete
+media: photos
+report: yes
+tags: Astronomy, Physics, Data analysis, ISS
+summary: A school research project on determining the mass of Jupiter, co-authored for the Singapore Science and Engineering Fair (SSEF) 2020.
+
+A school research project co-authored with Nguyen Ngoc Bao Tram and presented at the Singapore Science and Engineering Fair (SSEF) 2020 — applying the investigative skills from SST's Investigative Skills in Science (ISS) module to a question in astronomy: how much does Jupiter weigh?
+
+TODO: Method and findings — add once the report is uploaded to public/projects/jupiter-mass/.
+
+### Research question
+id: question
+
+Determining the mass of Jupiter from observations.
+
+### SSEF 2020
+id: ssef
+
+Presented at the Singapore Science and Engineering Fair 2020, the national fair affiliated with the International Science and Engineering Fair (ISEF).
+
+## Sample project one
+id: sample-one
+tier: supplementary
+year: 2024
+status: complete
+media: photos
+tags: Sample, Placeholder
+summary: Placeholder — replace with a real project, or delete this entry.
+
+Placeholder project. Upload its files to public/projects/sample-one/ and rewrite this entry in content/portfolio.md.
+
+### Component A
+id: part-a
+
+Placeholder component.
+
+## Sample project two
+id: sample-two
+tier: supplementary
+year: 2023
+status: complete
+media: photos
+tags: Sample, Placeholder
+summary: Placeholder — replace with a real project, or delete this entry.
+
+Placeholder project. Upload its files to public/projects/sample-two/ and rewrite this entry in content/portfolio.md.
+
+### Component A
+id: part-a
+
+Placeholder component.
+
+## Sample project three
+id: sample-three
+tier: supplementary
+year: 2023
+status: complete
+media: cad
+tags: Sample, Placeholder
+summary: Placeholder — replace with a real project, or delete this entry.
+
+Placeholder project. Upload its files to public/projects/sample-three/ and rewrite this entry in content/portfolio.md.
+
+### Component A
+id: part-a
+
+Placeholder component.
+
+## Sample project four
+id: sample-four
+tier: supplementary
+year: 2022
+status: complete
+media: photos
+tags: Sample, Placeholder
+summary: Placeholder — replace with a real project, or delete this entry.
+
+Placeholder project. Upload its files to public/projects/sample-four/ and rewrite this entry in content/portfolio.md.
+
+### Component A
+id: part-a
+
+Placeholder component.
+
+## Sample project five
+id: sample-five
+tier: supplementary
+status: in-progress
+media: photos
+tags: Sample, Placeholder
+summary: Placeholder — replace with a real project, or delete this entry.
+
+Placeholder project. Upload its files to public/projects/sample-five/ and rewrite this entry in content/portfolio.md.
+
+### Component A
+id: part-a
+
+Placeholder component.
 
 # Skills & Awards
 id: trophies

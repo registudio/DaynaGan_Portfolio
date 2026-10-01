@@ -1,4 +1,5 @@
 import type { GitHubFeed } from '@/lib/github';
+import type { ProjectAssets } from '@/lib/load';
 import {
   levelById,
   list,
@@ -409,7 +410,10 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   );
 }
 
-export function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
+const MEDIA = ['cad', 'photos', 'diagram', 'blueprint'] as const;
+
+/** Every project (main and supplementary) with its uploaded files; filter by `tier`. */
+export function showcase(portfolio: Portfolio, level: Level, assets: Record<string, ProjectAssets> = {}): ShowcaseProject[] {
   const skillName = (id: string) => portfolio.site.skills.find((s) => s.id === id)?.name ?? id;
   return level.rooms
     .filter((r) => r.meta.tags || r.meta.status)
@@ -427,18 +431,55 @@ export function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] 
         repo: room.meta.repo,
         demo: room.meta.demo,
         parts: room.parts.map((p) => ({ id: p.id, title: p.title, html: p.html ?? '', did: p.meta.did, learned: p.meta.learned })),
-      };
+        media: (MEDIA as readonly string[]).includes(room.meta.media ?? '') ? (room.meta.media as ShowcaseProject['media']) : 'blueprint',
+        tier: room.meta.tier === 'supplementary' ? 'supplementary' : 'main',
+        report: assets[room.id]?.report,
+        reportExpected: /^(yes|true)$/i.test(room.meta.report ?? ''),
+        photos: assets[room.id]?.photos ?? [],
+        blurb: room.meta.summary ?? text(summary),
+      } satisfies ShowcaseProject;
     });
 }
 
-function Projects({ portfolio, level, cad }: { portfolio: Portfolio; level: Level; cad: Record<string, string> }) {
+function Projects({
+  portfolio,
+  level,
+  cad,
+  assets,
+}: {
+  portfolio: Portfolio;
+  level: Level;
+  cad: Record<string, string>;
+  assets: Record<string, ProjectAssets>;
+}) {
+  const all = showcase(portfolio, level, assets);
+  const more = all.filter((p) => p.tier === 'supplementary');
   return (
     <section id={level.id} className="section section-wide section-story">
       <ScrollStory title={level.title} number={sectionNumber(level)} variant="blueprint">
         <div className="section-head">
           <Intro level={level} />
         </div>
-        <ProjectShowcase projects={showcase(portfolio, level)} cad={cad} />
+        <ProjectShowcase projects={all.filter((p) => p.tier === 'main')} cad={cad} />
+        {more.length > 0 && (
+          <div className="more-projects" id="projects-more">
+            <h3 className="sub-title">More projects</h3>
+            <ul className="more-grid">
+              {more.map((p) => (
+                <li key={p.id} id={`projects-${p.id}`}>
+                  <a className="more-card" href={`/projects/${p.id}`}>
+                    <span className="mono more-meta">
+                      {p.status === 'in-progress' ? 'In progress' : (p.year ?? 'Complete')} · {p.tags.slice(0, 2).join(' · ')}
+                    </span>
+                    <b>{p.title}</b>
+                    <span className="more-blurb">{p.blurb}</span>
+                    <span className="more-go">Case study →</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </ScrollStory>
     </section>
   );
@@ -722,11 +763,14 @@ export default function ProSite({
   portfolio,
   github,
   cad = {},
+  assets = {},
   updated,
 }: {
   portfolio: Portfolio;
   github: GitHubFeed;
   cad?: Record<string, string>;
+  /** Files uploaded per project (public/projects/<id>/). */
+  assets?: Record<string, ProjectAssets>;
   updated: string;
 }) {
   // Hobbies and Future Goals are archived in Professional mode for now (still in the game).
@@ -735,7 +779,11 @@ export default function ProSite({
     .filter((l) => !ARCHIVED.has(l.id))
     .map((l, i) => ({ ...l, meta: { ...l.meta, eyebrow: `${String(i + 1).padStart(2, '0')} / ${l.title}` } }));
   const projects = levelById(portfolio, 'projects');
-  const carousel = projects ? showcase(portfolio, projects).map((p) => ({ id: p.id, title: p.title })) : [];
+  const carousel = projects
+    ? showcase(portfolio, projects)
+        .filter((p) => p.tier === 'main')
+        .map((p) => ({ id: p.id, title: p.title }))
+    : [];
   const render = (level: Level) => {
     switch (level.id) {
       case 'about':
@@ -745,7 +793,7 @@ export default function ProSite({
       case 'experience':
         return <Journey key={level.id} portfolio={portfolio} level={level} />;
       case 'projects':
-        return <Projects key={level.id} portfolio={portfolio} level={level} cad={cad} />;
+        return <Projects key={level.id} portfolio={portfolio} level={level} cad={cad} assets={assets} />;
       case 'trophies':
         return <Skills key={level.id} portfolio={portfolio} level={level} />;
       case 'leadership':

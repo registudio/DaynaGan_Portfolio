@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import ProjectViewer from './ProjectViewer';
+import ProjectMedia, { ReportLink } from './ProjectMedia';
 
 export type ShowcaseProject = {
   id: string;
@@ -15,6 +15,15 @@ export type ShowcaseProject = {
   repo?: string;
   demo?: string;
   parts: { id: string; title: string; html: string; did?: string; learned?: string }[];
+  /** What the stage shows (portfolio.md `media:`). */
+  media: 'cad' | 'photos' | 'diagram' | 'blueprint';
+  tier: 'main' | 'supplementary';
+  /** Uploaded files from public/projects/<id>/. */
+  report?: string;
+  reportExpected: boolean;
+  photos: string[];
+  /** One-line plain-text summary for cards. */
+  blurb: string;
 };
 
 /**
@@ -116,6 +125,7 @@ export default function ProjectShowcase({
                 <a className="btn small" href={`/projects/${p.id}`}>
                   Case study →
                 </a>
+                <ReportLink project={p} />
                   {p.repo && (
                     <a className="btn small" href={p.repo} target="_blank" rel="noopener noreferrer">
                       GitHub repo ↗
@@ -142,12 +152,10 @@ export default function ProjectShowcase({
                   ))}
                 </span>
               </div>
-              <ProjectViewer
-                title={current.title}
-                sheet={`${String(index + 1).padStart(2, '0')} / ${String(shown.length).padStart(2, '0')}`}
-                projectId={current.id}
+              <ProjectMedia
+                project={current}
                 cad={cad}
-                parts={current.parts.map((x) => ({ id: x.id, title: x.title, note: x.did }))}
+                sheet={`${String(index + 1).padStart(2, '0')} / ${String(shown.length).padStart(2, '0')}`}
                 active={part}
                 onHover={setPart}
               />

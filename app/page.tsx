@@ -1,7 +1,7 @@
 import App from '@/components/App';
 import ProSite from '@/components/pro/ProSite';
 import { getGitHubFeed } from '@/lib/github';
-import { cadModels, loadRenderedPortfolio } from '@/lib/load';
+import { cadModels, loadRenderedPortfolio, projectAssets } from '@/lib/load';
 
 // Refresh GitHub data at most hourly.
 export const revalidate = 3600;
@@ -14,7 +14,7 @@ export default async function Page() {
   const github = await getGitHubFeed();
   return (
     <App portfolio={portfolio} github={github}>
-      <ProSite portfolio={portfolio} github={github} cad={cadModels()} updated={UPDATED} />
+      <ProSite portfolio={portfolio} github={github} cad={cadModels()} assets={projectAssets()} updated={UPDATED} />
     </App>
   );
 }

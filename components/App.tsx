@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { GitHubFeed } from '@/lib/github';
 import type { Portfolio } from '@/lib/portfolio';
 import Splash from './Splash';
@@ -34,6 +34,15 @@ export default function App({
   const [hasSave, setHasSave] = useState(false);
   const [tour, setTour] = useState(false);
   const [planet, setPlanet] = useState(false);
+  // The game builds a 3D assembly room per project, so supplementary projects (case studies
+  // only, no game geometry) stay out of it.
+  const gamePortfolio = useMemo(
+    () => ({
+      ...portfolio,
+      levels: portfolio.levels.map((l) => (l.id === 'projects' ? { ...l, rooms: l.rooms.filter((r) => r.meta.tier !== 'supplementary') } : l)),
+    }),
+    [portfolio],
+  );
 
   useEffect(() => {
     document.documentElement.classList.add('js');
@@ -92,7 +101,7 @@ export default function App({
         hasSave={hasSave}
         onChoose={setMode}
       />
-      {mode === 'game' && <Game portfolio={portfolio} github={github} onExit={setMode} tour={tour} planet={planet} />}
+      {mode === 'game' && <Game portfolio={gamePortfolio} github={github} onExit={setMode} tour={tour} planet={planet} />}
     </ModeContext.Provider>
   );
 }
