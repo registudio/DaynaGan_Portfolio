@@ -466,6 +466,14 @@ Picked by the client from a 25-item suggestion list (Design 1–5, UI/UX 2 & 5, 
 - **Lighthouse (production build, this container):** home — desktop 99 performance / 100 accessibility, mobile 76 / 100, CLS 0; case page — desktop 99 / 100, mobile 67 / 96. Remaining mobile blocking time is 3D work under Lighthouse's 4× CPU throttle with software WebGL; check Speed Insights for real-device numbers.
 - Still pending from the client: the imported Count Up / Illuminate / Border Draw components (interim versions in `countUp.ts`, `Modal` `.illuminate-bg`, `ExpandCard` `.border-draw`).
 
+### Round 14 — the client's design export (Elements/) and its colour scheme
+- **Colour scheme** re-themed to the export: navy accent `#1c3f73` on warm off-white (light) / near-black `#111412` (dark), with sage (`#a4af9b`, `#94a487`) and olive (`#181d15`, `#212a1a`, `#26331d`, `#4e6438`) neutrals; violet `#a78bfa` kept only as the export's second beam colour. The export's `design/design.tokens.json` wasn't included, so values were taken from its element files; light mode is derived from the same hues. Covers tokens (`globals.css`; `--violet*` names kept, now navy), backdrop, buttons (`--accent-fill`/`--on-accent`), treemap categories (navy, slate blue, olive, ochre, rust), 3D materials and lights, blueprint sheet, favicon, Apple icon and share images. The game and its main menu keep their own pixel palette.
+- **CountUp** — React Bits `CountUp-TS-TW` (with `motion`) in `components/pro/CountUp.tsx`, wrapped by `CountStat` (parses "100+", waits for its pinned step, static under reduced motion). Replaces the interim counter everywhere (About, metrics, transcript GPA, ledger, GitHub).
+- **Border draw** — the export's element on clickable cards (0.8 s ease trace on hover).
+- **Light beams** ("Illuminate") — the export's beam sweep behind the Experience/Leadership detail modals.
+- **Toast stack** — under the navbar (export placement): email copied, draft saved, message sent.
+- Not adopted: the export's Newsreader / Inter typography (only the colour scheme was requested).
+
 ## Improvement backlog (suggested)
 
 ### Performance

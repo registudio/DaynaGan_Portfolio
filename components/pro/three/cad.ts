@@ -10,7 +10,7 @@ import { partOfObject, type ShowModel } from './blueprint';
 export async function loadCad(url: string, projectId: string, dark = true): Promise<ShowModel> {
   const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
   let root: THREE.Object3D;
-  const fallback = new THREE.MeshStandardMaterial({ color: '#c4b5fd', metalness: 0.35, roughness: 0.45 });
+  const fallback = new THREE.MeshStandardMaterial({ color: '#c7d3e6', metalness: 0.35, roughness: 0.45 });
   if (ext === 'glb' || ext === 'gltf') {
     const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
     root = (await new GLTFLoader().loadAsync(url)).scene;
@@ -60,7 +60,7 @@ export async function loadCad(url: string, projectId: string, dark = true): Prom
 
   // Highlight = emissive tint on a cloned material per part.
   const originals = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
-  const hot = new THREE.MeshStandardMaterial({ color: '#fde68a', emissive: '#fbbf24', emissiveIntensity: 0.6 });
+  const hot = new THREE.MeshStandardMaterial({ color: '#f0d9a8', emissive: '#d6b06a', emissiveIntensity: 0.6 });
   root.traverse((o) => {
     if (o instanceof THREE.Mesh) originals.set(o, o.material);
   });

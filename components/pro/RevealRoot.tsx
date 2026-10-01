@@ -29,28 +29,7 @@ export default function RevealRoot() {
     document.querySelectorAll('[data-reveal]').forEach((el) => reveal.observe(el));
     cleanups.push(() => reveal.disconnect());
 
-    const counters = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        counters.unobserve(e.target);
-        const el = e.target as HTMLElement;
-        const target = Number(el.dataset.count);
-        const decimals = Number(el.dataset.decimals || 0);
-        const suffix = el.dataset.suffix || '';
-        if (!Number.isFinite(target) || reduce) continue;
-        const start = performance.now();
-        const step = (now: number) => {
-          const t = Math.min(1, (now - start) / 1400);
-          const eased = 1 - (1 - t) ** 3;
-          el.textContent = (target * eased).toFixed(decimals) + suffix;
-          if (t < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-      }
-    });
-    // Numbers inside pinned stepped stories count when their step is reached (ScrollStory).
-    document.querySelectorAll('[data-count]').forEach((el) => !el.closest('.story-steps') && counters.observe(el));
-    cleanups.push(() => counters.disconnect());
+    // Figures count up via CountStat (React Bits CountUp).
 
     // Scroll-linked progress: timelines draw, their nodes light up, the goals marker travels.
     const timelines = [...document.querySelectorAll<HTMLElement>('[data-timeline]')];

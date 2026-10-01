@@ -51,9 +51,9 @@ export function buildBlueprint(projectId: string, dark = true): ShowModel {
   const group = new THREE.Group();
   const accent = new THREE.Color(def?.accent ?? '#a78bfa');
   const line = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.85 });
-  const lineHot = new THREE.LineBasicMaterial({ color: '#fde68a' });
+  const lineHot = new THREE.LineBasicMaterial({ color: '#f0d9a8' });
   const shell = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
-  const shellHot = new THREE.MeshBasicMaterial({ color: '#fbbf24', transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
+  const shellHot = new THREE.MeshBasicMaterial({ color: '#d6b06a', transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide });
   const geos: THREE.BufferGeometry[] = [];
   const parts = new Map<string, { root: THREE.Group; inst: Inst[] }>();
 
@@ -84,8 +84,9 @@ export function buildBlueprint(projectId: string, dark = true): ShowModel {
   }
 
   const setTheme = (d: boolean) => {
-    line.color.copy(d ? new THREE.Color('#ede9fe') : new THREE.Color('#4c1d95'));
-    shell.color.copy(accent).lerp(new THREE.Color(d ? '#ffffff' : '#7c3aed'), 0.35);
+    // Navy drawing lines on light paper, pale blue on dark; each project's accent only tints.
+    line.color.copy(d ? new THREE.Color('#dbe6f6') : new THREE.Color('#1c3f73'));
+    shell.color.copy(accent).lerp(new THREE.Color(d ? '#a9c2ea' : '#2b5592'), 0.7);
     shell.opacity = d ? 0.1 : 0.14;
   };
   setTheme(dark);

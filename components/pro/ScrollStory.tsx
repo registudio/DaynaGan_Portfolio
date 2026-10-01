@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { squarify } from '@/lib/treemap';
-import { countUp } from './countUp';
 import { onScrollFrame } from './scrollLoop';
 
 /** Grid-draw cells: a fixed little treemap (percent units); `d` = when each cell's outline draws. */
@@ -23,7 +22,7 @@ const GRID = squarify(
  * Then every variant docks: the title shrinks and glides into the normal heading position.
  * `horizontal` adds a third phase where the children scroll sideways; `steps` instead holds the
  * content pinned under the title while scrolling advances through its `.pin-step` children
- * (each gets `.on` once reached and `.now` while current; `[data-count]` numbers count up).
+ * (each gets `.on` once reached and `.now` while current; CountStat figures count up on `.on`).
  *
  * Performance: only transform / opacity / clip-path animate (no filters or colour changes),
  * the scroll handler runs only while the section is near the viewport, and mobile address-bar
@@ -87,7 +86,6 @@ export default function ScrollStory({
     let hold = 0;
     let step = -2;
     const stepEls = pinned ? [...st.querySelectorAll<HTMLElement>('.pin-step, .pin-tab')] : [];
-    const counted = new WeakSet<Element>();
     const setStep = (n: number) => {
       if (n === step) return;
       step = n;
@@ -100,12 +98,6 @@ export default function ScrollStory({
           if (i === Math.max(0, n)) el.setAttribute('aria-current', 'step');
           else el.removeAttribute('aria-current');
         }
-        if (i <= n)
-          el.querySelectorAll('[data-count]').forEach((c) => {
-            if (counted.has(c)) return;
-            counted.add(c);
-            countUp(c as HTMLElement);
-          });
       });
     };
 

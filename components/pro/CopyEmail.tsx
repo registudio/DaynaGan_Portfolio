@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from './Toasts';
 
 /** The email address as a big button: one click copies it (with a toast), with a mail link beside it. */
 export default function CopyEmail({ email }: { email: string }) {
@@ -17,6 +18,7 @@ export default function CopyEmail({ email }: { email: string }) {
       t.remove();
     }
     setCopied(true);
+    toast('Email copied to clipboard');
     setTimeout(() => setCopied(false), 2200);
   };
   return (
@@ -30,9 +32,6 @@ export default function CopyEmail({ email }: { email: string }) {
       <a className="btn small" href={`mailto:${email}`}>
         ✉ Open mail app
       </a>
-      <span className={`toast${copied ? ' show' : ''}`} role="status" aria-live="polite">
-        {copied ? 'Email copied to clipboard' : ''}
-      </span>
     </div>
   );
 }

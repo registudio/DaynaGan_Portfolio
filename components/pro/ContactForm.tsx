@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { toast } from './Toasts';
 
 export type ContactResult = { ok: true } | { ok: false; error: string; fallback?: string };
 
@@ -184,7 +185,9 @@ function ProForm({
       const data = Object.fromEntries(new FormData(f).entries()) as Record<string, string>;
       const draft = Object.fromEntries(FIELDS.map((k) => [k, data[k] ?? '']));
       try {
+        const first = !localStorage.getItem(DRAFT);
         localStorage.setItem(DRAFT, JSON.stringify(draft));
+        if (first) toast('Draft saved in this browser');
       } catch {}
     }, 400);
   };
@@ -222,6 +225,7 @@ function ProForm({
     const result = await sendContact(f);
     if (result.ok) {
       clearDraft();
+      toast('Message sent — thank you!');
       setStatus('sent');
       setRestored(false);
       setCount(0);

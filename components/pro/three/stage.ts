@@ -89,11 +89,11 @@ export class Stage {
     this.renderer = acquire();
     this.canvas = host;
     this.camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 200);
-    this.scene.add(new THREE.HemisphereLight('#f5f3ff', '#312e81', 2));
+    this.scene.add(new THREE.HemisphereLight('#f2f3ed', '#1c2a3d', 2));
     const key = new THREE.DirectionalLight('#ffffff', 2.4);
     key.position.set(3, 6, 4);
     this.scene.add(key);
-    const rim = new THREE.PointLight('#a78bfa', 20, 14);
+    const rim = new THREE.PointLight('#6f93cc', 20, 14);
     rim.position.set(-3, 2, -3);
     this.scene.add(rim);
     this.ro = new ResizeObserver(() => this.resize());

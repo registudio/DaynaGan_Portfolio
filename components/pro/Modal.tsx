@@ -20,7 +20,7 @@ export default function Modal({
   label: string;
   children: React.ReactNode;
   wide?: boolean;
-  /** Illuminated backdrop (a soft light blooming behind the card). */
+  /** Illuminate: light beams sweep behind the card (the export's beam-sweep element). */
   illuminate?: boolean;
 }) {
   const card = useRef<HTMLDivElement>(null);
@@ -59,7 +59,14 @@ export default function Modal({
   if (!open || typeof document === 'undefined') return null;
   return createPortal(
     <div className={`modal-scrim${illuminate ? ' illuminate' : ''}`} onClick={onClose}>
-      {illuminate && <div className="illuminate-bg" aria-hidden />}
+      {/* Light beams (Elements/elements/beam-sweep.html) sweep behind the card. */}
+      {illuminate && (
+        <div className="beams" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </div>
+      )}
       <div
         className={`modal${wide ? ' wide' : ''}`}
         role="dialog"

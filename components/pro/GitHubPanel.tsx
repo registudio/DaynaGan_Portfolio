@@ -2,6 +2,7 @@ import { activityLog } from '@/lib/activity';
 import type { GitHubFeed } from '@/lib/github';
 import type { Site } from '@/lib/portfolio';
 import { heatLevel } from '@/game/engine/heat';
+import CountStat from './CountStat';
 
 const ago = (iso: string, now: number) => {
   const d = Math.max(0, now - Date.parse(iso)) / 86400000;
@@ -45,7 +46,9 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
         <div className="gh-stats">
           {stats.map((s) => (
             <div key={s.label}>
-              <b data-count={s.n}>{s.n}</b>
+              <b>
+                <CountStat value={String(s.n)} />
+              </b>
               <span>{s.label}</span>
             </div>
           ))}

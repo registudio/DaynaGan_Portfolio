@@ -13,6 +13,7 @@ import {
 } from '@/lib/portfolio';
 import { computeSkills, skillSources } from '@/lib/skills';
 import ContactForm from './ContactForm';
+import CountStat from './CountStat';
 import CopyEmail from './CopyEmail';
 import ExpandCard from './ExpandCard';
 import GitHubPanel from './GitHubPanel';
@@ -24,6 +25,7 @@ import ProHeader from './ProHeader';
 import ProjectShowcase, { type ShowcaseProject } from './ProjectShowcase';
 import RevealRoot from './RevealRoot';
 import ScrollStory from './ScrollStory';
+import ToastStack from './Toasts';
 import SkillMap, { type SkillTile, type SkillUse } from './SkillMap';
 
 const Html = ({ html, className = 'prose' }: { html?: string; className?: string }) =>
@@ -56,12 +58,10 @@ function Metrics({ value }: { value?: string }) {
   return (
     <div className="metrics">
       {items.map(([v, label]) => {
-        const m = v.match(/^([\d.]+)(.*)$/);
-        const decimals = m?.[1].includes('.') ? m[1].split('.')[1].length : 0;
         return (
           <div className="metric" key={label}>
-            <b data-count={m?.[1]} data-decimals={decimals} data-suffix={m?.[2] ?? ''}>
-              {v}
+            <b>
+              <CountStat value={v} />
             </b>
             <span>{label}</span>
           </div>
@@ -217,12 +217,10 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
             {stats && (
               <div className="pin-step about-stats" data-step={0}>
                 {stats.parts.map((s) => {
-                  const m = s.title.match(/^([\d.]+)(.*)$/);
-                  const decimals = m?.[1].includes('.') ? m[1].split('.')[1].length : 0;
                   return (
                     <div className="about-stat" key={s.id}>
-                      <b data-count={m?.[1]} data-decimals={decimals} data-suffix={m?.[2] ?? ''}>
-                        {s.title}
+                      <b>
+                        <CountStat value={s.title} />
                       </b>
                       <span>{s.meta.label}</span>
                     </div>
@@ -312,8 +310,8 @@ function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) 
                                 <circle cx="40" cy="40" r="34" pathLength={1} />
                                 <circle cx="40" cy="40" r="34" pathLength={1} className="tx-gpa-arc" />
                               </svg>
-                              <b data-count={gpa} data-decimals={gpa.split('.')[1]?.length ?? 0}>
-                                {gpa}
+                              <b>
+                                <CountStat value={gpa} />
                               </b>
                               <span>{gpaLabel}</span>
                             </div>
@@ -608,8 +606,8 @@ function Leadership({ portfolio, level }: { portfolio: Portfolio; level: Level }
                     <div className="ledger-metric">
                       {m && (
                         <>
-                          <b data-count={m[1]} data-suffix={m[2]}>
-                            {metric}
+                          <b>
+                            <CountStat value={metric} />
                           </b>
                           <span>{metricLabel}</span>
                         </>
@@ -827,6 +825,7 @@ export default function ProSite({
         name={portfolio.site.displayName}
         sections={levels.map((l) => ({ id: l.id, label: l.id === 'trophies' ? 'Skills' : l.title.split(' ')[0] }))}
       />
+      <ToastStack />
       <main className="pro">{levels.map(render)}</main>
       <ProFooter site={portfolio.site} updated={updated} />
       <RevealRoot />

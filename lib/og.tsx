@@ -21,7 +21,7 @@ export async function ogFonts() {
 export function ShareCard({ title, line, eyebrow = 'Portfolio' }: { title?: string; line?: string; eyebrow?: string } = {}) {
   const { site, levels } = loadPortfolio();
   const kicker = levels.find((l) => l.id === 'about')?.meta.kicker ?? '';
-  const grid = 'linear-gradient(rgba(167,139,250,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,0.10) 1px, transparent 1px)';
+  const grid = 'linear-gradient(rgba(169,194,234,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(169,194,234,0.08) 1px, transparent 1px)';
   return (
     <div
       style={{
@@ -31,9 +31,9 @@ export function ShareCard({ title, line, eyebrow = 'Portfolio' }: { title?: stri
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: '64px 72px',
-        color: '#f5f3ff',
-        backgroundColor: '#130e1d',
-        backgroundImage: `radial-gradient(circle at 18% 20%, rgba(124,58,237,0.55), transparent 45%), radial-gradient(circle at 90% 95%, rgba(192,38,211,0.45), transparent 45%), ${grid}`,
+        color: '#f2f3ed',
+        backgroundColor: '#111412',
+        backgroundImage: `radial-gradient(circle at 18% 20%, rgba(28,63,115,0.75), transparent 45%), radial-gradient(circle at 90% 95%, rgba(78,100,56,0.5), transparent 45%), ${grid}`,
         backgroundSize: '100% 100%, 100% 100%, 40px 40px, 40px 40px',
         fontFamily: 'Space Grotesk',
       }}
@@ -49,23 +49,23 @@ export function ShareCard({ title, line, eyebrow = 'Portfolio' }: { title?: stri
             justifyContent: 'center',
             fontSize: 36,
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #7c3aed, #c026d3)',
+            background: 'linear-gradient(135deg, #1c3f73, #2f5d9e)',
           }}
         >
           D
         </div>
-        <span style={{ fontFamily: 'Plex Mono', fontSize: 24, letterSpacing: 4, color: '#c4b5fd', textTransform: 'uppercase' }}>
+        <span style={{ fontFamily: 'Plex Mono', fontSize: 24, letterSpacing: 4, color: '#a9c2ea', textTransform: 'uppercase' }}>
           {title ? `${site.displayName} · ${eyebrow}` : eyebrow}
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <span style={{ fontSize: title ? 92 : 112, fontWeight: 700, letterSpacing: -4, lineHeight: 1 }}>{title ?? site.displayName}</span>
-        {!title && <span style={{ fontSize: 40, fontWeight: 500, color: '#c4b5fd' }}>{kicker}</span>}
-        <span style={{ fontSize: 28, fontWeight: 500, color: '#d8d0f0', maxWidth: 1000, lineHeight: 1.35 }}>
+        {!title && <span style={{ fontSize: 40, fontWeight: 500, color: '#a9c2ea' }}>{kicker}</span>}
+        <span style={{ fontSize: 28, fontWeight: 500, color: '#c9d0bf', maxWidth: 1000, lineHeight: 1.35 }}>
           {(line ?? site.tagline).slice(0, 220)}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 14, fontFamily: 'Plex Mono', fontSize: 22, color: '#a78bfa' }}>
+      <div style={{ display: 'flex', gap: 14, fontFamily: 'Plex Mono', fontSize: 22, color: '#94a487' }}>
         <span>Robotics</span>
         <span>·</span>
         <span>Embedded systems</span>
