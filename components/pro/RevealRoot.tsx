@@ -57,16 +57,24 @@ export default function RevealRoot() {
       const r = el.getBoundingClientRect();
       return reduce ? 1 : Math.min(1, Math.max(0, (innerHeight * start - r.top) / (r.height + innerHeight * (start - end))));
     };
+    const timelineItems = timelines.map((t) => [...t.querySelectorAll<HTMLElement>('.t-item')]);
     const onScroll = () => {
       queued = false;
-      for (const t of timelines) {
-        const p = progress(t, 0.7, 0.7);
+      // Read every rect first, then write — interleaving them forced a layout per item.
+      const reads = timelines.map((t, i) => {
+        const r = t.getBoundingClientRect();
+        const near = r.bottom > -innerHeight && r.top < innerHeight * 2;
+        return near ? { r, items: timelineItems[i].map((it) => it.getBoundingClientRect().top) } : null;
+      });
+      timelines.forEach((t, i) => {
+        const read = reads[i];
+        if (!read) return;
+        const { r, items } = read;
+        const p = reduce ? 1 : Math.min(1, Math.max(0, (innerHeight * 0.7 - r.top) / r.height));
         t.style.setProperty('--draw', p.toFixed(3));
-        const line = t.getBoundingClientRect().top + t.offsetHeight * p;
-        t.querySelectorAll<HTMLElement>('.t-item').forEach((item) =>
-          item.classList.toggle('lit', reduce || item.getBoundingClientRect().top + 24 < line),
-        );
-      }
+        const line = r.top + r.height * p;
+        timelineItems[i].forEach((item, j) => item.classList.toggle('lit', reduce || items[j] + 24 < line));
+      });
       for (const o of orbits) {
         const p = progress(o);
         o.style.setProperty('--orbit', p.toFixed(3));
@@ -98,13 +106,23 @@ export default function RevealRoot() {
     // Narrow screens: start the contribution heatmap at the latest weeks.
     document.querySelectorAll<HTMLElement>('.heat').forEach((h) => (h.scrollLeft = h.scrollWidth));
 
-    // Cursor spotlight (fine pointers only).
-    if (matchMedia('(pointer: fine)').matches && !reduce) {
+    // Cursor spotlight (fine pointers only): moves one composited element, batched per frame.
+    const spot = document.querySelector<HTMLElement>('.spotlight');
+    if (spot && matchMedia('(pointer: fine)').matches && !reduce) {
       const root = document.documentElement;
+      let x = 0;
+      let y = 0;
+      let pending = false;
       const move = (e: PointerEvent) => {
-        root.style.setProperty('--mx', `${e.clientX}px`);
-        root.style.setProperty('--my', `${e.clientY}px`);
-        root.classList.add('spot');
+        x = e.clientX;
+        y = e.clientY;
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(() => {
+          pending = false;
+          spot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        });
+        if (!root.classList.contains('spot')) root.classList.add('spot');
       };
       const out = () => root.classList.remove('spot');
       addEventListener('pointermove', move, { passive: true });
@@ -117,7 +135,10 @@ export default function RevealRoot() {
     }
 
     // Skills: hovering one lights up the roles/projects that used it; chips filter Projects.
+    let litId: string | null = null;
     const lit = (id: string | null) => {
+      if (id === litId) return; // pointerover fires constantly; only touch the DOM on change
+      litId = id;
       document.querySelectorAll('.uses-lit').forEach((el) => el.classList.remove('uses-lit'));
       if (id) document.querySelectorAll(`[data-uses~="${CSS.escape(id)}"]`).forEach((el) => el.classList.add('uses-lit'));
     };

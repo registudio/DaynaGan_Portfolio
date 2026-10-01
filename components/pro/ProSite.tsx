@@ -213,13 +213,9 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
           </div>
         </div>
         <HeroCarousel items={carousel} cad={cad} />
-        <a className="scroll-cue no-print" href="#about-more" aria-label="Scroll to the introduction">
-          <span className="mono">Scroll</span>
-          <i aria-hidden />
-        </a>
       </div>
       <div id="about-more" className="about-more">
-        <SectionHead level={level} intro={false} />
+        <ScrollStory title="About Me" number={sectionNumber(level)} variant="assemble">
       {stats && (
         <div className="stats">
           {stats.parts.map((s, i) => {
@@ -258,18 +254,22 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
           </div>
         )}
       </div>
+        </ScrollStory>
       </div>
     </section>
   );
 }
 
+/** Education: "Education" collapses in from stacked layers, then a scroll-drawn timeline. */
 function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
-  const rooms = level.id === 'experience' ? [...level.rooms].reverse() : level.rooms;
   return (
-    <section id={level.id} className="section">
-      <SectionHead level={level} />
+    <section id={level.id} className="section section-story">
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="layers">
+      <div className="section-head">
+        <Intro level={level} />
+      </div>
       <div className="timeline" data-timeline>
-        {rooms.map((room) => (
+        {level.rooms.map((room) => (
           <article className="t-item card" key={room.id} id={`${level.id}-${room.id}`} data-reveal data-uses={uses(room)}>
             <div className="t-head">
               <h3>{room.title}</h3>
@@ -284,9 +284,13 @@ function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) 
           </article>
         ))}
       </div>
+      </ScrollStory>
     </section>
   );
 }
+
+/** Sections hidden from Professional mode for now (content stays in portfolio.md and the game). */
+const ARCHIVED = new Set(['hobbies', 'future']);
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 /** Sort key from the start of a period like "Sep 2024 – Feb 2025". */
@@ -305,7 +309,7 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const rooms = [...level.rooms].sort((a, b) => startKey(a.meta.period) - startKey(b.meta.period));
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory title={`My ${level.title}`} number={sectionNumber(level)} horizontal>
+      <ScrollStory title={`My ${level.title}`} number={sectionNumber(level)} variant="rise" horizontal>
         <div className="mile mile-intro">
           <Intro level={level} />
           <p className="mile-hint mono" aria-hidden>
@@ -371,7 +375,7 @@ function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
 function Projects({ portfolio, level, cad }: { portfolio: Portfolio; level: Level; cad: Record<string, string> }) {
   return (
     <section id={level.id} className="section section-wide section-story">
-      <ScrollStory title={`My ${level.title}`} number={sectionNumber(level)}>
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="blueprint">
         <div className="section-head">
           <Intro level={level} />
         </div>
@@ -564,7 +568,7 @@ function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const form = level.rooms.find((r) => r.id === 'form');
   return (
     <section id={level.id} className="section contact-section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)}>
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="signal">
       <div className="section-head">
         <Intro level={level} />
       </div>
@@ -606,7 +610,8 @@ export default function ProSite({
   cad?: Record<string, string>;
   updated: string;
 }) {
-  const levels = sectionLevels(portfolio);
+  // Hobbies and Future Goals are archived in Professional mode for now (still in the game).
+  const levels = sectionLevels(portfolio).filter((l) => !ARCHIVED.has(l.id));
   const projects = levelById(portfolio, 'projects');
   const carousel = projects ? showcase(portfolio, projects).map((p) => ({ id: p.id, title: p.title })) : [];
   const render = (level: Level) => {

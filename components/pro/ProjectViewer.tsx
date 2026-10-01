@@ -9,6 +9,9 @@ type Api = {
   explode: (on: boolean) => void;
   highlight: (id: string | null) => void;
   spin: (on: boolean) => void;
+  drag: (on: boolean) => void;
+  /** Re-render once (e.g. hotspots re-shown while the model is still). */
+  refresh: () => void;
   zoom: (f: number) => void;
 };
 
@@ -40,6 +43,8 @@ export default function ProjectViewer({
   const [canExplode, setCanExplode] = useState(true);
   const [ids, setIds] = useState<string[]>([]);
   const [gl, setGl] = useState<boolean | null>(null);
+  const [coarse, setCoarse] = useState(false); // touch screen (read after mount: SSR can't know)
+  const [drag, setDragOn] = useState(false);
   const hover = useRef(onHover);
   hover.current = onHover;
   const initial = useRef(projectId);
@@ -65,13 +70,19 @@ export default function ProjectViewer({
       const tmp = new THREE.Vector3();
       const holder = new THREE.Group();
       const stage = new Stage(el, (dt) => {
+        const prevExplode = explodeT;
         explodeT += (explodeTo - explodeT) * Math.min(1, dt * 5);
-        model?.setExplode(explodeT);
+        if (Math.abs(explodeTo - explodeT) < 0.0005) explodeT = explodeTo;
+        const prevSwap = swap;
         swap += (1 - swap) * Math.min(1, dt * 6);
-        holder.scale.setScalar(swap);
+        if (1 - swap < 0.0005) swap = 1;
         idle += dt;
         controls.autoRotate = wantSpin && idle > 2.5;
-        controls.update();
+        const moved = controls.update();
+        // Nothing moving (no drag, spin, explode or swap)? Skip the frame entirely.
+        if (!moved && !controls.autoRotate && explodeT === prevExplode && swap === prevSwap && !stage.dirty) return false;
+        model?.setExplode(explodeT);
+        holder.scale.setScalar(swap);
         // Hotspot dots follow their parts.
         const box = dots.current;
         if (box && model) {
@@ -94,6 +105,16 @@ export default function ProjectViewer({
       controls.minDistance = 3.2;
       controls.maxDistance = 12;
       stage.camera.position.set(4.6, 3.2, 5.2);
+      // Touch screens: the sticky viewer covers much of the screen, so dragging it must scroll the
+      // page. Rotation is opt-in there (the "Rotate" tool); on mouse/trackpad it's always on.
+      const canvas = stage.renderer.domElement;
+      const setDrag = (on: boolean) => {
+        controls.enabled = on;
+        canvas.style.touchAction = on ? 'none' : 'pan-y';
+      };
+      const touch = matchMedia('(pointer: coarse)').matches;
+      setCoarse(touch);
+      setDrag(!touch);
       controls.addEventListener('start', () => (idle = 0));
       controls.addEventListener('change', () => controls.autoRotate || (idle = 0));
 
@@ -117,6 +138,7 @@ export default function ProjectViewer({
         if (id !== last) {
           last = id;
           model.setHighlight(id);
+          stage.dirty = true;
           hover.current(id);
         }
       };
@@ -165,12 +187,20 @@ export default function ProjectViewer({
         setCanExplode(!!model?.canExplode);
         setIds(model?.partIds ?? []);
       };
-      stage.themeChanged = (d) => model?.setTheme(d);
+      stage.themeChanged = (d) => {
+        model?.setTheme(d);
+        stage.dirty = true;
+      };
       api.current = {
         show,
         explode: (on) => (explodeTo = on ? 1 : 0),
-        highlight: (id) => model?.setHighlight(id),
+        highlight: (id) => {
+          model?.setHighlight(id);
+          stage.dirty = true;
+        },
         spin: (on) => (wantSpin = on),
+        drag: setDrag,
+        refresh: () => (stage.dirty = true),
         zoom: (f) => {
           const off = stage.camera.position.clone().sub(controls.target);
           const len = THREE.MathUtils.clamp(off.length() * f, controls.minDistance, controls.maxDistance);
@@ -199,6 +229,9 @@ export default function ProjectViewer({
     setNote(null);
   }, [projectId]);
   useEffect(() => api.current?.highlight(active), [active]);
+  useEffect(() => {
+    api.current?.refresh();
+  }, [hotspots, ids]);
 
   const byId = new Map(parts.map((p) => [p.id, p]));
   const label = active ? byId.get(active) : null;
@@ -256,6 +289,18 @@ export default function ProjectViewer({
         >
           ⟳ Auto-rotate
         </button>
+        {coarse && (
+          <button
+            className="tool"
+            aria-pressed={drag}
+            onClick={() => {
+              setDragOn(!drag);
+              api.current?.drag(!drag);
+            }}
+          >
+            ✋ Rotate
+          </button>
+        )}
         <span className="tool-gap" />
         <button className="tool" onClick={() => api.current?.zoom(0.8)} aria-label="Zoom in">
           ＋

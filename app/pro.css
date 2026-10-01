@@ -17,6 +17,9 @@ html {
 }
 
 /* ── Animated gradient backdrop ─────────────────────────────────────────── */
+/* Perf: no filter: blur() (re-blurring 60vmax blobs every frame was the main scroll cost).
+   The radial gradients are already soft; each blob is its own composited layer and only
+   its transform animates, so the backdrop costs nothing per frame. */
 .aurora {
   position: fixed;
   inset: 0;
@@ -24,72 +27,78 @@ html {
   overflow: hidden;
   pointer-events: none;
   background: var(--paper);
+  contain: strict;
 }
 .aurora i {
   position: absolute;
-  width: 60vmax;
-  height: 60vmax;
+  width: 70vmax;
+  height: 70vmax;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.22;
+  opacity: 0.2;
+  will-change: transform;
   animation: drift 26s ease-in-out infinite alternate;
 }
 .aurora i:nth-child(1) {
-  background: radial-gradient(circle, #7c3aed, transparent 65%);
-  top: -20vmax;
-  left: -10vmax;
+  background: radial-gradient(circle, #7c3aed 0%, rgb(124 58 237 / 0.35) 30%, transparent 68%);
+  top: -25vmax;
+  left: -15vmax;
 }
 .aurora i:nth-child(2) {
-  background: radial-gradient(circle, #c026d3, transparent 65%);
-  top: 30vh;
-  right: -25vmax;
+  background: radial-gradient(circle, #c026d3 0%, rgb(192 38 211 / 0.35) 30%, transparent 68%);
+  top: 25vh;
+  right: -30vmax;
   animation-duration: 32s;
   animation-delay: -8s;
 }
 .aurora i:nth-child(3) {
-  background: radial-gradient(circle, #4f46e5, transparent 65%);
-  bottom: -30vmax;
-  left: 20vw;
+  background: radial-gradient(circle, #4f46e5 0%, rgb(79 70 229 / 0.35) 30%, transparent 68%);
+  bottom: -35vmax;
+  left: 15vw;
   animation-duration: 38s;
   animation-delay: -16s;
 }
 :root[data-theme='light'] .aurora i {
-  opacity: 0.13;
+  opacity: 0.12;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) .aurora i {
-    opacity: 0.13;
+    opacity: 0.12;
   }
 }
 @keyframes drift {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translate3d(8vw, 6vh, 0) scale(1.15);
+    transform: translate3d(8vw, 6vh, 0);
   }
   100% {
-    transform: translate3d(-6vw, -4vh, 0) scale(0.95);
+    transform: translate3d(-6vw, -4vh, 0);
   }
 }
 
 /* ── Cursor spotlight ──────────────────────────────────────────────────── */
+/* A fixed-size glow moved with transform (set in RevealRoot) — no full-screen repaints. */
 .spotlight {
   position: fixed;
-  inset: 0;
+  left: 0;
+  top: 0;
+  width: 840px;
+  height: 840px;
+  margin: -420px 0 0 -420px;
   z-index: 60;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--violet-2) 12%, transparent), transparent 70%);
-  mix-blend-mode: screen;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--violet-2) 10%, transparent), transparent 60%);
+  will-change: transform;
+  /* Out of layout until a mouse moves (an 840px fixed box widened the layout viewport on phones). */
+  display: none;
 }
 :root.spot .spotlight {
-  opacity: 1;
+  display: block;
 }
 :root[data-theme='light'] .spotlight {
-  mix-blend-mode: multiply;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(124 58 237 / 0.07), transparent 70%);
+  background: radial-gradient(circle, rgb(124 58 237 / 0.06), transparent 60%);
 }
 
 /* ── Progress bar + floating pill nav ──────────────────────────────────── */
@@ -478,69 +487,20 @@ main.pro {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   align-items: center;
   min-height: calc(100svh - 56px);
-  padding: 24px 0 88px;
+  padding: 24px 0 40px;
   box-sizing: border-box;
 }
 .hero-stage {
   max-height: calc(100svh - 220px);
 }
 .about-more {
-  padding-top: clamp(56px, 10vh, 112px);
+  padding-top: 0;
   scroll-margin-top: 84px;
   display: grid;
   gap: 16px;
 }
 .about-more .section-head {
   margin-bottom: clamp(24px, 4vh, 48px);
-}
-.scroll-cue {
-  position: absolute;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  color: var(--ink-3);
-  text-decoration: none;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.scroll-cue i {
-  width: 22px;
-  height: 34px;
-  border-radius: 12px;
-  border: 2px solid color-mix(in srgb, var(--ink-3) 60%, transparent);
-  position: relative;
-}
-.scroll-cue i::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 7px;
-  width: 4px;
-  height: 7px;
-  margin-left: -2px;
-  border-radius: 2px;
-  background: var(--violet-2);
-  animation: cue 1.8s ease-in-out infinite;
-}
-@keyframes cue {
-  0% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  70% {
-    transform: translateY(11px);
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-.scroll-cue:hover {
-  color: var(--violet);
 }
 .hero-copy {
   display: grid;
@@ -551,7 +511,7 @@ main.pro {
     grid-template-columns: 1fr;
     align-content: center;
     gap: 22px;
-    padding: 16px 0 80px;
+    padding: 16px 0 32px;
   }
   .hero h1 {
     font-size: clamp(40px, 11vw, 64px);
@@ -573,11 +533,6 @@ main.pro {
 }
 @media (max-width: 600px) {
   .eyebrow-extra {
-    display: none;
-  }
-}
-@media (max-height: 560px) {
-  .scroll-cue {
     display: none;
   }
 }
@@ -764,14 +719,6 @@ main.pro {
   width: 22px;
   background-color: var(--violet-2);
 }
-.stat {
-  transition: transform 0.25s, border-color 0.25s;
-}
-.stat:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--violet-2) 50%, var(--line));
-}
-
 /* ── Timelines ─────────────────────────────────────────────────────────── */
 .timeline::after {
   background: linear-gradient(var(--violet-2), #e879f9);
@@ -1096,8 +1043,20 @@ main.pro {
   .pviewer-tools .tool[aria-label^='Zoom'] {
     display: none;
   }
+  /* One row that scrolls inside itself rather than widening the page. */
   .pviewer-tools {
     flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .pviewer-tools::-webkit-scrollbar {
+    display: none;
+  }
+  .pviewer,
+  .show-stage {
+    min-width: 0;
   }
   .hotspot {
     width: 24px;
@@ -1244,13 +1203,6 @@ button.skill:focus-visible {
 }
 
 /* ── Leadership ────────────────────────────────────────────────────────── */
-.role-card {
-  transition: transform 0.25s, border-color 0.25s;
-}
-.role-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--violet-2) 45%, var(--line));
-}
 .role-card h3 {
   margin: 0;
   font-size: 19px;
@@ -1306,9 +1258,6 @@ button.skill:focus-visible {
   transform: scale(0.2);
   opacity: 0;
 }
-.heat i:hover {
-  outline: 1px solid var(--violet-2);
-}
 .gh-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1338,10 +1287,6 @@ button.skill:focus-visible {
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface-2) 60%, transparent);
   transition: border-color 0.2s, transform 0.2s;
-}
-.repo-cards li:hover {
-  border-color: var(--violet-2);
-  transform: translateY(-2px);
 }
 .repo-cards a {
   font-weight: 600;
@@ -2002,15 +1947,18 @@ button.skill:focus-visible {
 .section-story {
   padding-top: 0;
 }
-.section-story:first-of-type {
-  padding-top: 0;
-}
 /* Static fallback (no JS / reduced motion): a normal heading, content below. */
 .story-stage {
   position: relative;
   padding-top: var(--gap, 120px);
 }
-.story-ghost {
+.story-ghost,
+.story-grid,
+.story-rings,
+.story-layers,
+.story-fill,
+.dim,
+.cross {
   display: none;
 }
 .story-num {
@@ -2025,6 +1973,12 @@ button.skill:focus-visible {
   font-size: clamp(30px, 5vw, 44px);
   line-height: 1.05;
   letter-spacing: -0.03em;
+}
+.story-ch {
+  white-space: pre;
+}
+.story-ch.accent {
+  color: var(--violet);
 }
 .story-track {
   display: grid;
@@ -2053,17 +2007,16 @@ button.skill:focus-visible {
   margin: 0;
 }
 
-/* Live: pinned, scroll-driven. --a reveal, --b dock, --c horizontal travel (0–1). */
-/* Full-bleed stage (breaks out of the content column so the giant title isn't clipped). */
+/* ── Live (pinned). --a reveal, --b dock, --c horizontal travel (all 0–1). ── */
 .story.live .story-stage {
   position: sticky;
   top: 0;
   width: 100vw;
   margin-left: calc(50% - 50vw);
   height: 100vh;
-  height: 100svh;
   padding: 0;
   overflow: hidden;
+  contain: layout paint;
 }
 .story.live .story-head {
   position: absolute;
@@ -2079,6 +2032,7 @@ button.skill:focus-visible {
   opacity: calc((0.4 + var(--a, 0) * 0.6) * (1 - var(--b, 0)));
 }
 .story.live .story-word {
+  position: relative;
   margin: 0;
   white-space: nowrap;
   font-size: min(clamp(56px, 14vw, 230px), calc(172vw / var(--n)));
@@ -2086,23 +2040,55 @@ button.skill:focus-visible {
   letter-spacing: -0.045em;
 }
 .story.live .story-ch {
+  /* Per-letter progress: letters resolve one after another. */
   --l: clamp(0, calc(var(--a, 0) * (var(--n) + 3) - var(--i)), 1);
   display: inline-block;
-  white-space: pre;
-  opacity: calc(0.08 + var(--l) * 0.92);
-  color: color-mix(in srgb, var(--ink) calc(var(--l) * 100%), transparent);
-  -webkit-text-stroke: calc((1 - var(--l)) * 2px) var(--violet-2);
-  transform: translateY(calc((1 - var(--l)) * 0.45em)) rotate(calc((1 - var(--l)) * 8deg)) scale(calc(0.85 + var(--l) * 0.15));
-  filter: blur(calc((1 - var(--l)) * 10px));
+  will-change: transform, opacity;
 }
-/* "My" picks up the brand colour once built (static and live). */
-.story-ch.accent {
-  color: var(--violet);
+
+/* 1 · assemble (About) — scattered letters fly in, spin and lock together. */
+.story.v-assemble.live .story-ch {
+  opacity: calc(0.1 + var(--l) * 0.9);
+  transform: translate3d(calc((1 - var(--l)) * var(--r) * 60vw), calc((1 - var(--l)) * (var(--r) * -1 + 0.4) * 60vh), 0)
+    rotate(calc((1 - var(--l)) * var(--r) * 540deg)) scale(calc(0.4 + var(--l) * 0.6));
 }
-.story.live .story-ch.accent {
-  color: color-mix(in srgb, var(--violet) calc(var(--l) * 100%), transparent);
+
+/* 2 · layers (Education) — four offset echoes stack down into the word. */
+.story.v-layers.live .story-layers {
+  display: block;
+  position: absolute;
+  inset: auto 0 0 0;
+  pointer-events: none;
 }
-.story.live .story-ghost {
+.story.v-layers.live .story-layer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: min(clamp(56px, 14vw, 230px), calc(172vw / var(--n, 9)));
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--violet-2);
+  opacity: calc((1 - var(--a, 0)) * 0.9 * (1 - var(--b, 0)) + 0.05 * (1 - var(--b, 0)));
+  transform: translate3d(calc(var(--l) * (1 - var(--a, 0)) * 3vw), calc(var(--l) * (1 - var(--a, 0)) * -9vh), 0);
+  will-change: transform, opacity;
+}
+.story.v-layers.live .story-layer:nth-child(odd) {
+  -webkit-text-stroke-color: #e879f9;
+}
+.story.v-layers.live .story-ch {
+  opacity: var(--l);
+  transform: translate3d(0, calc((1 - var(--l)) * -0.6em), 0);
+}
+
+/* 3 · rise (Experience) — letters rise and settle over a drifting outlined echo. */
+.story.v-rise.live .story-ch {
+  opacity: calc(0.05 + var(--l) * 0.95);
+  transform: translate3d(0, calc((1 - var(--l)) * 0.5em), 0) rotate(calc((1 - var(--l)) * 8deg)) scale(calc(0.85 + var(--l) * 0.15));
+}
+.story.v-rise.live .story-ghost {
   display: block;
   position: absolute;
   top: 50%;
@@ -2115,11 +2101,175 @@ button.skill:focus-visible {
   color: transparent;
   -webkit-text-stroke: 1.5px color-mix(in srgb, var(--violet-2) 55%, transparent);
   opacity: calc((0.1 + var(--a, 0) * 0.25) * (1 - var(--b, 0)));
-  transform: translate(calc(10vw - var(--a, 0) * 40vw - var(--b, 0) * 30vw), -50%);
+  transform: translate3d(calc(10vw - var(--a, 0) * 40vw - var(--b, 0) * 30vw), -50%, 0);
+  will-change: transform, opacity;
   pointer-events: none;
   z-index: 1;
 }
-/* Horizontal milestone track. */
+
+/* 4 · blueprint (Projects) — CAD sketch: outline + dimension lines, then a fill sweeps in. */
+.story-blueprint {
+  position: relative;
+}
+.story.v-blueprint.live .story-grid {
+  display: block;
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--violet-2) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--violet-2) 14%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: calc(min(1, var(--a, 0) * 2) * (1 - var(--b, 0)) * 0.9);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+.story.v-blueprint.live .story-outline .story-ch {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--violet-2);
+  opacity: clamp(0, calc(var(--a, 0) * 3 - var(--i) * 0.15), 1);
+}
+.story.v-blueprint.live .story-num {
+  margin-bottom: 52px;
+}
+.story.v-blueprint.live .story-fill .story-ch {
+  --l: 1;
+}
+.story.v-blueprint.live .story-fill {
+  display: block;
+  position: absolute;
+  inset: 0;
+  white-space: nowrap;
+  font-size: min(clamp(56px, 14vw, 230px), calc(172vw / var(--n, 8)));
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+  clip-path: inset(0 calc((1 - clamp(0, calc((var(--a, 0) - 0.55) * 2.6), 1)) * 100%) 0 0);
+}
+.story.v-blueprint.live .dim,
+.story.v-blueprint.live .cross {
+  display: block;
+  position: absolute;
+  opacity: calc(clamp(0, calc((var(--a, 0) - 0.15) * 3), 1) * (1 - var(--b, 0)));
+}
+.story.v-blueprint.live .dim-w {
+  left: 0;
+  right: 0;
+  top: -34px;
+  height: 20px;
+  border-left: 1.5px solid var(--violet-2);
+  border-right: 1.5px solid var(--violet-2);
+}
+.story.v-blueprint.live .dim-w i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 9px;
+  height: 1.5px;
+  background: var(--violet-2);
+  transform-origin: left;
+  transform: scaleX(clamp(0, calc((var(--a, 0) - 0.15) * 2.5), 1));
+}
+.story.v-blueprint.live .dim-w b {
+  position: absolute;
+  left: 50%;
+  top: -18px;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--violet);
+  letter-spacing: 0.08em;
+}
+.story.v-blueprint.live .dim-h {
+  top: 0;
+  bottom: 0;
+  left: -34px;
+  width: 20px;
+  border-top: 1.5px solid var(--violet-2);
+  border-bottom: 1.5px solid var(--violet-2);
+}
+.story.v-blueprint.live .dim-h i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 9px;
+  width: 1.5px;
+  background: var(--violet-2);
+  transform-origin: top;
+  transform: scaleY(clamp(0, calc((var(--a, 0) - 0.2) * 2.5), 1));
+}
+.story.v-blueprint.live .cross {
+  width: 18px;
+  height: 18px;
+  border: 0 solid #e879f9;
+}
+.story.v-blueprint.live .c1 {
+  left: -10px;
+  top: -10px;
+  border-width: 2px 0 0 2px;
+}
+.story.v-blueprint.live .c2 {
+  right: -10px;
+  top: -10px;
+  border-width: 2px 2px 0 0;
+}
+.story.v-blueprint.live .c3 {
+  left: -10px;
+  bottom: -10px;
+  border-width: 0 0 2px 2px;
+}
+.story.v-blueprint.live .c4 {
+  right: -10px;
+  bottom: -10px;
+  border-width: 0 2px 2px 0;
+}
+
+/* 5 · signal (Contact) — decodes from scrambled glyphs inside expanding radio rings. */
+.story.v-signal.live .story-ch {
+  opacity: calc(0.35 + var(--l) * 0.65);
+  transform: translate3d(0, 0, 0) scale(calc(1.15 - var(--l) * 0.15));
+}
+.story.v-signal.live .story-rings {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  opacity: calc(1 - var(--b, 0));
+}
+.story.v-signal.live .story-rings i {
+  position: absolute;
+  left: -30vmin;
+  top: -30vmin;
+  width: 60vmin;
+  height: 60vmin;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--violet-2) 55%, transparent);
+  will-change: transform, opacity;
+  animation: ping 3.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+.story.v-signal.live .story-rings i:nth-child(2) {
+  animation-delay: -0.8s;
+}
+.story.v-signal.live .story-rings i:nth-child(3) {
+  animation-delay: -1.6s;
+}
+.story.v-signal.live .story-rings i:nth-child(4) {
+  animation-delay: -2.4s;
+}
+@keyframes ping {
+  from {
+    transform: scale(0.15);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Horizontal milestone track (Experience). */
 .story.live .story-window {
   position: absolute;
   left: 0;
@@ -2128,7 +2278,7 @@ button.skill:focus-visible {
   bottom: 20px;
   /* Fades in over the last 40% of the dock, so the line never crosses the moving title. */
   opacity: clamp(0, calc((var(--b, 0) - 0.6) * 2.5), 1);
-  transform: translateY(calc((1 - var(--b, 0)) * 80px));
+  transform: translate3d(0, calc((1 - var(--b, 0)) * 80px), 0);
 }
 .story.live .story-window::before,
 .story.live .story-window::after {
@@ -2177,12 +2327,6 @@ button.skill:focus-visible {
   display: block;
   color: var(--violet);
   font-size: 13px;
-  animation: nudge 1.6s ease-in-out infinite;
-}
-@keyframes nudge {
-  50% {
-    transform: translateX(8px);
-  }
 }
 .story.live .mile-node {
   display: flex;
@@ -2227,6 +2371,9 @@ button.skill:focus-visible {
   .story.live .mile-card {
     font-size: 14.5px;
     padding: 16px;
+  }
+  .story.v-blueprint.live .dim-h {
+    display: none;
   }
 }
 

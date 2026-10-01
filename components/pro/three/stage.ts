@@ -47,14 +47,18 @@ export class Stage {
   private clock = new THREE.Clock();
   private onTheme = new MutationObserver(() => this.themeChanged?.(isDark()));
   themeChanged?: (dark: boolean) => void;
+  /** Force one render on the next frame (e.g. after a model swap or a highlight). */
+  dirty = true;
 
   constructor(
     private host: HTMLElement,
-    private tick: (dt: number, t: number) => void,
+    /** Return false when nothing changed this frame to skip the render (on-demand rendering). */
+    private tick: (dt: number, t: number) => boolean | void,
     fov = 34,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    // Capped at 1.5: sharp enough for wireframes, far cheaper on high-DPI phones.
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.prepend(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 200);
@@ -75,7 +79,8 @@ export class Stage {
       this.raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, this.clock.getDelta());
       if (!this.visible || document.hidden) return;
-      this.tick(dt, this.clock.elapsedTime);
+      if (this.tick(dt, this.clock.elapsedTime) === false && !this.dirty) return;
+      this.dirty = false;
       this.renderer.render(this.scene, this.camera);
     };
     this.raf = requestAnimationFrame(loop);
@@ -87,6 +92,7 @@ export class Stage {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.dirty = true;
   }
 
   dispose() {

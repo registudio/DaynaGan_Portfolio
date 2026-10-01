@@ -882,7 +882,7 @@ TODO: Discipline(s), how long, what she enjoys about it.
 ## Xiao Hu
 id: xiao-hu
 
-My cat — her name means "tiger" in Chinese. She's also your guide in this site's game mode.
+My cat — his name means "tiger" in Chinese. He's also your guide in this site's game mode.
 
 ## Travel
 id: travel

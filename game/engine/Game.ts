@@ -271,7 +271,7 @@ export class Game {
   private blueprints = new Map<string, ProjectModel>();
   private cooldowns: Record<string, number> = {};
   private scannerT = 0;
-  /** Xiao Hu's bed in the Backroom (she naps there while you explore it). */
+  /** Xiao Hu's bed in the Backroom (he naps there while you explore it). */
   private catBed: THREE.Vector3 | null = null;
   private combo = 0;
   private comboT = 0;
@@ -2603,7 +2603,7 @@ export class Game {
     const c = this.cat;
     const p = this.player;
     if (this.updateCatAbility(dt)) return;
-    // Backroom: Xiao Hu heads for her bed and naps while you look around.
+    // Backroom: Xiao Hu heads for his bed and naps while you look around.
     const secret = this.map.rooms.find((r) => r.kind === 'secret');
     if (this.catBed && secret && this.world!.roomAt(p.pos.x, p.pos.z) === secret.i) {
       const d = this.catBed.clone().sub(c.pos).setY(0);
