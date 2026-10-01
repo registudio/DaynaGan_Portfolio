@@ -3480,6 +3480,22 @@ body.modal-open {
   cursor: pointer;
 }
 
+
+/* Compact milestone cards: the summary already names the work, so the part list lives in
+   the Read more view; short screens clamp the summary to keep the button on screen. */
+.story.live .mile-card .mile-points {
+  display: none;
+}
+@media (max-height: 780px) {
+  .story.live .mile-card .prose,
+  .story.live .mile-card > p {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
 /* ── Interaction language: one hover, press and focus treatment everywhere ── */
 /* Hover = lift + violet edge · press = settle (slight scale-down) · focus = violet ring. */
 :root {
