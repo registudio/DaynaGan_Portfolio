@@ -492,6 +492,19 @@ Picked by the client from a 25-item suggestion list (Design 1–5, UI/UX 2 & 5, 
 - Parts: `frame` (GEPRC Mk4 5" carbon plates, arms, standoffs, hardware), `battery` (battery pad), `pogo` (new Drone part: spring-loaded landing foot with LDC1612 inductive sensing). Explode offsets travel in the file (glTF extras → `userData.explode`), and such nodes count as parts. The CAD has no motors, props or flight controller, so those cards have no hotspot.
 - `loadCad` registers the meshopt decoder. The hero carousel stays on wireframes so the first screen never downloads a CAD file; the model loads in the Projects viewer and on the case study.
 
+### Round 16 — unique mission layouts, a bigger orbital station
+- **Layouts:** every mission was the same zig-zag of rectangles. `RECIPES` in `game/engine/layout.ts` now gives each its own route, corridor lengths/widths, room shapes and heights:
+  - Core Reactor: round chambers with glowing rings, joined by wide halls.
+  - Academy Spires: a two-east/two-south stair climb over long bridges, with octagonal spires.
+  - Robot Forge: one long assembly line east, with L-shaped bays staggered either side.
+  - Circuit Caverns: a wandering route through jagged caves, sloping down.
+  - Trophy Hall: a gallery of cross-shaped halls.
+  - Colony Commons: round plazas heading south over terraces.
+  - Mainframe: a straight data bus south, with server halls offset either side.
+  - Comms Array: platforms climbing to the summit.
+- **Shapes:** rooms are carved at finalize (`rect`, `octagon`, `round`, `cross`, `notch`, `cave`), always keeping a lane from every doorway. Entry and trial rooms stay rectangular. Rooms that would overlap an earlier one get pushed further out. Props line any room's rim, whatever its shape.
+- **Orbital station:** the Command Deck (octagon: star map + teleporter) branches to the Crew Quarters (bunk, cat bed, locker), the Hangar Bay (a docked shuttle, plus the lift to Planet Aurora) and the Commissary (round: the vendor, now facing the garden). Entering a module shows its name. The exterior set piece adds hull keels, a turning habitat ring with window lights, two solar wings, a comms mast, blinking beacons and shuttle traffic.
+
 ## Improvement backlog (suggested)
 
 ### Performance

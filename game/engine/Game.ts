@@ -15,7 +15,7 @@ import { Audio } from './audio.ts';
 import { biomeFor, type Biome } from './biomes.ts';
 import { BIOME_OUTFIT, buildCat, buildDayna, buildEnemy, buildNpc, type EnemyType, type Rig } from './characters.ts';
 import { Input } from './input.ts';
-import { buildLevel, setProjectIds, type LevelMap, type Spawn } from './layout.ts';
+import { buildLevel, HUB_AREAS, setProjectIds, type LevelMap, type Spawn } from './layout.ts';
 import {
   ACHIEVEMENTS,
   allChipsCollected,
@@ -55,6 +55,7 @@ import {
   buildRepoRack,
   buildTerminal,
   buildVendor,
+  buildShuttle,
   contributionTile,
   buildFragment,
   buildConveyor,
@@ -2277,12 +2278,13 @@ export class Game {
         break;
       }
       case 'vendor': {
-        const obj = this.place(buildVendor(), s.x, s.z, -Math.PI / 2);
+        // Against the Commissary's back wall, facing into the garden.
+        const obj = this.place(buildVendor(), s.x, s.z);
         this.inter({
           id: 'vendor',
           kind: 'vendor',
-          x: s.x - 1.2,
-          z: s.z,
+          x: s.x,
+          z: s.z + 1.2,
           radius: 1.9,
           verb: 'Browse',
           label: 'Vendor stall',
@@ -2297,6 +2299,9 @@ export class Game {
         });
         break;
       }
+      case 'shuttle':
+        this.place(buildShuttle(), s.x, s.z);
+        break;
       case 'earth': {
         const earth = buildEarth();
         earth.position.set(s.x, -16, s.z);
@@ -2463,7 +2468,7 @@ export class Game {
       p.room = room;
       p.checkpoint.copy(p.pos);
       const r = this.map.rooms[room];
-      if (r?.title && r.kind !== 'entry' && r.kind !== 'hub') this.enterArea(r);
+      if (r?.title && r.kind !== 'entry' && (r.kind !== 'hub' || r.i > 0)) this.enterArea(r);
       if (this.trials.size) this.refreshHud();
     }
 
@@ -2856,7 +2861,13 @@ export class Game {
       return;
     }
     const intro = room ? roomIntro(room) : null;
-    const area = { eyebrow: intro?.eyebrow ?? '', title: r.title ?? '', sub: intro?.sub ?? '', id: Date.now() };
+    const station = r.kind === 'hub';
+    const area = {
+      eyebrow: station ? 'ORBITAL STATION' : (intro?.eyebrow ?? ''),
+      title: r.title ?? '',
+      sub: station ? (HUB_AREAS[r.title ?? ''] ?? '') : (intro?.sub ?? ''),
+      id: Date.now(),
+    };
     this.store.set({ area });
     this.defer(() => this.store.get().area?.id === area.id && this.store.set({ area: null }), 4200);
     if (intro && !this.tour && !this.store.get().boss && this.bubbleQueue.length < 2) this.say(intro.line, 5200);

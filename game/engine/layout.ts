@@ -80,7 +80,7 @@ export type Spawn =
   | { kind: 'centerpiece'; x: number; z: number; what: string }
   | { kind: 'secret'; x: number; z: number }
   | { kind: 'backroom'; x: number; z: number }
-  | { kind: 'hub'; x: number; z: number; what: 'starmap' | 'bunk' | 'catbed' | 'locker' | 'vendor' | 'pad' | 'earth' | 'planet' };
+  | { kind: 'hub'; x: number; z: number; what: 'starmap' | 'bunk' | 'catbed' | 'locker' | 'vendor' | 'pad' | 'earth' | 'planet' | 'shuttle' };
 
 export type LevelMap = {
   id: string;
@@ -93,7 +93,26 @@ export type LevelMap = {
   spawns: Spawn[];
 };
 
-type RoomSpec = { w: number; d: number; kind: RoomRect['kind']; roomId?: string; title?: string; h?: number };
+/** Footprint of a room inside its rectangle (cells outside it drop away or become wall). */
+export type RoomShape = 'rect' | 'octagon' | 'round' | 'cross' | 'notch' | 'cave';
+
+type RoomSpec = {
+  w: number;
+  d: number;
+  kind: RoomRect['kind'];
+  roomId?: string;
+  title?: string;
+  h?: number;
+  shape?: RoomShape;
+  /** How this room joins the previous one: along +x or +z. */
+  link?: 'x' | 'z';
+  /** Corridor length into this room. */
+  gap?: number;
+  /** Sideways shift against the previous room (cells). */
+  offset?: number;
+  /** Corridor half-width into this room (1 → 3 wide, 2 → 5 wide). */
+  half?: number;
+};
 
 const CORRIDOR = 4;
 
@@ -105,6 +124,11 @@ class Builder {
   spawns: Spawn[] = [];
   used = new Set<string>();
   doors: { x: number; z: number }[] = [];
+  /** Door cells per room, with the corridor half-width, so shaped rooms keep their doorways. */
+  private roomDoors: { room: number; x: number; z: number; axis: 'x' | 'z'; half: number }[] = [];
+  private shapes = new Map<number, RoomShape>();
+  /** Decorative inlay cells (rings, stripes) painted after carving. */
+  private inlays: { x: number; z: number }[] = [];
   corridors: { a: number; b: number; cells: { x: number; z: number }[] }[] = [];
   private raw: { x: number; z: number; h: number; room: number; surf: Cell['surf'] }[] = [];
   private secretRaw: { x: number; z: number; h: number }[] = [];
@@ -113,33 +137,43 @@ class Builder {
     let prev: RoomRect | null = null;
     specs.forEach((spec, i) => {
       const h = spec.h ?? i * climb;
+      const axis = spec.link ?? (i % 2 === 1 ? 'x' : 'z');
+      const gap = spec.gap ?? CORRIDOR;
+      const off = spec.offset ?? 0;
       let x = 0;
       let z = 0;
       if (prev) {
-        if (i % 2 === 1) {
-          x = prev.x + prev.w + CORRIDOR;
-          z = Math.round(prev.z + prev.d / 2 - spec.d / 2);
-        } else {
-          z = prev.z + prev.d + CORRIDOR;
-          x = Math.round(prev.x + prev.w / 2 - spec.w / 2);
+        const p: RoomRect = prev;
+        // Push the room further out until it clears every earlier room (offsets can swing it back).
+        for (let g = gap; g < gap + 24; g++) {
+          if (axis === 'x') {
+            x = p.x + p.w + g;
+            z = Math.round(p.z + p.d / 2 - spec.d / 2) + off;
+          } else {
+            z = p.z + p.d + g;
+            x = Math.round(p.x + p.w / 2 - spec.w / 2) + off;
+          }
+          const clash = this.rooms.some((r) => x < r.x + r.w + 2 && x + spec.w + 2 > r.x && z < r.z + r.d + 2 && z + spec.d + 2 > r.z);
+          if (!clash) break;
         }
       }
       const room: RoomRect = { i, x, z, w: spec.w, d: spec.d, h, kind: spec.kind, roomId: spec.roomId, title: spec.title };
-      this.addRoom(room);
-      if (prev) this.corridor(prev, room, i % 2 === 1 ? 'x' : 'z');
+      this.addRoom(room, spec.shape);
+      if (prev) this.corridor(prev, room, axis, false, spec.half ?? 1);
       prev = room;
     });
     return this.rooms;
   }
 
-  addRoom(room: RoomRect) {
+  addRoom(room: RoomRect, shape: RoomShape = 'rect') {
     this.rooms.push(room);
+    if (shape !== 'rect') this.shapes.set(room.i, shape);
     for (let x = room.x; x < room.x + room.w; x++)
       for (let z = room.z; z < room.z + room.d; z++)
         this.raw.push({ x, z, h: room.h, room: room.i, surf: (x + z) % 2 === 0 ? 'floor' : 'alt' });
   }
 
-  corridor(a: RoomRect, b: RoomRect, axis: 'x' | 'z', secret = false) {
+  corridor(a: RoomRect, b: RoomRect, axis: 'x' | 'z', secret = false, half = 1) {
     const cells: { x: number; z: number }[] = [];
     if (!secret) this.corridors.push({ a: a.i, b: b.i, cells });
     const push = (x: number, z: number, h: number) => {
@@ -154,8 +188,9 @@ class Builder {
       const x0 = a.x + a.w;
       const x1 = b.x;
       for (let x = x0; x < x1; x++)
-        for (let z = cz - 1; z <= cz + 1; z++) push(x, z, a.h + ((b.h - a.h) * (x - x0 + 1)) / (x1 - x0 + 1));
+        for (let z = cz - half; z <= cz + half; z++) push(x, z, a.h + ((b.h - a.h) * (x - x0 + 1)) / (x1 - x0 + 1));
       this.doors.push({ x: x0 - 1, z: cz }, { x: x1, z: cz });
+      this.roomDoors.push({ room: a.i, x: x0 - 1, z: cz, axis, half }, { room: b.i, x: x1, z: cz, axis, half });
     } else {
       const lo = Math.max(a.x, b.x);
       const hi = Math.min(a.x + a.w, b.x + b.w);
@@ -163,9 +198,55 @@ class Builder {
       const z0 = a.z + a.d;
       const z1 = b.z;
       for (let z = z0; z < z1; z++)
-        for (let x = cx - 1; x <= cx + 1; x++) push(x, z, a.h + ((b.h - a.h) * (z - z0 + 1)) / (z1 - z0 + 1));
+        for (let x = cx - half; x <= cx + half; x++) push(x, z, a.h + ((b.h - a.h) * (z - z0 + 1)) / (z1 - z0 + 1));
       this.doors.push({ x: cx, z: z0 - 1 }, { x: cx, z: z1 });
+      this.roomDoors.push({ room: a.i, x: cx, z: z0 - 1, axis, half }, { room: b.i, x: cx, z: z1, axis, half });
     }
+  }
+
+  /** Is local cell (u, v) of a w×d room inside `shape`? */
+  static inside(shape: RoomShape, u: number, v: number, w: number, d: number, seed: number) {
+    const fx = (u + 0.5 - w / 2) / (w / 2);
+    const fz = (v + 0.5 - d / 2) / (d / 2);
+    const m = Math.min(w, d);
+    switch (shape) {
+      case 'octagon': {
+        const c = Math.round(m * 0.3);
+        return u + v >= c && w - 1 - u + v >= c && u + (d - 1 - v) >= c && w - 1 - u + (d - 1 - v) >= c;
+      }
+      case 'round':
+        return fx * fx + fz * fz <= 1.12;
+      case 'cross': {
+        const c = Math.round(m * 0.26);
+        const inX = u < c || u >= w - c;
+        const inZ = v < c || v >= d - c;
+        return !(inX && inZ);
+      }
+      case 'notch': {
+        // An L: the front (+x/+z) corner drops into the abyss, the back corner is chamfered.
+        const front = u >= Math.round(w * 0.62) && v >= Math.round(d * 0.62);
+        return !front && u + v >= 2;
+      }
+      case 'cave': {
+        const hsh = Math.sin((u + seed * 7.13) * 12.9898 + (v - seed) * 78.233) * 43758.5453;
+        const noise = hsh - Math.floor(hsh);
+        return fx * fx * fx * fx + fz * fz * fz * fz <= 0.62 + noise * 0.42 || (Math.abs(fx) < 0.55 && Math.abs(fz) < 0.55);
+      }
+      default:
+        return true;
+    }
+  }
+
+  /** Paint a decorative ring (or stripe) of path tiles into a room, applied at finalize. */
+  inlay(room: RoomRect, kind: 'ring' | 'stripe') {
+    const cx = room.x + room.w / 2;
+    const cz = room.z + room.d / 2;
+    const r = Math.min(room.w, room.d) * 0.3;
+    for (let x = room.x; x < room.x + room.w; x++)
+      for (let z = room.z; z < room.z + room.d; z++) {
+        const dist = Math.hypot(x + 0.5 - cx, z + 0.5 - cz);
+        if (kind === 'ring' ? Math.abs(dist - r) < 0.5 : Math.abs(x + 0.5 - cx) < 1 || Math.abs(z + 0.5 - cz) < 1) this.inlays.push({ x, z });
+      }
   }
 
   /** A room behind `from`'s back (−z) wall joined by a hidden corridor. */
@@ -187,7 +268,27 @@ class Builder {
     return room;
   }
 
+  /** Drops the cells of shaped rooms that fall outside their shape, keeping every doorway clear. */
+  private carve() {
+    if (!this.shapes.size) return;
+    const keep = (c: { x: number; z: number; room: number }) => {
+      const shape = this.shapes.get(c.room);
+      if (!shape) return true;
+      const r = this.rooms[c.room];
+      for (const dr of this.roomDoors) {
+        if (dr.room !== c.room) continue;
+        // A straight lane from each door into the room, a cell wider than the corridor.
+        const along = dr.axis === 'x' ? Math.abs(c.z - dr.z) : Math.abs(c.x - dr.x);
+        const depth = dr.axis === 'x' ? Math.abs(c.x - dr.x) : Math.abs(c.z - dr.z);
+        if (along <= dr.half + 1 && depth <= 4) return true;
+      }
+      return Builder.inside(shape, c.x - r.x, c.z - r.z, r.w, r.d, r.i);
+    };
+    this.raw = this.raw.filter((c) => c.room < 0 || keep(c));
+  }
+
   finalize(margin = 4) {
+    this.carve();
     const all = [...this.raw, ...this.secretRaw];
     const minX = Math.min(...all.map((c) => c.x)) - margin;
     const minZ = Math.min(...all.map((c) => c.z)) - margin;
@@ -207,6 +308,10 @@ class Builder {
     }
     this.doors = this.doors.map((d) => ({ x: d.x - minX, z: d.z - minZ }));
     for (const c of this.corridors) c.cells = c.cells.map((p) => ({ x: p.x - minX, z: p.z - minZ }));
+    for (const p of this.inlays) {
+      const cell = this.cell(p.x - minX, p.z - minZ);
+      if (cell && cell.t === FLOOR && cell.room >= 0) cell.surf = 'path';
+    }
     this.walls();
     for (const c of this.secretRaw) {
       const cell = this.cell(c.x - minX, c.z - minZ)!;
@@ -279,18 +384,19 @@ class Builder {
   decorate(biome: string, rand: () => number, density = 0.16) {
     const props = BIOMES[biome]?.props ?? [];
     if (!props.length) return;
+    const floorAt = (x: number, z: number) => this.cell(x, z)?.t === FLOOR;
     for (const room of this.rooms) {
-      if (room.kind === 'hub') continue;
       for (let x = room.x; x < room.x + room.w; x++)
         for (let z = room.z; z < room.z + room.d; z++) {
-          const edge = x === room.x || z === room.z || x === room.x + room.w - 1 || z === room.z + room.d - 1;
-          if (!edge || rand() > density) continue;
-          if (this.nearDoor(x, z, 2) || this.used.has(`${x},${z}`)) continue;
           const c = this.cell(x, z);
-          if (!c || c.t !== FLOOR) continue;
+          if (!c || c.t !== FLOOR || c.room !== room.i) continue;
+          // The room's rim, whatever its shape: a neighbour that isn't floor.
+          const back = !floorAt(x - 1, z) || !floorAt(x, z - 1);
+          const front = !floorAt(x + 1, z) || !floorAt(x, z + 1);
+          if ((!back && !front) || rand() > density) continue;
+          if (this.nearDoor(x, z, 2) || this.used.has(`${x},${z}`)) continue;
           // Keep front edges mostly open.
-          const front = x === room.x + room.w - 1 || z === room.z + room.d - 1;
-          if (front && rand() > 0.35) continue;
+          if (front && !back && rand() > 0.35) continue;
           const prop = props[Math.floor(rand() * props.length)];
           c.solid = true;
           this.claim(x, z);
@@ -401,6 +507,80 @@ function entryRoom(b: Builder, room: RoomRect, what: string) {
   return { x: cx, z: cz + 1 };
 }
 
+/**
+ * Each mission's own floor plan: how rooms join (the route), corridor lengths and widths,
+ * room shapes and heights. Entry and trial rooms stay rectangular (their set pieces need it).
+ *   Core Reactor     — zig-zag of round reactor chambers joined by wide halls
+ *   Academy Spires   — a stair-step climb (two east, two south) over long bridges, octagonal spires
+ *   Robot Forge      — one long assembly line heading east, L-shaped bays staggered either side
+ *   Circuit Caverns  — a wandering route through jagged caves, sloping down
+ *   Trophy Hall      — a grand gallery of cross-shaped halls
+ *   Colony Commons   — round plazas heading south over gentle terraces
+ *   Mainframe        — a straight data bus running south, server halls offset left and right
+ *   Comms Array      — octagonal platforms climbing steadily to the summit
+ */
+type Recipe = {
+  links: ('x' | 'z')[] | ((i: number, rand: () => number) => 'x' | 'z');
+  shape?: RoomShape | ((spec: RoomSpec, i: number) => RoomShape);
+  gap?: number | ((i: number, rand: () => number) => number);
+  offset?: (i: number, rand: () => number) => number;
+  half?: number | ((i: number, rand: () => number) => number);
+  height?: (i: number, climb: number) => number;
+  grow?: number;
+  inlay?: 'ring' | 'stripe';
+};
+
+export const RECIPES: Record<string, Recipe> = {
+  about: { links: ['x', 'z'], shape: 'round', gap: 5, half: 2, grow: 3, inlay: 'ring' },
+  education: { links: ['x', 'x', 'z', 'z'], shape: 'octagon', gap: 6, half: 1, grow: 2, height: (i, climb) => i * climb },
+  experience: { links: ['x'], shape: 'notch', gap: 3, half: 2, offset: (i) => (i % 2 ? 3 : -3), grow: 1, inlay: 'stripe' },
+  projects: {
+    links: (i, rand) => (i === 1 ? 'x' : rand() < 0.55 ? 'x' : 'z'),
+    shape: 'cave',
+    gap: (_, rand) => 3 + Math.floor(rand() * 5),
+    offset: (_, rand) => Math.round((rand() - 0.5) * 6),
+    half: (_, rand) => (rand() < 0.3 ? 2 : 1),
+    height: (i) => Math.max(0, 3 - i * 0.25),
+    grow: 2,
+  },
+  trophies: { links: (i) => (i === 1 ? 'z' : 'x'), shape: 'cross', gap: 4, half: 2, grow: 2, inlay: 'stripe' },
+  leadership: {
+    links: ['z', 'z', 'x'],
+    shape: 'round',
+    gap: 3,
+    half: 1,
+    offset: (i) => [0, 2, -2][i % 3],
+    height: (i) => [0, 0.75, 1.5, 0.75][i % 4],
+    grow: 3,
+    inlay: 'ring',
+  },
+  github: { links: ['z'], gap: 6, half: 1, offset: (i) => (i % 2 ? 4 : -4), inlay: 'stripe' },
+  contact: { links: ['x', 'z'], shape: (spec) => (spec.roomId === 'relays' ? 'octagon' : 'round'), gap: 4, half: 2, height: (i) => i * 1, grow: 2, inlay: 'ring' },
+};
+
+function applyRecipe(levelId: string, specs: RoomSpec[], rand: () => number, climb: number) {
+  const r = RECIPES[levelId];
+  if (!r) return;
+  const pick = <T,>(v: T | ((i: number, rand: () => number) => T) | undefined, i: number): T | undefined =>
+    typeof v === 'function' ? (v as (i: number, rand: () => number) => T)(i, rand) : v;
+  specs.forEach((spec, i) => {
+    if (i > 0) {
+      spec.link = Array.isArray(r.links) ? r.links[(i - 1) % r.links.length] : r.links(i, rand);
+      spec.gap = pick(r.gap, i);
+      spec.half = pick(r.half, i);
+      spec.offset = r.offset?.(i, rand) ?? 0;
+    }
+    if (r.height) spec.h = r.height(i, climb);
+    if (spec.kind === 'entry' || spec.kind === 'trial' || spec.kind === 'secret') return;
+    spec.shape = typeof r.shape === 'function' ? r.shape(spec, i) : r.shape;
+    // Shaped rooms lose their corners: grow them so the same content still fits.
+    if (spec.shape && spec.shape !== 'rect' && r.grow) {
+      spec.w += r.grow;
+      spec.d += r.grow;
+    }
+  });
+}
+
 export function buildLevel(
   portfolio: Portfolio,
   levelId: string,
@@ -438,7 +618,12 @@ export function buildLevel(
     const type = trialType(levelId, n, opts.peaceful);
     specs.splice(contentIdx[slot] + 1, 0, { w: 16, d: 14, kind: 'trial', title: `Trial · ${TRIAL_INFO[type].name}`, roomId: `trial-${n}` });
   }
+  applyRecipe(levelId, specs, rng(levelId.length * 131 + 17), climb);
   const rooms = b.chain(specs, climb);
+  for (const r of rooms) {
+    const deco = RECIPES[levelId]?.inlay;
+    if (deco && (r.kind === 'content' || r.kind === 'vault' || r.kind === 'cavern')) b.inlay(r, deco);
+  }
   const secret =
     levelId === 'trophies'
       ? b.secretRoom(rooms.find((r) => r.roomId === 'shelves')!, { w: 11, d: 11, kind: 'secret', roomId: 'backroom', title: 'The Backroom' })
@@ -970,13 +1155,35 @@ function buildContact(b: Builder, rooms: RoomRect[]) {
   b.claim(sx, summit.z + summit.d / 2 + 1.5, 1);
 }
 
+/** Station modules: name and the line shown when you walk in. */
+export const HUB_AREAS: Record<string, string> = {
+  'Command Deck': 'The star map: pick a mission',
+  'Crew Quarters': "Dayna's bunk, Xiao Hu's bed and the gear locker",
+  'Hangar Bay': 'Shuttle to Planet Aurora',
+  'Commissary': 'Hydroponics garden and the vendor',
+};
+
+/**
+ * The orbital station: a Command Deck (star map + teleporter) with three modules off it —
+ * Crew Quarters to the west, the Hangar Bay to the east and the Commissary to the south —
+ * joined by wide gangways. Rooms are placed by hand (they branch, unlike a mission chain).
+ */
 function buildHub(): LevelMap {
   const b = new Builder();
-  b.addRoom({ i: 0, x: 0, z: 0, w: 17, d: 13, h: 0, kind: 'hub', title: 'Station Hub' });
+  const deck: RoomRect = { i: 0, x: 17, z: 0, w: 19, d: 17, h: 0, kind: 'hub', title: 'Command Deck' };
+  const quarters: RoomRect = { i: 1, x: 0, z: 3, w: 13, d: 11, h: 0, kind: 'hub', title: 'Crew Quarters' };
+  const hangar: RoomRect = { i: 2, x: 40, z: 0, w: 17, d: 17, h: 0, kind: 'hub', title: 'Hangar Bay' };
+  const shop: RoomRect = { i: 3, x: 19, z: 21, w: 15, d: 13, h: 0, kind: 'hub', title: 'Commissary' };
+  b.addRoom(deck, 'octagon');
+  b.addRoom(quarters);
+  b.addRoom(hangar);
+  b.addRoom(shop, 'round');
+  b.corridor(quarters, deck, 'x', false, 1);
+  b.corridor(deck, hangar, 'x', false, 2);
+  b.corridor(deck, shop, 'z', false, 2);
+  b.inlay(deck, 'ring');
+  b.inlay(hangar, 'stripe');
   b.finalize();
-  const room = b.rooms[0];
-  const cx = room.x + room.w / 2;
-  const cz = room.z + room.d / 2;
   const put = (what: Extract<Spawn, { kind: 'hub' }>['what'], x: number, z: number, solid = true) => {
     b.spawns.push({ kind: 'hub', what, x, z });
     b.claim(x, z, 1);
@@ -985,32 +1192,44 @@ function buildHub(): LevelMap {
       if (c) c.solid = true;
     }
   };
+  const solidBlock = (x0: number, z0: number, w: number, d: number) => {
+    for (let x = x0; x < x0 + w; x++)
+      for (let z = z0; z < z0 + d; z++) {
+        const c = b.cell(x, z);
+        if (c) c.solid = true;
+        b.claim(x + 0.5, z + 0.5);
+      }
+  };
+  // Command Deck: the holo star map in the middle, the teleporter in front of it.
+  const cx = deck.x + deck.w / 2;
+  const cz = deck.z + deck.d / 2;
   put('starmap', cx, cz - 1);
-  // The holo-table is ~3×3: make its whole footprint solid.
-  for (let dx = -1; dx <= 1; dx++)
-    for (let dz = -1; dz <= 1; dz++) {
-      const c = b.cell(Math.floor(cx) + dx, Math.floor(cz - 1) + dz);
-      if (c) c.solid = true;
-    }
-  put('pad', cx, cz + 3, false);
-  put('planet', cx + 4, cz + 3, false);
-  put('bunk', room.x + 2, room.z + 2);
-  put('catbed', room.x + 4.5, room.z + 1.5);
-  put('locker', room.x + room.w - 2.5, room.z + 2.5);
-  put('vendor', room.x + room.w - 1.5, room.z + 6);
-  put('earth', room.x - 10, room.z - 12, false);
-  // Path tiles from pad to star map.
-  for (let z = Math.floor(cz); z <= Math.floor(cz + 3); z++)
+  solidBlock(Math.floor(cx) - 1, Math.floor(cz - 1) - 1, 3, 3);
+  put('pad', cx, cz + 4, false);
+  for (let z = Math.floor(cz + 1); z <= Math.floor(cz + 4); z++)
     for (let x = Math.floor(cx) - 1; x <= Math.floor(cx) + 1; x++) {
       const c = b.cell(x, z);
       if (c && c.t === FLOOR) c.surf = 'path';
     }
+  // Crew Quarters.
+  put('bunk', quarters.x + 2, quarters.z + 2);
+  put('catbed', quarters.x + 5, quarters.z + 1.5);
+  put('locker', quarters.x + quarters.w - 2.5, quarters.z + 2.5);
+  // Hangar Bay: a docked shuttle on the pad, the planet lift beside it.
+  const sx = hangar.x + hangar.w / 2 + 1;
+  const sz = hangar.z + 5;
+  put('shuttle', sx, sz, false);
+  solidBlock(Math.floor(sx) - 2, Math.floor(sz) - 3, 5, 6);
+  put('planet', hangar.x + 4.5, hangar.z + hangar.d - 4.5, false);
+  // Commissary: the vendor at the back, planters around the garden.
+  put('vendor', shop.x + shop.w / 2, shop.z + 2.5);
+  put('earth', quarters.x - 6, deck.z - 14, false);
   // Windows along the back walls.
   for (let x = 0; x < b.w; x++)
     for (let z = 0; z < b.d; z++) {
       const c = b.cell(x, z)!;
       if (c.t === WALL && (x + z) % 3 === 0) c.window = true;
     }
-  b.decorate('orbital-station', rng(42), 0.08);
-  return b.result('hub', 'orbital-station', { x: cx, z: cz + 4.5 });
+  b.decorate('orbital-station', rng(42), 0.1);
+  return b.result('hub', 'orbital-station', { x: cx, z: cz + 6 });
 }

@@ -7,6 +7,8 @@ import { FLOOR, type LevelMap } from './layout.ts';
  *   academy-spires  → god-ray light shafts slanting down into each room
  *   robot-forge     → a molten-solder sea churning far below the islands
  *   circuit-caverns → data waterfalls pouring off the front edges + glow pools
+ *   orbital-station → the station's exterior: hull keels, a turning habitat ring,
+ *                     solar wings, blinking beacons and shuttle traffic
  */
 export type SetPiece = { group: THREE.Group; update(t: number, dt: number): void; dispose(): void };
 
@@ -17,6 +19,7 @@ export function buildSetPiece(biome: string, map: LevelMap, quality: 'low' | 'hi
   if (biome === 'robot-forge') return solderSea(map);
   if (biome === 'circuit-caverns') return dataFalls(map, quality);
   if (biome === 'planet-surface') return planetSea(map, quality);
+  if (biome === 'orbital-station') return stationExterior(map, quality);
   return null;
 }
 
@@ -327,5 +330,154 @@ function planetSea(map: LevelMap, quality: 'low' | 'high'): SetPiece {
       geo.attributes.position.needsUpdate = true;
     },
     dispose: disposer(group, [tex]),
+  };
+}
+
+/** Solar-cell texture: deep blue cells in a silver grid. */
+function solarTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#c7cdd9';
+  g.fillRect(0, 0, 64, 64);
+  for (let x = 0; x < 4; x++)
+    for (let y = 0; y < 4; y++) {
+      g.fillStyle = (x + y) % 2 ? '#1e3a8a' : '#1d4ed8';
+      g.fillRect(x * 16 + 1, y * 16 + 1, 14, 14);
+    }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+function stationExterior(map: LevelMap, quality: 'low' | 'high'): SetPiece {
+  const group = new THREE.Group();
+  const hull = new THREE.MeshLambertMaterial({ color: '#3a4152' });
+  const hullLight = new THREE.MeshLambertMaterial({ color: '#8a93a6' });
+  const violet = new THREE.MeshBasicMaterial({ color: '#a78bfa', fog: false });
+  const cyan = new THREE.MeshBasicMaterial({ color: '#7dd3fc', fog: false });
+  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => {
+    const mesh = new THREE.Mesh(geo, m);
+    mesh.position.set(x, y, z);
+    group.add(mesh);
+    return mesh;
+  };
+  const cx = map.w / 2;
+  const cz = map.d / 2;
+  const span = Math.max(map.w, map.d);
+
+  // Hull keels under every module: a tapered block with a glowing seam, so the decks read as
+  // a solid station rather than floating tiles.
+  for (const r of map.rooms) {
+    const rx = r.x + r.w / 2;
+    const rz = r.z + r.d / 2;
+    add(new THREE.BoxGeometry(r.w * 0.8, 2.5, r.d * 0.8), hull, rx, -2.6, rz);
+    add(new THREE.BoxGeometry(r.w * 0.5, 2.5, r.d * 0.5), hull, rx, -5, rz);
+    add(new THREE.BoxGeometry(r.w * 0.82, 0.12, r.d * 0.82), violet, rx, -1.4, rz);
+    add(new THREE.BoxGeometry(1.2, 4, 1.2), hullLight, rx, -8, rz);
+    add(new THREE.BoxGeometry(0.5, 0.5, 0.5), cyan, rx, -10.2, rz);
+  }
+
+  // Habitat ring turning slowly beneath the station, joined by four spokes.
+  const ring = new THREE.Group();
+  ring.position.set(cx, -9, cz);
+  group.add(ring);
+  const R = span * 0.62;
+  const torus = new THREE.Mesh(new THREE.TorusGeometry(R, 1.6, 6, quality === 'high' ? 64 : 40), hull);
+  torus.rotation.x = Math.PI / 2;
+  ring.add(torus);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(R + 1.45, 0.18, 4, quality === 'high' ? 64 : 40), cyan);
+  band.rotation.x = Math.PI / 2;
+  ring.add(band);
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2;
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(R, 0.6, 0.6), hullLight);
+    spoke.position.set((Math.cos(a) * R) / 2, 0, (Math.sin(a) * R) / 2);
+    spoke.rotation.y = -a;
+    ring.add(spoke);
+  }
+  // Window lights around the ring.
+  const winGeo = new THREE.BoxGeometry(0.5, 0.35, 0.5);
+  const n = quality === 'high' ? 48 : 28;
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
+    const w = new THREE.Mesh(winGeo, k % 5 === 0 ? violet : cyan);
+    w.position.set(Math.cos(a) * R, 1.55, Math.sin(a) * R);
+    ring.add(w);
+  }
+
+  // Solar wings off the back (−x and −z), behind the walls so they never hide the decks.
+  const solar = solarTexture();
+  const beacons: THREE.Mesh[] = [];
+  solar.repeat.set(2, 3);
+  const panelMat = new THREE.MeshLambertMaterial({ map: solar, side: THREE.DoubleSide });
+  const wing = (alongX: boolean) => {
+    const len = span * 0.55;
+    const root = alongX ? new THREE.Vector3(-4, 1.5, cz) : new THREE.Vector3(cx, 1.5, -4);
+    const dir = alongX ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(0, 0, -1);
+    const truss = add(new THREE.BoxGeometry(alongX ? len : 0.5, 0.5, alongX ? 0.5 : len), hullLight, 0, 0, 0);
+    truss.position.copy(root).addScaledVector(dir, len / 2);
+    const panels = Math.max(3, Math.floor(len / 7));
+    for (let k = 0; k < panels; k++) {
+      for (const side of [-1, 1]) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(alongX ? 5 : 8, alongX ? 8 : 5), panelMat);
+        p.rotation.x = -Math.PI / 2 + 0.35 * side;
+        const at = root.clone().addScaledVector(dir, 4 + k * 7);
+        if (alongX) at.z += side * 5;
+        else at.x += side * 5;
+        p.position.copy(at);
+        group.add(p);
+      }
+    }
+    const tip = add(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshBasicMaterial({ color: '#f43f5e', fog: false }), 0, 0, 0);
+    tip.position.copy(root).addScaledVector(dir, len + 0.5);
+    beacons.push(tip);
+  };
+  wing(true);
+  wing(false);
+
+  // Comms mast rising behind the Command Deck.
+  const deck = map.rooms[0];
+  if (deck) {
+    const mx = deck.x - 3;
+    const mz = deck.z - 3;
+    add(new THREE.BoxGeometry(0.5, 12, 0.5), hullLight, mx, 4, mz);
+    add(new THREE.BoxGeometry(3, 0.25, 0.25), hullLight, mx, 8.5, mz);
+    const dish = add(new THREE.CylinderGeometry(1.6, 0.2, 0.6, 12, 1, true), hullLight, mx, 10.5, mz);
+    dish.rotation.z = 0.5;
+    const top = add(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshBasicMaterial({ color: '#f43f5e', fog: false }), mx, 10.3, mz);
+    beacons.push(top);
+  }
+
+  // Shuttle traffic on long loops around the station.
+  const ships: { g: THREE.Group; r: number; y: number; speed: number; phase: number }[] = [];
+  const shipBody = new THREE.BoxGeometry(1.2, 0.5, 2.4);
+  const engine = new THREE.BoxGeometry(0.8, 0.3, 0.1);
+  const flame = new THREE.MeshBasicMaterial({ color: '#c4b5fd', fog: false });
+  for (let k = 0; k < (quality === 'high' ? 3 : 2); k++) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(shipBody, hullLight));
+    const e = new THREE.Mesh(engine, flame);
+    e.position.z = -1.25;
+    g.add(e);
+    group.add(g);
+    ships.push({ g, r: span * (0.8 + k * 0.25), y: -4 + k * 6, speed: 0.05 + k * 0.02, phase: k * 2.1 });
+  }
+
+  return {
+    group,
+    update(t, dt) {
+      ring.rotation.y += dt * 0.03;
+      for (const [k, b] of beacons.entries()) b.visible = Math.sin(t * 3 + k * 1.7) > 0.2;
+      for (const sh of ships) {
+        const a = sh.phase + t * sh.speed;
+        sh.g.position.set(cx + Math.cos(a) * sh.r, sh.y + Math.sin(t * 0.5 + sh.phase) * 0.6, cz + Math.sin(a) * sh.r);
+        sh.g.rotation.y = -a;
+      }
+    },
+    dispose: disposer(group, [solar]),
   };
 }

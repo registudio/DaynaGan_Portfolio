@@ -45,7 +45,7 @@ for (const id of ['hub', ...portfolio.levels.filter((l) => l.meta.kind !== 'hub'
       const secretRoom = map.rooms.find((r) => r.kind === 'secret')?.i;
       for (const s of map.spawns) {
         if (['prop', 'enemy', 'boss', 'grid', 'secret', 'centerpiece'].includes(s.kind)) continue;
-        if (s.kind === 'backroom' || (s.kind === 'hub' && s.what === 'earth')) continue;
+        if (s.kind === 'backroom' || (s.kind === 'hub' && (s.what === 'earth' || s.what === 'shuttle'))) continue;
         const x = Math.floor(s.x);
         const z = Math.floor(s.z);
         const near = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [0, 2], [-2, 0], [0, -2]].some(

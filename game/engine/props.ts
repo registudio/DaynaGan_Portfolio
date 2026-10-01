@@ -513,6 +513,41 @@ export function buildVendor() {
   return g;
 }
 
+/** The station's shuttle, docked in the Hangar Bay (nose toward +z). ~4 wide × 6 long. */
+export function buildShuttle() {
+  const g = new THREE.Group();
+  const hull = mat('#c7cdd9', { pattern: 'panel' });
+  const dark = mat('#2b3040', { pattern: 'metal' });
+  const violet = mat('#6d28d9');
+  // Landing struts and skids.
+  for (const x of [-1.1, 1.1]) {
+    box(0.16, 0.5, 0.16, dark, x, 0.25, -1.4, g);
+    box(0.16, 0.5, 0.16, dark, x, 0.25, 1.2, g);
+    box(0.3, 0.08, 3.4, dark, x, 0.04, -0.1, g);
+  }
+  // Fuselage: stepped body tapering to the nose.
+  box(2.2, 1.0, 3.6, hull, 0, 1.0, -0.4, g);
+  box(1.8, 0.8, 1.2, hull, 0, 0.95, 1.95, g);
+  box(1.2, 0.6, 0.6, hull, 0, 0.9, 2.8, g);
+  box(1.9, 0.5, 3.0, hull, 0, 1.75, -0.6, g);
+  // Cockpit glass and a violet livery stripe.
+  box(1.4, 0.45, 0.06, glow('#7dd3fc', 1.6), 0, 1.55, 1.36, g).rotation.x = -0.5;
+  box(2.24, 0.14, 3.64, violet, 0, 1.15, -0.4, g);
+  // Wings with tip lights.
+  box(4.6, 0.14, 1.4, hull, 0, 0.9, -0.9, g);
+  box(0.16, 0.16, 0.16, glow('#f43f5e', 3), -2.3, 0.98, -0.9, g);
+  box(0.16, 0.16, 0.16, glow('#34d399', 3), 2.3, 0.98, -0.9, g);
+  // Tail fin and engines.
+  box(0.14, 1.0, 0.9, hull, 0, 2.3, -1.8, g);
+  for (const x of [-0.6, 0.6]) {
+    box(0.6, 0.6, 0.5, dark, x, 1.0, -2.45, g);
+    box(0.44, 0.44, 0.04, glow('#a78bfa', 3), x, 1.0, -2.72, g);
+  }
+  blobShadow(2.4, g);
+  g.userData.light = { y: 1.2, color: '#a78bfa', intensity: 3, distance: 6 };
+  return g;
+}
+
 export function buildEarth() {
   const g = new THREE.Group();
   const earth = new THREE.Mesh(
