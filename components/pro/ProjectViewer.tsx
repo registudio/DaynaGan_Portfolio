@@ -13,6 +13,8 @@ type Api = {
   /** Re-render once (e.g. hotspots re-shown while the model is still). */
   refresh: () => void;
   zoom: (f: number) => void;
+  /** Back to the framed view (100 %). */
+  resetZoom: () => void;
 };
 
 /**
@@ -26,7 +28,12 @@ export default function ProjectViewer({
   parts,
   active,
   onHover,
+  title = '',
+  sheet = '',
 }: {
+  title?: string;
+  /** Drawing number, e.g. "01 / 06". */
+  sheet?: string;
   projectId: string;
   cad: Record<string, string>;
   parts: ViewerPart[];
@@ -45,14 +52,27 @@ export default function ProjectViewer({
   const [gl, setGl] = useState<boolean | null>(null);
   const [coarse, setCoarse] = useState(false); // touch screen (read after mount: SSR can't know)
   const [drag, setDragOn] = useState(false);
+  const [zoomPct, setZoomPct] = useState(100);
   const hover = useRef(onHover);
   hover.current = onHover;
   const initial = useRef(projectId);
+  // The highlight asked for while a model is still loading is applied once it arrives.
+  const want = useRef<string | null>(active);
+  want.current = active;
 
   useEffect(() => {
     let disposed = false;
     let cleanup = () => {};
     (async () => {
+      // Start the 3D once the page has loaded and gone idle, so it never competes with first
+      // paint (the case-study page shows the viewer straight away).
+      if (document.readyState !== 'complete') await new Promise((r) => addEventListener('load', r, { once: true }));
+      await new Promise<void>((r) => {
+        const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (idle) idle(() => r(), { timeout: 2000 });
+        else setTimeout(r, 600);
+      });
+      if (disposed) return;
       const THREE = await import('three');
       const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
       const { Stage, projectModel, isDark, reducedMotion, webglAvailable } = await import('./three/stage');
@@ -67,6 +87,11 @@ export default function ProjectViewer({
       let swap = 1; // scale for the swap animation
       let idle = 0;
       let wantSpin = !reduce;
+      let base = 1; // camera distance that frames the model = 100 %
+      const reportZoom = () => {
+        const pct = Math.round((base / stage.camera.position.distanceTo(controls.target)) * 100);
+        setZoomPct((z) => (z === pct ? z : pct));
+      };
       const tmp = new THREE.Vector3();
       const holder = new THREE.Group();
       const stage = new Stage(el, (dt) => {
@@ -98,7 +123,7 @@ export default function ProjectViewer({
         }
       }, 32);
       stage.scene.add(holder);
-      const controls = new OrbitControls(stage.camera, stage.renderer.domElement);
+      const controls = new OrbitControls(stage.camera, stage.canvas);
       controls.enableDamping = true;
       controls.enablePan = false;
       controls.autoRotateSpeed = 1.4;
@@ -107,7 +132,7 @@ export default function ProjectViewer({
       stage.camera.position.set(4.6, 3.2, 5.2);
       // Touch screens: the sticky viewer covers much of the screen, so dragging it must scroll the
       // page. Rotation is opt-in there (the "Rotate" tool); on mouse/trackpad it's always on.
-      const canvas = stage.renderer.domElement;
+      const canvas = stage.canvas;
       const setDrag = (on: boolean) => {
         controls.enabled = on;
         canvas.style.touchAction = on ? 'none' : 'pan-y';
@@ -116,7 +141,10 @@ export default function ProjectViewer({
       setCoarse(touch);
       setDrag(!touch);
       controls.addEventListener('start', () => (idle = 0));
-      controls.addEventListener('change', () => controls.autoRotate || (idle = 0));
+      controls.addEventListener('change', () => {
+        if (!controls.autoRotate) idle = 0;
+        reportZoom();
+      });
 
       // Page scroll wins over zoom unless the visitor holds ⌘/Ctrl (trackpad pinch sets ctrlKey).
       const wheel = (e: WheelEvent) => {
@@ -130,7 +158,7 @@ export default function ProjectViewer({
       let last: string | null = null;
       const move = (e: PointerEvent) => {
         if (!model) return;
-        const r = stage.renderer.domElement.getBoundingClientRect();
+        const r = stage.canvas.getBoundingClientRect();
         ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
         ray.setFromCamera(ptr, stage.camera);
         const hit = ray.intersectObject(holder, true).find((h) => h.object.type === 'Mesh');
@@ -147,8 +175,8 @@ export default function ProjectViewer({
         model?.setHighlight(null);
         hover.current(null);
       };
-      stage.renderer.domElement.addEventListener('pointermove', move);
-      stage.renderer.domElement.addEventListener('pointerleave', leave);
+      stage.canvas.addEventListener('pointermove', move);
+      stage.canvas.addEventListener('pointerleave', leave);
 
       let loading = 0;
       const show = async (id: string) => {
@@ -181,8 +209,18 @@ export default function ProjectViewer({
           const dist = (radius * 1.08) / Math.sin(Math.min(vfov, hfov) / 2);
           const dir = stage.camera.position.clone().normalize();
           stage.camera.position.copy(dir.multiplyScalar(dist));
+          base = dist;
+          reportZoom();
           controls.minDistance = radius * 1.4;
           controls.maxDistance = dist * 2.5;
+          // Compile the highlight materials now, so the first hover doesn't stall on shaders.
+          const first = model.partIds[0];
+          if (first) {
+            model.setHighlight(first);
+            stage.renderer.compile(stage.scene, stage.camera);
+          }
+          model.setHighlight(want.current);
+          stage.dirty = true;
         }
         setCanExplode(!!model?.canExplode);
         setIds(model?.partIds ?? []);
@@ -206,11 +244,30 @@ export default function ProjectViewer({
           const len = THREE.MathUtils.clamp(off.length() * f, controls.minDistance, controls.maxDistance);
           stage.camera.position.copy(controls.target).addScaledVector(off.normalize(), len);
           idle = 0;
+          reportZoom();
+        },
+        resetZoom: () => {
+          const off = stage.camera.position.clone().sub(controls.target);
+          stage.camera.position.copy(controls.target).addScaledVector(off.normalize(), base);
+          idle = 0;
+          reportZoom();
         },
       };
-      setSpin(!reduce);
+      // Auto-rotate keeps the GPU busy; off by default on low-quality devices.
+      const { quality, onQuality } = await import('@/lib/quality');
+      const turn = !reduce && quality() !== 'low';
+      wantSpin = turn;
+      setSpin(turn);
+      // Downgraded mid-visit (slow frames measured): stop the idle turntable.
+      const offQuality = onQuality((q) => {
+        if (q === 'low') {
+          wantSpin = false;
+          setSpin(false);
+        }
+      });
       await show(initial.current);
       cleanup = () => {
+        offQuality();
         el.removeEventListener('wheel', wheel, { capture: true });
         controls.dispose();
         model?.dispose();
@@ -234,15 +291,48 @@ export default function ProjectViewer({
   }, [hotspots, ids]);
 
   const byId = new Map(parts.map((p) => [p.id, p]));
+  // Hotspot numbers match the numbered component cards beside the viewer.
+  const num = new Map(parts.map((p, i) => [p.id, i + 1]));
   const label = active ? byId.get(active) : null;
   const noted = note ? byId.get(note) : null;
   return (
     <div className="pviewer">
-      <div className="pviewer-canvas" ref={host}>
+      <div className={`pviewer-canvas${cad[projectId] ? '' : ' blueprint'}`} ref={host}>
+        {/* Until the CAD export arrives, the wireframe is presented as a technical drawing. */}
+        {!cad[projectId] && (
+          <div className="bp-sheet" aria-hidden>
+            <i className="bp-corner tl" />
+            <i className="bp-corner tr" />
+            <i className="bp-corner bl" />
+            <i className="bp-corner br" />
+            <div className="bp-scale mono">
+              <i />
+              <span>Scale · NTS</span>
+            </div>
+            <dl className="bp-title mono">
+              <div>
+                <dt>Project</dt>
+                <dd>{title}</dd>
+              </div>
+              <div>
+                <dt>Dwg</dt>
+                <dd>{sheet}</dd>
+              </div>
+              <div>
+                <dt>Drawn</dt>
+                <dd>D. Gan</dd>
+              </div>
+              <div>
+                <dt>Rev</dt>
+                <dd>A · wireframe</dd>
+              </div>
+            </dl>
+          </div>
+        )}
         {gl === false && <p className="muted pviewer-empty">3D view unavailable on this device.</p>}
         {hotspots && (
           <div className="hotspots" ref={dots}>
-            {ids.filter((id) => byId.has(id)).map((id, i) => (
+            {ids.filter((id) => byId.has(id)).map((id) => (
               <button
                 key={id}
                 data-id={id}
@@ -252,7 +342,7 @@ export default function ProjectViewer({
                 onPointerEnter={() => onHover(id)}
                 onPointerLeave={() => onHover(null)}
               >
-                {i + 1}
+                {num.get(id)}
               </button>
             ))}
           </div>
@@ -302,11 +392,14 @@ export default function ProjectViewer({
           </button>
         )}
         <span className="tool-gap" />
-        <button className="tool" onClick={() => api.current?.zoom(0.8)} aria-label="Zoom in">
-          ＋
-        </button>
         <button className="tool" onClick={() => api.current?.zoom(1.25)} aria-label="Zoom out">
           －
+        </button>
+        <button className="tool zoom-pct mono" onClick={() => api.current?.resetZoom()} aria-label={`Zoom ${zoomPct}%. Reset to 100%`} title="Reset zoom">
+          {zoomPct}%
+        </button>
+        <button className="tool" onClick={() => api.current?.zoom(0.8)} aria-label="Zoom in">
+          ＋
         </button>
       </div>
       <p className="pviewer-hint">{cad[projectId] ? 'CAD model' : 'Wireframe blueprint · CAD model coming soon'} · drag to rotate · pinch or ⌘/Ctrl + scroll to zoom</p>

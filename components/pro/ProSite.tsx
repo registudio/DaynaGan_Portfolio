@@ -182,10 +182,6 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
     <section id={level.id} className="section about-section" aria-labelledby="hero-title">
       <div className="hero">
         <div className="hero-copy">
-          <span className="eyebrow">
-            {site.location}
-            <span className="eyebrow-extra"> · {level.meta.kicker}</span>
-          </span>
           <h1 id="hero-title">
             Hi, I&apos;m <span>{site.displayName}.</span>
           </h1>
@@ -215,45 +211,44 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
         <HeroCarousel items={carousel} cad={cad} />
       </div>
       <div id="about-more" className="about-more">
-        <ScrollStory title="About Me" number={sectionNumber(level)} variant="mask" caption={level.meta.kicker}>
-      {stats && (
-        <div className="stats">
-          {stats.parts.map((s, i) => {
-            const m = s.title.match(/^([\d.]+)(.*)$/);
-            const decimals = m?.[1].includes('.') ? m[1].split('.')[1].length : 0;
-            return (
-              <div className="card stat" key={s.id} data-reveal style={{ '--i': i } as React.CSSProperties}>
-                <b data-count={m?.[1]} data-decimals={decimals} data-suffix={m?.[2] ?? ''}>
-                  {s.title}
-                </b>
-                <span>{s.meta.label}</span>
+        <ScrollStory title="About Me" number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={3}>
+          {/* Pinned: the numbers count up, then who I am, then what I'm doing now — plain type, no cards. */}
+          <div className="about-pin">
+            {stats && (
+              <div className="pin-step about-stats" data-step={0}>
+                {stats.parts.map((s) => {
+                  const m = s.title.match(/^([\d.]+)(.*)$/);
+                  const decimals = m?.[1].includes('.') ? m[1].split('.')[1].length : 0;
+                  return (
+                    <div className="about-stat" key={s.id}>
+                      <b data-count={m?.[1]} data-decimals={decimals} data-suffix={m?.[2] ?? ''}>
+                        {s.title}
+                      </b>
+                      <span>{s.meta.label}</span>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      )}
-      <div className="about-grid">
-        <div className="card glass" data-reveal>
-          <span className="eyebrow">Who I am</span>
-          <div style={{ height: 10 }} />
-          <Html html={identity?.html} />
-          <div style={{ height: 16 }} />
-          <TechChips tags={list(level.meta.tags)} />
-        </div>
-        {currently && (
-          <div className="card glass" data-reveal>
-            <span className="eyebrow">Currently</span>
-            <dl className="currently" style={{ marginTop: 14 }}>
-              {currently.parts.map((p) => (
-                <div key={p.id}>
-                  <dt>{p.title}</dt>
-                  <dd dangerouslySetInnerHTML={{ __html: inline(p.html) }} />
-                </div>
-              ))}
-            </dl>
+            )}
+            <div className="pin-step about-who" data-step={1}>
+              <span className="eyebrow">Who I am</span>
+              <Html html={identity?.html} />
+              <p className="about-focus mono">{list(level.meta.tags).join('  ·  ')}</p>
+            </div>
+            {currently && (
+              <div className="pin-step about-now" data-step={2}>
+                <span className="eyebrow">Currently</span>
+                <dl className="currently">
+                  {currently.parts.map((p) => (
+                    <div key={p.id}>
+                      <dt>{p.title}</dt>
+                      <dd dangerouslySetInnerHTML={{ __html: inline(p.html) }} />
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
           </div>
-        )}
-      </div>
         </ScrollStory>
       </div>
     </section>
@@ -262,62 +257,109 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
 
 /** Education: "Education" wipes in along a hairline path, then an ascending staircase of schools. */
 function Timeline({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
+  const rooms = level.rooms;
   return (
     <section id={level.id} className="section section-story">
       <ScrollStory
         title={level.title}
         number={sectionNumber(level)}
         variant="path"
-        marks={level.rooms.map((r) => r.meta.short || r.title)}
+        marks={rooms.map((r) => r.meta.short || r.title)}
+        steps={rooms.length}
       >
-      <div className="section-head">
-        <Intro level={level} />
-      </div>
-      {/* An ascending staircase — each school a step higher than the last. */}
-      <div className="stairs" style={{ '--n': level.rooms.length } as React.CSSProperties}>
-        {level.rooms.map((room, i) => {
-          const parts = visible(room.parts);
-          // Short, title-only parts are honours (Valedictorian, GPA, scholarships…).
-          const honours = parts.filter((p) => !p.meta.tags && !p.body && !p.meta.link);
-          return (
-            <article className="step" key={room.id} id={`${level.id}-${room.id}`} data-reveal style={{ '--i': i } as React.CSSProperties}>
-              <ExpandCard
-                className="step-card card glass"
-                title={room.title}
-                summary={
-                  <>
-                    <span className="mono step-period">{period(room) || 'Secondary school'}</span>
-                    <h3>{room.title}</h3>
-                    <p className="t-sub">{room.meta.qualification}</p>
-                    <Metrics value={room.meta.metrics} />
-                    {honours.length > 0 && (
-                      <ul className="honours">
-                        {honours.slice(0, 4).map((h) => (
-                          <li key={h.id}>{h.title}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                }
-                details={
-                  <div className="mile-detail">
-                    <span className="eyebrow">{period(room)}</span>
-                    <h3>{room.title}</h3>
-                    <p className="t-sub">{room.meta.qualification}</p>
-                    <Metrics value={room.meta.metrics} />
-                    {room.html && <Html html={room.html} />}
-                    <PartList portfolio={portfolio} parts={parts} />
-                  </div>
-                }
-              />
-              <div className="step-pillar" aria-hidden>
-                <span className="step-no">{String(i + 1).padStart(2, '0')}</span>
-                <span className="step-name mono">{room.meta.short || room.title}</span>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+        {/* Transcript switcher: schools on the left, the current one's record on the right. */}
+        <div className="transcript">
+          <nav className="tx-tabs" aria-label="Schools">
+            {rooms.map((room, i) => (
+              <a key={room.id} href={`#${level.id}-${room.id}`} className="pin-tab" data-step={i}>
+                <span className="mono tx-tab-period">
+                  {(period(room).match(/\d{4}/g)?.join(' – ') ?? 'Secondary') + (/present/i.test(period(room)) ? ' – now' : '')}
+                </span>
+                <span className="tx-tab-name">{room.meta.short || room.title}</span>
+                <i className="tx-tab-bar" aria-hidden />
+              </a>
+            ))}
+          </nav>
+          <div className="tx-panels">
+            {rooms.map((room, i) => {
+              const parts = visible(room.parts);
+              const honours = parts.filter(
+                (p) => !p.meta.tags && !p.body && !p.meta.link && /honou?r|scholar|valedict|award|dean|gpa|merit|prize/i.test(p.title),
+              );
+              // Course lists can carry a TODO note and still be worth showing.
+              const courses = room.parts.filter((p) => p.meta.tags && /subject|module|core|course/i.test(p.title));
+              const courseList = courses.flatMap((c) => list(c.meta.tags));
+              const also = parts.filter((p) => !honours.includes(p) && !courses.includes(p));
+              const [gpa, gpaLabel] = (room.meta.metrics ?? '').split(';')[0].split('|').map((x) => x.trim());
+              const value = Number(gpa);
+              const max = Number(gpaLabel?.match(/out of ([\d.]+)/)?.[1] ?? 0);
+              return (
+                <article key={room.id} id={`${level.id}-${room.id}`} className="pin-step tx-panel" data-step={i}>
+                  <ExpandCard
+                    className="tx-sheet"
+                    title={room.title}
+                    summary={
+                      <>
+                        <header className="tx-head">
+                          <div>
+                            <span className="mono tx-period">{period(room) || 'Secondary school'}</span>
+                            <h3>{room.title}</h3>
+                            <p className="t-sub">{room.meta.qualification}</p>
+                          </div>
+                          {max > 0 && Number.isFinite(value) && (
+                            <div className="tx-gpa" style={{ '--f': value / max } as React.CSSProperties}>
+                              <svg viewBox="0 0 80 80" aria-hidden>
+                                <circle cx="40" cy="40" r="34" pathLength={1} />
+                                <circle cx="40" cy="40" r="34" pathLength={1} className="tx-gpa-arc" />
+                              </svg>
+                              <b data-count={gpa} data-decimals={gpa.split('.')[1]?.length ?? 0}>
+                                {gpa}
+                              </b>
+                              <span>{gpaLabel}</span>
+                            </div>
+                          )}
+                        </header>
+                        {honours.length > 0 && (
+                          <ul className="honours">
+                            {honours.map((h) => (
+                              <li key={h.id}>{h.title}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {courseList.length > 0 && (
+                          <div className="tx-block">
+                            <span className="eyebrow">{courses[0].title}</span>
+                            <ul className="tx-courses">
+                              {courseList.slice(0, 8).map((c) => (
+                                <li key={c}>{c}</li>
+                              ))}
+                              {courseList.length > 8 && <li className="muted">+{courseList.length - 8} more</li>}
+                            </ul>
+                          </div>
+                        )}
+                        {also.length > 0 && (
+                          <p className="tx-also">
+                            <span className="eyebrow">Also</span> {also.map((a) => a.title).join(' · ')}
+                          </p>
+                        )}
+                      </>
+                    }
+                    details={
+                      <div className="mile-detail">
+                        <span className="eyebrow">{period(room)}</span>
+                        <h3>{room.title}</h3>
+                        <p className="t-sub">{room.meta.qualification}</p>
+                        <Metrics value={room.meta.metrics} />
+                        {room.html && <Html html={room.html} />}
+                        <PartList portfolio={portfolio} parts={parts} />
+                      </div>
+                    }
+                  />
+                </article>
+              );
+            })}
+          </div>
+        </div>
       </ScrollStory>
     </section>
   );
@@ -357,6 +399,8 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
               <span className="mono">{(room.meta.period ?? '').match(/\d{4}/)?.[0]}</span>
             </div>
             <ExpandCard
+              interactive
+              illuminate
               className="mile-card card glass"
               title={room.title}
               summary={
@@ -401,7 +445,7 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   );
 }
 
-function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
+export function showcase(portfolio: Portfolio, level: Level): ShowcaseProject[] {
   const skillName = (id: string) => portfolio.site.skills.find((s) => s.id === id)?.name ?? id;
   return level.rooms
     .filter((r) => r.meta.tags || r.meta.status)
@@ -450,7 +494,14 @@ function skillTiles(portfolio: Portfolio): SkillTile[] {
     if (!level || !room || !SECTION[levelId]) return;
     const key = `${levelId}/${roomId}`;
     const m = uses.get(skill) ?? new Map<string, SkillUse>();
-    const u = m.get(key) ?? { section: SECTION[levelId], title: room.meta.short ? `${room.title}` : room.title, detail: [], period: period(room) || room.meta.year || undefined };
+    const u = m.get(key) ?? {
+      section: SECTION[levelId],
+      title: room.title,
+      detail: [],
+      period: period(room) || room.meta.year || undefined,
+      // In-page anchor of that role / project / school (opened at its resting state).
+      href: `${levelId}-${roomId}`,
+    };
     if (detail && !u.detail.includes(detail)) u.detail.push(detail);
     m.set(key, u);
     uses.set(skill, m);
@@ -480,12 +531,12 @@ function skillTiles(portfolio: Portfolio): SkillTile[] {
   });
 }
 
-/** Skills & Awards: mosaic opener, then an interactive treemap and flip-card awards. */
+/** Skills & Awards: grid-draw opener, then an interactive treemap and flip-card awards. */
 function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
   const awards = level.rooms.find((r) => r.id === 'awards');
   return (
     <section id={level.id} className="section section-story">
-      <ScrollStory title={level.title} number={sectionNumber(level)} variant="mosaic">
+      <ScrollStory title={level.title} number={sectionNumber(level)} variant="grid">
       <div className="section-head">
         <Intro level={level} />
       </div>
@@ -493,7 +544,7 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
       {awards && (
         <>
           <h3 className="sub-title" data-reveal>
-            Awards &amp; recognition
+            Awards &amp; Recognition
           </h3>
           <div className="awards">
             {visible(awards.parts).map((a, i) => (
@@ -528,18 +579,57 @@ function Leadership({ portfolio, level }: { portfolio: Portfolio; level: Level }
   return (
     <section id={level.id} className="section">
       <SectionHead level={level} />
-      <div className="grid-2 lead-grid">
-        {rooms.map((room, i) => (
-          <article className="card role-card glass" key={room.id} id={`${level.id}-${room.id}`} data-reveal style={{ '--i': i } as React.CSSProperties}>
-            <div className="t-head">
-              <h3>{room.title}</h3>
-              <span className="t-period">{room.meta.period}</span>
+      {/* Impact ledger: one ruled row per role, the headline number right-aligned. */}
+      <div className="ledger" role="list">
+        {rooms.map((room, i) => {
+          const parts = visible(room.parts);
+          const [metric, metricLabel] = (room.meta.metrics ?? '').split(';')[0].split('|').map((x) => x.trim());
+          const m = metric?.match(/^([\d.]+)(.*)$/);
+          const years = (room.meta.period ?? '').match(/\d{4}/g) ?? [];
+          const yearText = years.length > 1 && years[0] !== years[1] ? `${years[0]} – ${years[1].slice(2)}` : years[0] ?? '';
+          return (
+            <div role="listitem" key={room.id} id={`${level.id}-${room.id}`} data-reveal style={{ '--i': i } as React.CSSProperties}>
+              <ExpandCard
+                interactive
+                illuminate
+                className="ledger-row"
+                title={room.title}
+                summary={
+                  <>
+                    <span className="ledger-year mono">
+                      {yearText}
+                      {/present/i.test(room.meta.period ?? '') && ' – now'}
+                    </span>
+                    <div className="ledger-main">
+                      <h3>{room.title}</h3>
+                      <p className="ledger-role">{room.meta.role}</p>
+                      <p className="ledger-what">{parts.map((p) => p.title).join(' · ')}</p>
+                    </div>
+                    <div className="ledger-metric">
+                      {m && (
+                        <>
+                          <b data-count={m[1]} data-suffix={m[2]}>
+                            {metric}
+                          </b>
+                          <span>{metricLabel}</span>
+                        </>
+                      )}
+                    </div>
+                  </>
+                }
+                details={
+                  <div className="mile-detail">
+                    <span className="eyebrow">{room.meta.period}</span>
+                    <h3>{room.title}</h3>
+                    <p className="t-sub">{room.meta.role}</p>
+                    <Metrics value={room.meta.metrics} />
+                    <PartList portfolio={portfolio} parts={parts} />
+                  </div>
+                }
+              />
             </div>
-            <p className="t-sub">{room.meta.role}</p>
-            <Metrics value={room.meta.metrics} />
-            <PartList portfolio={portfolio} parts={visible(room.parts)} />
-          </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -698,9 +788,10 @@ export default function ProSite({
         return <Leadership key={level.id} portfolio={portfolio} level={level} />;
       case 'github':
         return (
-          <section id={level.id} key={level.id} className="section">
-            <SectionHead level={level} />
-            <GitHubPanel feed={github} site={portfolio.site} />
+          <section id={level.id} key={level.id} className="section section-story">
+            <ScrollStory title={level.title} number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={3}>
+              <GitHubPanel feed={github} site={portfolio.site} />
+            </ScrollStory>
           </section>
         );
       case 'contact':

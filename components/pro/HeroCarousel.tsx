@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { quality } from '@/lib/quality';
 
 export type ShowcaseItem = { id: string; title: string };
 
@@ -13,16 +14,28 @@ const SPACING = 3.9;
  */
 export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; cad: Record<string, string> }) {
   const host = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(0);
+  // Unbounded position: the carousel always moves the way you ask and wraps seamlessly.
+  const [pos, setPos] = useState(0);
+  const n = items.length;
+  const index = ((pos % n) + n) % n;
   const [gl, setGl] = useState<boolean | null>(null);
   const target = useRef(0);
   const paused = useRef(false);
-  target.current = index;
+  target.current = pos;
 
   useEffect(() => {
     let disposed = false;
     let cleanup = () => {};
     (async () => {
+      // Start the 3D once the page has loaded and gone idle (the name intro covers this
+      // moment anyway), so it never competes with first paint and hydration.
+      if (document.readyState !== 'complete') await new Promise((r) => addEventListener('load', r, { once: true }));
+      await new Promise<void>((r) => {
+        const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (idle) idle(() => r(), { timeout: 2000 });
+        else setTimeout(r, 600);
+      });
+      if (disposed) return;
       const THREE = await import('three');
       const { Stage, projectModel, isDark, reducedMotion, webglAvailable } = await import('./three/stage');
       if (disposed || !host.current) return;
@@ -31,20 +44,34 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       const reduce = reducedMotion();
       const row = new THREE.Group();
       const slots: InstanceType<typeof THREE.Group>[] = [];
+      const holders: InstanceType<typeof THREE.Group>[] = [];
+      const loop = items.length * SPACING;
       const models: Awaited<ReturnType<typeof projectModel>>[] = [];
       let x = 0;
       let pointerY = 0;
       const stage = new Stage(host.current, (dt, t) => {
-        x += (-target.current * SPACING - x) * Math.min(1, dt * 4);
-        row.position.x = x;
+        // Low quality (slow device): no idle turntable — only render while the row is moving.
+        const low = quality() === 'low';
+        const dx = -target.current * SPACING - x;
+        x += dx * Math.min(1, dt * 4);
+        let moving = Math.abs(dx) > 0.002;
         slots.forEach((s, i) => {
-          const d = Math.abs(i * SPACING + x) / SPACING;
+          // Each model sits at its nearest copy around the centre, so the row never rewinds.
+          let off = (((i * SPACING + x) % loop) + loop) % loop;
+          if (off > loop / 2) off -= loop;
+          holders[i].position.x = off;
+          const d = Math.abs(off) / SPACING;
           const k = 1.25 - Math.min(1, d) * 0.5;
+          if (Math.abs(k - s.scale.x) > 0.001) moving = true;
           s.scale.setScalar(s.scale.x + (k - s.scale.x) * Math.min(1, dt * 5));
-          if (!reduce) s.rotation.y += dt * (0.35 + (1 - Math.min(1, d)) * 0.2);
-          models[i]?.setExplode(reduce ? 0.15 : 0.12 + Math.sin(t * 0.9 + i) * 0.12);
+          if (!reduce && !low) s.rotation.y += dt * (0.35 + (1 - Math.min(1, d)) * 0.2);
+          // The breathing explode re-poses every part each frame; held still on low quality.
+          models[i]?.setExplode(reduce || low ? 0.15 : 0.12 + Math.sin(t * 0.9 + i) * 0.12);
         });
-        row.rotation.x += (pointerY * 0.12 - row.rotation.x) * 0.05;
+        const tilt = pointerY * 0.12 - row.rotation.x;
+        row.rotation.x += tilt * 0.05;
+        if (Math.abs(tilt) > 0.001) moving = true;
+        return moving || (!reduce && !low);
       });
       stage.camera.position.set(0, 1.6, 6.6);
       stage.camera.lookAt(0, -0.35, 0);
@@ -55,17 +82,22 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       const discMat = new THREE.MeshBasicMaterial({ color: '#7c3aed', transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false });
       const discGeo = new THREE.CircleGeometry(1.25, 64);
       for (const [i, item] of items.entries()) {
+        const holder = new THREE.Group();
+        holder.position.x = i * SPACING;
         const slot = new THREE.Group();
-        slot.position.x = i * SPACING;
         slot.rotation.y = i * 0.8;
-        row.add(slot);
+        holder.add(slot);
+        row.add(holder);
+        holders.push(holder);
         slots.push(slot);
         const ring = new THREE.Mesh(ringGeo, ringMat);
         const disc = new THREE.Mesh(discGeo, discMat);
         ring.rotation.x = disc.rotation.x = -Math.PI / 2;
-        ring.position.set(i * SPACING, -1.05, 0);
+        ring.position.set(0, -1.05, 0);
         disc.position.copy(ring.position);
-        row.add(ring, disc);
+        holder.add(ring, disc);
+        // Yield between models so building the row never blocks input for long.
+        if (i > 0) await new Promise((r) => setTimeout(r, 0));
         const m = await projectModel(item.id, cad[item.id], isDark());
         if (disposed) return m?.dispose();
         models.push(m);
@@ -90,12 +122,20 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
   useEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const id = setInterval(() => {
-      if (!paused.current && !document.hidden) setIndex((i) => (i + 1) % items.length);
+      if (!paused.current && !document.hidden) setPos((p) => p + 1);
     }, 4800);
     return () => clearInterval(id);
   }, [items.length]);
 
-  const go = (d: number) => setIndex((i) => (i + d + items.length) % items.length);
+  const go = (d: number) => setPos((p) => p + d);
+  // Dots take the shortest way round to the chosen model.
+  const pick = (i: number) =>
+    setPos((p) => {
+      let d = (i - index) % n;
+      if (d > n / 2) d -= n;
+      if (d < -n / 2) d += n;
+      return p + d;
+    });
   const item = items[index];
   return (
     <div
@@ -113,7 +153,6 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
         </button>
         <div className="hero-caption-text" aria-live="polite">
-          <span className="mono">Blueprint {String(index + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span>
           <a href={`#projects-${item.id}`}>{item.title} ↓</a>
         </div>
         <button className="icon-btn" onClick={() => go(1)} aria-label="Next model">
@@ -122,7 +161,7 @@ export default function HeroCarousel({ items, cad }: { items: ShowcaseItem[]; ca
       </div>
       <div className="hero-dots" role="group" aria-label="Choose a model">
         {items.map((m, i) => (
-          <button key={m.id} aria-label={m.title} aria-pressed={i === index} onClick={() => setIndex(i)} />
+          <button key={m.id} aria-label={m.title} aria-pressed={i === index} onClick={() => pick(i)} />
         ))}
       </div>
     </div>

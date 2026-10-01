@@ -51,6 +51,9 @@ export default function App({
     else if (hash && hash !== 'splash') setModeState('pro');
     else if (stored === 'pro') setModeState('pro');
     if (stored === 'pro' || stored === 'game') setRemembered(stored);
+    // Not heading into Professional mode after all: drop the pre-paint cover.
+    const html = document.documentElement;
+    if (!html.classList.contains('boot-pro') || hash === 'play' || hash === 'tour' || hash === 'planet') html.classList.add('booted');
   }, []);
 
   const setMode = useCallback((m: Mode, anchor?: string) => {
@@ -60,9 +63,12 @@ export default function App({
     } catch {}
     if (m === 'pro') {
       history.replaceState(null, '', anchor ? `#${anchor}` : location.pathname);
-      requestAnimationFrame(() => {
-        if (anchor) document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
-      });
+      // Let the stories measure, then land on the section's resting state.
+      if (anchor) setTimeout(() => import('./pro/goTo').then((m) => m.goTo(anchor)), 750);
+    } else if (m === 'splash') {
+      history.replaceState(null, '', location.pathname);
+      // The menu is now in use: let it fade normally from here on.
+      document.documentElement.classList.remove('boot-pro');
     } else if (m === 'game') {
       setTour(anchor === 'tour');
       setPlanet(anchor === 'planet');

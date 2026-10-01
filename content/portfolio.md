@@ -63,14 +63,14 @@ skills:
   - { id: isaac-sim, name: NVIDIA Isaac Sim, group: Robotics & simulation, max: 5, axis: 0.2 }
   - { id: nav2, name: Nav2, group: Robotics & simulation, max: 5, axis: 0.3 }
   - { id: rl, name: Reinforcement learning, group: Robotics & simulation, max: 5, axis: 0.05 }
-  - { id: cad, name: CAD, group: Hardware & prototyping, max: 5, axis: 0.8 }
-  - { id: inventor, name: Autodesk Inventor, group: Hardware & prototyping, max: 5, axis: 0.85 }
-  - { id: arduino, name: Arduino, group: Hardware & prototyping, max: 5, axis: 0.6 }
-  - { id: esp32, name: ESP32, group: Hardware & prototyping, max: 5, axis: 0.65 }
-  - { id: stm32, name: STM32, group: Hardware & prototyping, max: 5, axis: 0.7 }
-  - { id: soldering, name: Soldering, group: Hardware & prototyping, max: 5, axis: 1 }
-  - { id: assembly, name: Hands-on assembly, group: Hardware & prototyping, max: 5, axis: 0.95 }
-  - { id: 3d-printing, name: 3D printing, group: Hardware & prototyping, max: 5, axis: 0.9 }
+  - { id: cad, name: CAD, group: Design & fabrication, max: 5, axis: 0.8 }
+  - { id: inventor, name: Autodesk Inventor, group: Design & fabrication, max: 5, axis: 0.85 }
+  - { id: arduino, name: Arduino, group: Embedded systems, max: 5, axis: 0.6 }
+  - { id: esp32, name: ESP32, group: Embedded systems, max: 5, axis: 0.65 }
+  - { id: stm32, name: STM32, group: Embedded systems, max: 5, axis: 0.7 }
+  - { id: soldering, name: Soldering, group: Design & fabrication, max: 5, axis: 1 }
+  - { id: assembly, name: Hands-on assembly, group: Design & fabrication, max: 5, axis: 0.95 }
+  - { id: 3d-printing, name: 3D printing, group: Design & fabrication, max: 5, axis: 0.9 }
   - { id: leadership, name: Leadership, group: People, max: 5 }
 ---
 
@@ -108,7 +108,7 @@ Closed for now — something is coming soon.
 id: about
 eyebrow: 01 / About
 title: Engineer in the making.
-kicker: Hardware · Software · Everything between
+kicker: Robotics & Computer Engineering
 biome: core-reactor
 light: #c026d3
 enemies: spark-wisps
@@ -120,11 +120,11 @@ The heart of the station — and a short introduction to who Dayna is.
 ## Identity Bay
 id: identity
 
-I'm Dayna Gan, a Computer Engineering undergraduate at the National University of Singapore with a background in mechatronics, robotics, embedded systems and intelligent autonomous systems.
+I'm Dayna Gan, a Computer Engineering undergraduate at the National University of Singapore with a background in mechatronics and robotics.
 
-I enjoy working where software meets the physical world — from embedded firmware and sensor systems to robotics simulation, reinforcement learning and real-world deployment.
+I work where software meets the physical world — embedded firmware and sensors, robotics simulation and reinforcement learning — and I like taking systems all the way from prototype to real-world deployment.
 
-My work spans hands-on engineering, experimentation and applied research, with a focus on building systems that can move from prototype to real-world use.
+Open to internships and projects in robotics, embedded systems and intelligent autonomous systems.
 
 ### Robotics
 ### Embedded systems
@@ -292,7 +292,7 @@ period: Jan 2022 – Mar 2022
 tags: Autodesk Inventor, Soldering, Hands-on Assembly
 metrics: 3 | TREX robots assembled
 
-Hands-on robotics production, electrical design and field deployment.
+Robots on the production line and out in the field: I assembled and soldered three TREX units, designed the AirGuard electrical box in Autodesk Inventor, and kept Camello delivery robots running on site in Punggol.
 
 ### TREX assembly
 id: otsaw-trex
@@ -319,7 +319,7 @@ period: Sep 2024 – Feb 2025
 tags: ROS 2, NVIDIA Isaac Sim, Nav2, LangChain
 metrics: 100+ | Nav2 simulation runs
 
-Robotics simulation, autonomy and natural-language interaction.
+Could NVIDIA Isaac Sim with ROS 2 become I²R's main simulation platform? I led the evaluation — building warehouse crowd scenarios and running 100+ Nav2 trials on path planning and collision avoidance — and added a ROSA agent for natural-language robot control.
 
 ### Simulation platform evaluation
 id: astar-isaac
@@ -348,7 +348,7 @@ period: May 2026 – Jul 2026
 tags: Python, Reinforcement learning, SMAClite
 metrics: 55.6% | best validation win rate; 59.25% | blind-compositional win rate
 
-A three-month research project in model-based reinforcement learning for multi-agent mission planning.
+Teaching a model-based agent to plan multi-agent missions: I integrated R2-Dreamer into SMAClite R2-2100 and iterated on rewards, sampling, observability and the actor-critic, taking validation win rate from near zero to 55.6% — and 59.25% on unseen compositional scenarios.
 
 ### R2-Dreamer × SMAClite
 id: dso-dreamer
@@ -374,7 +374,7 @@ period: Jan 2026 – Present
 tags: Embedded firmware, Sensor fusion, IoT, Field testing
 metrics: 1 week | on-site customer validation
 
-Hardware, firmware, environmental sensing and real-world deployment.
+Taking Euna Air from lab to customer site: I owned its hardware bring-up, firmware and field-test procedures, closed the gaps between lab simulation and real conditions, and completed on-site validation within a week — alongside Maxwell Ultra R&D and enterprise IoT edge-case investigations.
 
 ### Euna Air bring-up
 id: ecovolt-euna
@@ -420,9 +420,9 @@ tags: Embedded firmware, Sensor fusion, IoT, Field testing
 requires: soldering 3, esp32 1
 grants: esp32 +1
 
-An environmental monitoring and sensor-fusion device that I brought up and deployed at customer premises during my hardware internship at Ecovolt.
+Lab-tested isn't field-tested: I owned Euna Air's hardware bring-up, firmware and field-test procedures, then validated it on site at customer premises within one week.
 
-Euna Air is Ecovolt Technologies' environmental monitoring and sensor-fusion solution. During my hardware engineering internship I owned its bring-up and customer deployment.
+Euna Air is Ecovolt Technologies' environmental monitoring and sensor-fusion device. Field testing surfaced discrepancies between laboratory simulations and real operating conditions — the gaps that had to close before a reliable deployment.
 
 ### Enclosure lid
 id: lid
@@ -461,9 +461,9 @@ tags: Python, Reinforcement learning, R2-Dreamer, SMAClite
 requires: python 3, rl 1
 grants: rl +1
 
-Integrating R2-Dreamer, a model-based reinforcement learning agent, into the SMAClite multi-agent environment for mission planning.
+Can a model-based agent learn to plan multi-agent missions? I integrated R2-Dreamer into SMAClite R2-2100 and iterated on rewards, sampling, observability and the actor-critic — lifting validation macro win rate from near zero to 55.6%.
 
-A three-month research project at DSO National Laboratories. Improved validation macro win rate from near zero to a best checkpoint of 55.6%; achieved 53.11% on the blind-IID split and 59.25% on the blind-compositional split.
+A three-month research project at DSO National Laboratories. On unseen scenarios the agent reached 53.11% (blind-IID) and 59.25% (blind-compositional); scenario-dependent policy and value generalisation turned out to be the main bottleneck.
 
 ### World model
 id: world-model
@@ -509,9 +509,9 @@ tags: ROS 2, LangChain, ROSA, NVIDIA Isaac Sim, Python
 requires: python 2, ros2 1
 grants: ros2 +1, isaac-sim +1
 
-A LangChain-based ROSA agent that turns plain-English instructions into ROS 2 commands for robots simulated in NVIDIA Isaac Sim.
+Operators shouldn't have to memorise ROS 2 topic names and message formats: I built a LangChain ROSA agent that turns plain-English instructions into ROS 2 commands for robots simulated in NVIDIA Isaac Sim.
 
-Built during my robotics internship at A*STAR I²R. ROSA (the Robot Operating System Agent) lets an operator control a ROS 2 robot in plain English instead of memorising topic names and message formats.
+Built during my robotics internship at A*STAR I²R. ROSA (the Robot Operating System Agent) plans which ROS 2 tools to call from a natural-language request, making autonomous robots more accessible to non-specialists.
 
 ### ROSA agent core
 id: brain
@@ -554,9 +554,9 @@ requires: ros2 2, isaac-sim 2
 needs: rosa-ros2
 grants: nav2 +1, ros2 +1, isaac-sim +1
 
-Warehouse crowd simulations in NVIDIA Isaac Sim, used to stress-test Nav2 path planning and collision avoidance around moving people.
+Can a robot cross a busy warehouse safely when people keep walking into its path? I built crowd simulations with Omni.Anim.People in Isaac Sim and ran 100+ trials measuring Nav2 path planning and collision avoidance around moving people.
 
-Part of my robotics internship at A*STAR I²R: can a robot navigate a busy warehouse safely when people keep walking into its path?
+Part of my robotics internship at A*STAR I²R, alongside evaluating Isaac Sim with ROS 2 as the institute's primary simulation platform.
 
 ### Nav2 planner
 id: planner

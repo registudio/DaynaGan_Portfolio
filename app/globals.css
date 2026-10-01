@@ -15,7 +15,7 @@
   --warn: #b45309;
   --shadow: 0 1px 2px rgb(40 20 80 / 0.06), 0 8px 24px -12px rgb(40 20 80 / 0.18);
   --radius: 14px;
-  --font: 'Space Grotesk', system-ui, sans-serif;
+  --font: var(--font-grotesk), 'Space Grotesk', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   --pixel: 'Pixelify Sans', 'IBM Plex Mono', monospace;
   --max: 1080px;
@@ -721,6 +721,25 @@ main.pro {
   background: radial-gradient(ellipse at 50% 120%, #3b1d6e 0%, #140a26 45%, #07040f 100%);
   overflow: hidden;
   transition: opacity 0.5s ease, visibility 0.5s;
+}
+/* Return visitors bound for Professional mode: no menu, a plain cover until the intro runs. */
+html.boot-pro:not(.booted) .splash,
+html.boot-pro .splash.gone {
+  display: none;
+}
+html.boot-pro:not(.booted) body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: var(--paper);
+  /* Failsafe: never outlives a broken script. */
+  animation: boot-cover 0s 4s forwards;
+}
+@keyframes boot-cover {
+  to {
+    visibility: hidden;
+  }
 }
 .splash.gone {
   opacity: 0;

@@ -1,23 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useMode } from '../App';
 
-const KEY = 'dg-intro';
-
-/** First Professional-mode view of a session: the name draws itself in (~1.2 s), then lifts away. */
+/**
+ * Plays every time Professional mode opens (first load, from the menu or from the game),
+ * like a loading screen: the name draws itself in (~1.2 s), then lifts away.
+ */
 export default function Intro({ name }: { name: string }) {
   const { mode } = useMode();
   const [phase, setPhase] = useState<'off' | 'draw' | 'out'>('off');
 
   useEffect(() => {
-    if (mode !== 'pro' || phase !== 'off') return;
-    let seen = false;
+    if (mode !== 'pro') return;
+    let skip = false;
     try {
-      seen = !!sessionStorage.getItem(KEY);
-      sessionStorage.setItem(KEY, '1');
+      skip = !!sessionStorage.getItem('dg-intro-skip'); // automated checks only
     } catch {}
-    if (seen || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (skip || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('booted');
+      return;
+    }
     setPhase('draw');
     const t1 = setTimeout(() => setPhase('out'), 1300);
     const t2 = setTimeout(() => setPhase('off'), 1900);
@@ -27,6 +30,11 @@ export default function Intro({ name }: { name: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  // The intro overlay is on screen: lift the pre-paint cover (see the boot script in layout).
+  useLayoutEffect(() => {
+    if (phase !== 'off') document.documentElement.classList.add('booted');
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== 'draw') return;
