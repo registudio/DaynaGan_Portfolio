@@ -134,8 +134,10 @@ export default function ScrollStory({
       vh = innerHeight;
       vw = innerWidth;
       st.style.height = `${vh}px`;
-      reveal = vh * 0.9;
-      dock = vh * 0.7;
+      // Kept short so a skimming visitor never scrolls through more than about a screen of
+      // title before the section's content arrives.
+      reveal = vh * 0.36;
+      dock = vh * 0.3;
       hw = h.offsetWidth;
       hh = h.offsetHeight;
       const main = document.querySelector('main.pro') as HTMLElement | null;
@@ -147,7 +149,7 @@ export default function ScrollStory({
       st.style.setProperty('--dock', `${docked}px`);
       const t = track.current;
       travel = horizontal && t ? Math.max(0, t.scrollWidth - vw + left) : 0;
-      hold = pinned ? vh * (0.35 + steps * 0.55) : 0;
+      hold = pinned ? vh * (0.15 + steps * 0.4) : 0;
       // Intro-only: the content starts rising under the heading during the last 40% of the dock.
       const length = horizontal || pinned ? reveal + dock + vh * 0.15 + travel + hold : reveal + dock * 0.6 + Math.max(0, vh - docked);
       w.style.height = `${vh + length}px`;

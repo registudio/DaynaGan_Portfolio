@@ -1653,7 +1653,8 @@ div.g-sub {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #0891b2, #67e8f9);
-  transition: width 0.25s linear;
+  transform-origin: left;
+  transition: transform 0.25s linear;
 }
 .g-assembly small {
   font-size: calc(11px * var(--g-ui));

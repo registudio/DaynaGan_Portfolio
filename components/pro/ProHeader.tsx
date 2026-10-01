@@ -57,8 +57,10 @@ export default function ProHeader({ name, sections }: { name: string; sections: 
       const a = nav.current?.querySelector<HTMLElement>('[aria-current="true"]');
       const p = pill.current;
       if (!a || !p || !nav.current) return;
-      p.style.width = `${a.offsetWidth}px`;
-      p.style.transform = `translateX(${a.offsetLeft}px)`;
+      const row = nav.current.scrollWidth;
+      p.style.setProperty('--row', `${row}px`);
+      p.style.setProperty('--l', `${a.offsetLeft}px`);
+      p.style.setProperty('--r', `${row - a.offsetLeft - a.offsetWidth}px`);
       nav.current.scrollTo({ left: a.offsetLeft - nav.current.clientWidth / 2 + a.offsetWidth / 2, behavior: 'smooth' });
     };
     move();

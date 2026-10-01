@@ -105,7 +105,7 @@ export default function HudView({ game, hud }: { game: Game; hud: Hud }) {
             </span>
           </div>
           <div className="g-assembly-bar">
-            <i style={{ width: `${hud.assembly.p}%` }} />
+            <i style={{ transform: `scaleX(${hud.assembly.p / 100})` }} />
           </div>
           <small>
             {hud.assembly.state === 'fault'

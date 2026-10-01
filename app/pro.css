@@ -147,10 +147,10 @@ html {
   display: flex;
   justify-content: center;
   pointer-events: none;
-  transition: top 0.3s;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .pill-header.compact {
-  top: 8px;
+  transform: translateY(-4px);
 }
 .pill {
   pointer-events: auto;
@@ -165,11 +165,6 @@ html {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
-  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.3s;
-}
-.compact .pill {
-  width: min(100%, 1020px);
-  padding: 5px 6px 5px 12px;
 }
 .brand {
   white-space: nowrap;
@@ -231,10 +226,12 @@ html {
   top: 50%;
   height: 32px;
   margin-top: -16px;
-  border-radius: 999px;
+  /* Spans the whole link row; the highlight is a clip-path window slid under the active link,
+     so moving it never re-lays-out the nav. */
+  width: var(--row, 100%);
   background: var(--tint);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--violet-2) 30%, transparent);
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  clip-path: inset(0 var(--r, 100%) 0 var(--l, 0) round 999px);
+  transition: clip-path 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .pill-actions {
   display: flex;
@@ -553,9 +550,6 @@ main.pro {
     height: clamp(240px, 36svh, 480px);
     min-height: 0;
   }
-  .show-item::before {
-    left: -10px;
-  }
   .hero-copy {
     gap: 16px;
   }
@@ -845,23 +839,13 @@ main.pro {
   position: relative;
   border-top: 1px dashed var(--line);
 }
-/* The project on stage gets an accent bar (no dimming — dimmed text fails contrast). */
-.show-item::before {
-  content: '';
-  position: absolute;
-  left: -18px;
-  top: 28px;
-  width: 3px;
-  height: 0;
-  border-radius: 2px;
-  background: linear-gradient(var(--violet-2), #e879f9);
-  transition: height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+/* The project on stage is marked by its counter lighting up (no dimming — dimmed text fails
+   contrast, and no side stripe). */
+.show-item .show-meta .mono {
+  transition: color 0.3s;
 }
-.show-item:first-child::before {
-  top: 4px;
-}
-.show-item.on::before {
-  height: 120px;
+.show-item.on .show-meta .mono {
+  color: var(--violet);
 }
 .show-item:not(.on) h3 {
   color: var(--ink-2);
