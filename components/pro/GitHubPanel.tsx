@@ -36,9 +36,8 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
     { n: feed.languages.length, label: 'languages' },
   ];
   return (
-    <div className="gh card glass pin-stack" data-reveal>
-      {/* Steps of the pinned GitHub section: overview → repositories → activity. */}
-      <div className="pin-step gh-overview" data-step={0}>
+    <div className="gh card glass" data-reveal>
+      <div className="gh-overview">
       <div className="gh-top">
         <a className="gh-handle mono" href={site.github} target="_blank" rel="noopener noreferrer">
           @{feed.profile?.login} ↗
@@ -61,7 +60,7 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
       </div>
       </div>
       <div className="gh-cols">
-        <div className="pin-step" data-step={1}>
+        <div>
           <h3 className="gh-h">{feed.pinnedSource === 'pinned' ? 'Pinned repositories' : 'Top repositories'}</h3>
           <ul className="repo-cards">
             {feed.pinned.map((r) => (
@@ -95,7 +94,7 @@ export default function GitHubPanel({ feed, site }: { feed: GitHubFeed; site: Si
             {!feed.pinned.length && <li className="muted">No public repositories yet.</li>}
           </ul>
         </div>
-        <div className="pin-step" data-step={2}>
+        <div>
           <h3 className="gh-h">Recent activity</h3>
           <div className="terminal" role="log" aria-label="Recent GitHub activity">
             <div className="term-bar" aria-hidden>

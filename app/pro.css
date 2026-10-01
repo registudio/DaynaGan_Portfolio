@@ -98,26 +98,32 @@ html {
   position: fixed;
   left: 0;
   top: 0;
-  width: 840px;
-  height: 840px;
-  margin: -420px 0 0 -420px;
+  width: 240px;
+  height: 240px;
+  margin: -120px 0 0 -120px;
   z-index: 60;
   pointer-events: none;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--violet-2) 10%, transparent), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--violet-2) 24%, transparent), transparent 65%);
   will-change: transform;
-  /* Out of layout until a mouse moves (an 840px fixed box widened the layout viewport on phones). */
+  /* Only shown while hovering something clickable (RevealRoot toggles :root.spot). */
   display: none;
 }
 :root.spot .spotlight {
   display: block;
+  animation: aura-in 0.2s ease-out;
+}
+@keyframes aura-in {
+  from {
+    opacity: 0;
+  }
 }
 :root[data-theme='light'] .spotlight {
-  background: radial-gradient(circle, rgb(124 58 237 / 0.16), rgb(124 58 237 / 0.05) 30%, transparent 60%);
+  background: radial-gradient(circle, rgb(124 58 237 / 0.22), rgb(124 58 237 / 0.08) 35%, transparent 65%);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) .spotlight {
-    background: radial-gradient(circle, rgb(124 58 237 / 0.16), rgb(124 58 237 / 0.05) 30%, transparent 60%);
+    background: radial-gradient(circle, rgb(124 58 237 / 0.22), rgb(124 58 237 / 0.08) 35%, transparent 65%);
   }
 }
 
@@ -1309,49 +1315,10 @@ main.pro {
   font-size: var(--t-xs);
   color: var(--ink-3);
 }
-.heat.wave i {
-  transition: transform 0.35s, opacity 0.35s;
-  transition-delay: calc(var(--c, 0) * 18ms);
-}
-.js .gh:not(.in) .heat.wave i,
-.story.live .gh-overview:not(.on) .heat.wave i {
-  transform: scale(0.2);
-  opacity: 0;
-}
 .gh-overview {
   display: grid;
   gap: 20px;
   align-content: start;
-}
-/* Pinned GitHub: three repos, kept compact so everything fits under the docked title. */
-.story.live .repo-cards li:nth-child(n + 4) {
-  display: none;
-}
-.story.live .repo-cards li p {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin: 4px 0;
-}
-.story.live .gh .pin-step {
-  align-self: start;
-}
-.story.live .repo-cards .lang-bar {
-  display: none;
-}
-@media (min-width: 761px) and (max-height: 820px) {
-  .story.live .pin-stack .pin-step {
-    grid-area: 1 / 1;
-  }
-  .story.live .pin-stack .gh-cols {
-    display: contents;
-  }
-  .story.live .pin-stack .pin-step.on:not(.now) {
-    opacity: 0;
-    transform: translate3d(0, -28px, 0);
-    pointer-events: none;
-  }
 }
 .gh-cols {
   display: grid;
@@ -1461,17 +1428,7 @@ main.pro {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.js .gh .term-lines li {
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 0.7s steps(28) calc(0.3s + var(--i, 0) * 0.35s);
-}
-.js .gh.in .term-lines li {
-  clip-path: inset(0 0 0 0);
-}
-/* Pinned: the log types itself out when its step is reached. */
-.story.live .gh .pin-step:not(.on) .term-lines li {
-  clip-path: inset(0 100% 0 0);
-}
+
 .t-hash {
   color: #fbbf24;
 }
@@ -3188,16 +3145,7 @@ body.modal-open {
 }
 /* Phones and short screens: one step at a time in the same spot. */
 @media (max-width: 760px), (max-height: 700px) {
-  .story.live .about-pin > .pin-step,
-  .story.live .pin-stack .pin-step {
-    grid-area: 1 / 1;
-  }
-  .story.live .pin-stack {
-    display: grid;
-  }
-  .story.live .pin-stack .gh-cols {
-    display: contents;
-  }
+  .story.live .about-pin > .pin-step
   .story.live .about-pin {
     grid-template-columns: 1fr;
   }
@@ -3631,6 +3579,20 @@ main.pro.case {
   .toast-item {
     animation: none;
   }
+}
+
+/* Inline icons inside buttons and links. */
+.ico {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+}
+.link-list .btn {
+  gap: 10px;
+}
+.link-list .ico {
+  color: var(--violet);
 }
 
 /* ── Interaction language: one hover, press and focus treatment everywhere ── */

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MailIcon } from './Icons';
 import { toast } from './Toasts';
 
 /** The email address as a big button: one click copies it (with a toast), with a mail link beside it. */
@@ -30,7 +31,7 @@ export default function CopyEmail({ email }: { email: string }) {
         </span>
       </button>
       <a className="btn small" href={`mailto:${email}`}>
-        ✉ Open mail app
+        <MailIcon /> Open mail app
       </a>
     </div>
   );

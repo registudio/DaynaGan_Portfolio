@@ -134,7 +134,8 @@ export default function RevealRoot() {
     // Narrow screens: start the contribution heatmap at the latest weeks.
     document.querySelectorAll<HTMLElement>('.heat').forEach((h) => (h.scrollLeft = h.scrollWidth));
 
-    // Cursor spotlight (fine pointers only): moves one composited element, batched per frame.
+    // Cursor aura (fine pointers only): shown only while hovering something clickable; moves
+    // one composited element, batched per frame.
     const spot = document.querySelector<HTMLElement>('.spotlight');
     if (spot && matchMedia('(pointer: fine)').matches && !reduce) {
       const root = document.documentElement;
@@ -150,7 +151,10 @@ export default function RevealRoot() {
           pending = false;
           spot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
         });
-        if (!root.classList.contains('spot')) root.classList.add('spot');
+        const hot = !!(e.target as Element | null)?.closest?.(
+          'a[href], button:not(:disabled), [role="button"], summary, label[for], .fchip, .expand-live, .tile, .edu-toggle, .hotspot, input[type="radio"], input[type="checkbox"], select',
+        );
+        root.classList.toggle('spot', hot);
       };
       const out = () => root.classList.remove('spot');
       addEventListener('pointermove', move, { passive: true });

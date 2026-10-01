@@ -18,6 +18,7 @@ import CountStat from './CountStat';
 import CopyEmail from './CopyEmail';
 import ExpandCard from './ExpandCard';
 import GitHubPanel from './GitHubPanel';
+import { DownloadIcon, GitHubIcon, LinkedInIcon } from './Icons';
 import HeroCarousel from './HeroCarousel';
 import { HobbyIcon } from './HobbyIcon';
 import NameIntro from './Intro';
@@ -202,7 +203,7 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
           )}
           <div className="hero-links no-print">
             <a className="btn primary" href={site.resume} target="_blank" rel="noopener noreferrer">
-              ⤓ Download résumé
+              <DownloadIcon /> Download résumé
             </a>
             <a className="btn" href="#contact">
               Contact me →
@@ -712,13 +713,13 @@ function Contact({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
           </p>
           <div className="link-list">
             <a className="btn" href={portfolio.site.linkedin} target="_blank" rel="noopener noreferrer">
-              in · LinkedIn
+              <LinkedInIcon /> LinkedIn
             </a>
             <a className="btn" href={portfolio.site.github} target="_blank" rel="noopener noreferrer">
-              gh · GitHub
+              <GitHubIcon /> GitHub
             </a>
             <a className="btn" href={portfolio.site.resume} target="_blank" rel="noopener noreferrer">
-              ⤓ Résumé (PDF)
+              <DownloadIcon /> Résumé (PDF)
             </a>
           </div>
         </div>
@@ -766,7 +767,7 @@ export default function ProSite({
       case 'github':
         return (
           <section id={level.id} key={level.id} className="section section-story">
-            <ScrollStory title={level.title} number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={3}>
+            <ScrollStory title={level.title} number={sectionNumber(level)} variant="mask" caption={level.meta.kicker}>
               <GitHubPanel feed={github} site={portfolio.site} />
             </ScrollStory>
           </section>
