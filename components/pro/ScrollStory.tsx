@@ -273,7 +273,7 @@ export default function ScrollStory({
                 </span>
                 <span className="dim dim-w" aria-hidden>
                   <i />
-                  <b className="mono">W {letters.length * 64} mm</b>
+                  <b className="mono">W 6767 mm</b>
                 </span>
                 <span className="dim dim-h" aria-hidden>
                   <i />

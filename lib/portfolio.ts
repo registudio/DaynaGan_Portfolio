@@ -34,6 +34,8 @@ export type Site = {
   tagline: string;
   location: string;
   email: string;
+  /** Contact-form recipient (falls back to `email`); not shown on the site. */
+  inbox?: string;
   linkedin: string;
   github: string;
   githubUsername: string;

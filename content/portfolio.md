@@ -37,7 +37,10 @@ description: >-
   systems.
 tagline: I build where software meets the physical world — robots, sensors, simulations and the firmware that holds them together.
 location: Singapore
-email: daynagsr@gmail.com
+# email: shown on the site (placeholder until the Resend address is set up).
+# inbox: where the contact form delivers when CONTACT_TO_EMAIL isn't set in the environment.
+email: hello@example.com
+inbox: daynagsr@gmail.com
 linkedin: https://www.linkedin.com/in/daynagan/
 github: https://github.com/DaynaG3
 githubUsername: DaynaG3
@@ -678,6 +681,7 @@ The languages, platforms and tools I reach for — and some recognition picked u
 
 ## Awards Wing
 id: awards
+icon: 🏆
 
 ### Valedictorian
 id: award-valedictorian

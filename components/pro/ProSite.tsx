@@ -178,14 +178,13 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
   const { site } = portfolio;
   const identity = level.rooms.find((r) => r.id === 'identity');
   const currently = level.rooms.find((r) => r.id === 'currently');
-  const stats = level.rooms.find((r) => r.id === 'stats');
   const status = currently?.parts ?? [];
   return (
     <section id={level.id} className="section about-section" aria-labelledby="hero-title">
       <div className="hero">
         <div className="hero-copy">
           <h1 id="hero-title">
-            Hi, I&apos;m <span>{site.displayName}.</span>
+            Hi, I&apos;m <span>{site.displayName.split(' ')[0]}.</span>
           </h1>
           <p className="tagline">{site.tagline}</p>
           {status.length > 0 && (
@@ -213,30 +212,16 @@ function About({ portfolio, level, carousel, cad }: { portfolio: Portfolio; leve
         <HeroCarousel items={carousel} cad={cad} />
       </div>
       <div id="about-more" className="about-more">
-        <ScrollStory title="About Me" number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={3}>
-          {/* Pinned: the numbers count up, then who I am, then what I'm doing now — plain type, no cards. */}
+        <ScrollStory title="About Me" number={sectionNumber(level)} variant="mask" caption={level.meta.kicker} steps={2}>
+          {/* Pinned: who I am, then what I'm doing now — plain type, no cards. */}
           <div className="about-pin">
-            {stats && (
-              <div className="pin-step about-stats" data-step={0}>
-                {stats.parts.map((s) => {
-                  return (
-                    <div className="about-stat" key={s.id}>
-                      <b>
-                        <CountStat value={s.title} />
-                      </b>
-                      <span>{s.meta.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="pin-step about-who" data-step={1}>
+            <div className="pin-step about-who" data-step={0}>
               <span className="eyebrow">Who I am</span>
               <Html html={identity?.html} />
               <p className="about-focus mono">{list(level.meta.tags).join('  ·  ')}</p>
             </div>
             {currently && (
-              <div className="pin-step about-now" data-step={2}>
+              <div className="pin-step about-now" data-step={1}>
                 <span className="eyebrow">Currently</span>
                 <dl className="currently">
                   {currently.parts.map((p) => (
@@ -360,7 +345,8 @@ const startKey = (p?: string) => {
  * a horizontal timeline — one milestone per company, oldest to newest.
  */
 function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
-  const rooms = [...level.rooms].sort((a, b) => startKey(a.meta.period) - startKey(b.meta.period));
+  // Most recent first.
+  const rooms = [...level.rooms].sort((a, b) => startKey(b.meta.period) - startKey(a.meta.period));
   return (
     <section id={level.id} className="section section-story">
       <ScrollStory title={`My ${level.title}`} number={sectionNumber(level)} variant="rise" horizontal>
@@ -530,7 +516,7 @@ function Skills({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
                 <div className="flip-inner">
                   <div className="flip-face card">
                     <span className="trophy" aria-hidden>
-                      🏆
+                      {a.meta.icon || awards.meta.icon || '🏆'}
                     </span>
                     <b>{a.title}</b>
                     <span className="mono muted">{period(a) || '—'}</span>

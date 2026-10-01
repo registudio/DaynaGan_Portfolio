@@ -1218,7 +1218,8 @@ main.pro {
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* Top-aligned so every card's icon and title sit on the same line, whatever the title length. */
+  justify-content: flex-start;
   gap: 8px;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -1229,6 +1230,7 @@ main.pro {
 }
 .flip-face .mono {
   font-size: var(--t-xs);
+  margin-top: auto;
 }
 .trophy {
   font-size: var(--t-lg);
@@ -2045,7 +2047,13 @@ main.pro {
 }
 
 /* ── Live (pinned). --a reveal, --b dock, --c horizontal travel (all 0–1). ── */
+.story.live .story-window {
+  pointer-events: auto;
+}
 .story.live .story-stage {
+  /* The full-screen stage is see-through; only its content window takes clicks (it used to
+     sit over the footer at the end of the page and swallow its buttons). */
+  pointer-events: none;
   position: sticky;
   top: 0;
   width: 100vw;

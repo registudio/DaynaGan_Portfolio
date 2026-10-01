@@ -13,6 +13,7 @@ const siteSchema = z.object({
   tagline: z.string(),
   location: z.string(),
   email: z.email(),
+  inbox: z.email().optional(),
   linkedin: z.url(),
   github: z.url(),
   githubUsername: z.string(),

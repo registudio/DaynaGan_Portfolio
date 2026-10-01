@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   try {
     const { error } = await new Resend(key).emails.send({
       from: process.env.CONTACT_FROM_EMAIL || 'Portfolio <onboarding@resend.dev>',
-      to: process.env.CONTACT_TO_EMAIL || site.email,
+      to: process.env.CONTACT_TO_EMAIL || site.inbox || site.email,
       replyTo: data.email,
       subject: `Portfolio: ${data.reason || 'message'} from ${data.name}`,
       html,
