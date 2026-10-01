@@ -28,7 +28,12 @@ export default function ProjectViewer({
   parts,
   active,
   onHover,
+  title = '',
+  sheet = '',
 }: {
+  title?: string;
+  /** Drawing number, e.g. "01 / 06". */
+  sheet?: string;
   projectId: string;
   cad: Record<string, string>;
   parts: ViewerPart[];
@@ -275,7 +280,38 @@ export default function ProjectViewer({
   const noted = note ? byId.get(note) : null;
   return (
     <div className="pviewer">
-      <div className="pviewer-canvas" ref={host}>
+      <div className={`pviewer-canvas${cad[projectId] ? '' : ' blueprint'}`} ref={host}>
+        {/* Until the CAD export arrives, the wireframe is presented as a technical drawing. */}
+        {!cad[projectId] && (
+          <div className="bp-sheet" aria-hidden>
+            <i className="bp-corner tl" />
+            <i className="bp-corner tr" />
+            <i className="bp-corner bl" />
+            <i className="bp-corner br" />
+            <div className="bp-scale mono">
+              <i />
+              <span>Scale · NTS</span>
+            </div>
+            <dl className="bp-title mono">
+              <div>
+                <dt>Project</dt>
+                <dd>{title}</dd>
+              </div>
+              <div>
+                <dt>Dwg</dt>
+                <dd>{sheet}</dd>
+              </div>
+              <div>
+                <dt>Drawn</dt>
+                <dd>D. Gan</dd>
+              </div>
+              <div>
+                <dt>Rev</dt>
+                <dd>A · wireframe</dd>
+              </div>
+            </dl>
+          </div>
+        )}
         {gl === false && <p className="muted pviewer-empty">3D view unavailable on this device.</p>}
         {hotspots && (
           <div className="hotspots" ref={dots}>

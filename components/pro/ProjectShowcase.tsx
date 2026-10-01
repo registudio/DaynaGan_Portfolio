@@ -142,6 +142,8 @@ export default function ProjectShowcase({
                 </span>
               </div>
               <ProjectViewer
+                title={current.title}
+                sheet={`${String(index + 1).padStart(2, '0')} / ${String(shown.length).padStart(2, '0')}`}
                 projectId={current.id}
                 cad={cad}
                 parts={current.parts.map((x) => ({ id: x.id, title: x.title, note: x.did }))}
