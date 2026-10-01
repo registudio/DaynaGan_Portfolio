@@ -15,7 +15,7 @@ const MOSAIC = squarify(
  * Pinned, scroll-driven section opener. Each section gets its own motion design (`variant`):
  *   mask      (About)      — letters slide up from behind a baseline; a hairline rule draws under them
  *   path      (Education)  — the word wipes in while a hairline timeline draws and its stops light up
- *   rise      (Experience) — letters rise and settle over a drifting outlined echo
+ *   rise      (Experience) — letters fade in one after another, in place
  *   blueprint (Projects)   — an outlined CAD sketch with dimension lines, then a fill sweeps in
  *   focus     (Contact)    — letters close in from wide spacing, an underline draws, a caption follows
  *   mosaic    (Skills)     — a miniature treemap tiles over the word, then clears diagonally to reveal it
@@ -227,15 +227,13 @@ export default function ScrollStory({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [horizontal, variant, title, end, steps]);
 
-  // "My …" titles: the possessive picks up the brand colour.
-  const accent = title.startsWith('My ') ? 2 : 0;
   const word = (extra = '') => (
     <h2 className={`story-word${extra}`} style={{ '--n': letters.length } as React.CSSProperties}>
       <span className="sr-only">{title}</span>
       {letters.map((ch, i) => (
         <span
           key={i}
-          className={`story-ch${i < accent ? ' accent' : ''}`}
+          className="story-ch"
           aria-hidden
           style={{ '--i': i } as React.CSSProperties}
         >
@@ -249,11 +247,6 @@ export default function ScrollStory({
     <>
       <div className={`story v-${variant}${horizontal ? ' story-h' : ''}${steps ? ' story-steps' : ''}`} ref={wrap}>
         <div className="story-stage" ref={stage}>
-          {variant === 'rise' && (
-            <div className="story-ghost story-fx" aria-hidden>
-              {title}
-            </div>
-          )}
           {variant === 'blueprint' && <div className="story-grid story-fx" aria-hidden />}
           <div className="story-head" ref={head} style={{ '--n': letters.length } as React.CSSProperties}>
             {number && <span className="story-num mono">{number}</span>}

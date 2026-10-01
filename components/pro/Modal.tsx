@@ -13,12 +13,15 @@ export default function Modal({
   label,
   children,
   wide = false,
+  illuminate = false,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
   children: React.ReactNode;
   wide?: boolean;
+  /** Illuminated backdrop (a soft light blooming behind the card). */
+  illuminate?: boolean;
 }) {
   const card = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -55,7 +58,8 @@ export default function Modal({
 
   if (!open || typeof document === 'undefined') return null;
   return createPortal(
-    <div className="modal-scrim" onClick={onClose}>
+    <div className={`modal-scrim${illuminate ? ' illuminate' : ''}`} onClick={onClose}>
+      {illuminate && <div className="illuminate-bg" aria-hidden />}
       <div
         className={`modal${wide ? ' wide' : ''}`}
         role="dialog"

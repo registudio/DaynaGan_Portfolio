@@ -49,7 +49,6 @@ export default function ProjectShowcase({
   useEffect(() => {
     const els = [...(list.current?.querySelectorAll<HTMLElement>('.show-item') ?? [])];
     if (!els.length) return;
-    if (!shown.some((p) => p.id === active)) setActive(shown[0]?.id);
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) if (e.isIntersecting) setActive((e.target as HTMLElement).dataset.id);
@@ -58,7 +57,8 @@ export default function ProjectShowcase({
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [shown, active]);
+    // Not re-created on every change, or its first callback would undo a hover selection.
+  }, [shown]);
 
   const current = shown.find((p) => p.id === active) ?? shown[0];
   const index = current ? shown.indexOf(current) : 0;
@@ -91,13 +91,20 @@ export default function ProjectShowcase({
               </ul>
               {p.skills.length > 0 && <p className="muted small">Built with {p.skills.join(', ')}</p>}
               <ol className="parts">
-                {p.parts.map((pt) => (
+                {p.parts.map((pt, n) => (
                   <li
                     key={pt.id}
                     className={p.id === current?.id && part === pt.id ? 'active' : ''}
-                    onPointerEnter={() => p.id === current?.id && setPart(pt.id)}
+                    onPointerEnter={() => {
+                      // Hovering a component brings its project on stage right away.
+                      if (p.id !== current?.id) setActive(p.id);
+                      setPart(pt.id);
+                    }}
                     onPointerLeave={() => setPart(null)}
                   >
+                    <span className="part-no mono" aria-hidden>
+                      {n + 1}
+                    </span>
                     <b>{pt.title}</b>
                     {pt.html && <div dangerouslySetInnerHTML={{ __html: pt.html }} />}
                     {pt.did && <p className="did">{pt.did}</p>}

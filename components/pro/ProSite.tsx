@@ -399,6 +399,8 @@ function Journey({ portfolio, level }: { portfolio: Portfolio; level: Level }) {
               <span className="mono">{(room.meta.period ?? '').match(/\d{4}/)?.[0]}</span>
             </div>
             <ExpandCard
+              interactive
+              illuminate
               className="mile-card card glass"
               title={room.title}
               summary={
