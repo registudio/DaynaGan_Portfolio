@@ -1,100 +1,66 @@
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import {
-  getSite,
-  getSections,
-  getExperience,
-  getProjects,
-  getPosts,
-  getTour,
-  projectSchema,
-} from '../lib/content.ts';
-import {
-  beamCount,
-  blueprintBlend,
-  beamOrigins,
-  beamFocus,
-  dishCenter,
-  chapterPose,
-  combatDestroyed,
-  moduleMap,
-  sectionIds,
-} from '../lib/tour.ts';
+import { loadPortfolio, parsePortfolio } from '../lib/load.ts';
+import { parseBody, sectionLevels } from '../lib/portfolio.ts';
+import { checkBuild, computeSkills, unbuildableProjects } from '../lib/skills.ts';
 
-test('all navigation destinations and scene modules map to real sections', () => {
-  const site = getSite();
-  const sections = getSections();
-  const ids = ['blueprint', ...sections.map((s) => s.id)];
+const portfolio = loadPortfolio();
+
+test('portfolio.md parses and validates', () => {
+  assert.equal(portfolio.site.displayName, 'Dayna Gan');
   assert.deepEqual(
-    site.navigation.map((n) => n.id),
-    ids,
+    sectionLevels(portfolio).map((l) => l.id),
+    ['about', 'education', 'experience', 'projects', 'trophies', 'leadership', 'github', 'hobbies', 'future', 'contact'],
   );
-  for (const target of Object.values(moduleMap)) assert.ok(ids.includes(target));
-  assert.deepEqual(ids, sectionIds);
-  assert.equal(new Set(sections.map((s) => s.order)).size, 8);
-  assert.equal(getTour().education[0].qualification, 'Elective: Computing+');
 });
-test('canonical experience and contact details are intact', () => {
-  const jobs = getExperience();
-  assert.equal(jobs.length, 4);
-  assert.ok(jobs.find((j) => j.slug === 'dso')?.body.includes('55.6%'));
-  assert.ok(jobs.find((j) => j.slug === 'astar')?.body.includes('100 simulation runs'));
-  assert.equal(getSite().email, 'daynagsr@gmail.com');
-  assert.ok(fs.existsSync(`public${getSite().resume}`));
-});
-test('draft projects and blog posts are never published', () => {
-  assert.ok(getProjects().every((p) => !p.draft));
-  assert.ok(getPosts().every((p) => !p.draft));
-  assert.ok(!getProjects().some((p) => p.slug === 'first-project'));
-  assert.ok(!getPosts().some((p) => p.slug === 'first-field-note'));
-});
-test('invalid content slugs and links fail validation', () => {
-  const valid = { title: 'Test', slug: 'test', summary: 'Test', technologies: [] };
-  assert.ok(projectSchema.safeParse(valid).success);
-  assert.ok(!projectSchema.safeParse({ ...valid, slug: '../unsafe' }).success);
-  assert.ok(!projectSchema.safeParse({ ...valid, github: 'not a URL' }).success);
-});
-test('eight separate emitters ignite in order before the main beam', () => {
-  assert.equal(beamCount(0), 0);
-  for (let i = 0; i < 8; i++) assert.equal(beamCount(0.121 + i * 0.085), i + 1);
-  assert.equal(beamCount(0.83), 8);
-  assert.equal(new Set(beamOrigins.map((p) => p.join(','))).size, 8);
-  for (const origin of beamOrigins) {
-    assert.ok(Math.abs(Math.hypot(...origin.map((v, i) => v - dishCenter[i])) - 0.68) < 0.002);
-    assert.ok(Math.hypot(...origin.map((v, i) => v - beamFocus[i])) > 1.8);
+
+test('every level has a biome and light colour', () => {
+  for (const level of portfolio.levels) {
+    assert.ok(level.meta.biome, `${level.id} biome`);
+    assert.match(level.meta.light, /^#[0-9a-f]{6}$/i, `${level.id} light`);
   }
-  assert.equal(combatDestroyed(0), 0);
-  assert.equal(combatDestroyed(0.82), 6);
-  assert.equal(combatDestroyed(0.3), 0);
 });
-test('blueprint, solid model and space use the same reversible fade', () => {
-  assert.equal(blueprintBlend(0), 0);
-  assert.ok(Math.abs(blueprintBlend(0.31) - 0.5) < 0.0001);
-  assert.equal(blueprintBlend(0.6), 1);
-  assert.equal(blueprintBlend(1), 1);
-  assert.equal(blueprintBlend(-1), 0);
+
+test('heading hierarchy: metadata, prose and TODO stripping', () => {
+  const [level] = parseBody(
+    '# Level A\nid: a\nlight: #ffffff\n\nIntro.\n\n## Room\nperiod: 2024\n\nText.\n\nTODO: hidden\n\n### Part\nPart text.',
+  );
+  assert.equal(level.id, 'a');
+  assert.equal(level.meta.light, '#ffffff');
+  assert.equal(level.body, 'Intro.');
+  assert.equal(level.rooms[0].id, 'room');
+  assert.equal(level.rooms[0].body, 'Text.');
+  assert.equal(level.rooms[0].todo, true);
+  // A prose line directly under a heading is metadata only if it looks like `key: value`.
+  assert.equal(level.rooms[0].parts[0].body, 'Part text.');
 });
-test('every destination has valid desktop and mobile camera poses', () => {
-  for (let stage = 0; stage < sectionIds.length; stage++)
-    for (const mobile of [true, false])
-      for (const local of [0, 0.5, 1]) {
-        const pose = chapterPose(stage, local, mobile);
-        assert.ok([...pose.position, ...pose.target, pose.fov].every(Number.isFinite));
-        assert.ok(pose.fov > 20 && pose.fov < 100);
-        assert.notDeepEqual(pose.position, pose.target);
-      }
+
+test('headings must nest one level at a time', () => {
+  assert.throws(() => parseBody('# L\n### Orphan part'));
 });
-test('optimized uploaded station models retain all named tour sectors', () => {
-  for (const file of ['blueprint', 'station', 'station-mobile']) {
-    const glb = fs.readFileSync(`public/models/tour/${file}.glb`);
-    assert.equal(glb.readUInt32LE(0), 0x46546c67);
-    const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString());
-    for (const name of Object.keys(moduleMap))
-      assert.ok(
-        json.nodes.some((n: { name: string }) => n.name === name),
-        name,
-      );
-    assert.ok(glb.length < 16_000_000);
-  }
+
+test('invalid content is rejected', () => {
+  const bad = `---\nname: x\ndisplayName: x\ntitle: x\ndescription: x\ntagline: x\nlocation: x\nemail: a@b.co\nlinkedin: https://a.b\ngithub: https://a.b\ngithubUsername: x\nresume: /r.pdf\ncompanion: { name: Cat }\nskills: []\n---\n# L\nid: l\n\n## R\ngrants: nope +1\n`;
+  assert.throws(() => parsePortfolio(bad), /Unknown skill "nope"/);
+});
+
+test('every project can be built by playing through', () => {
+  assert.deepEqual(unbuildableProjects(portfolio), []);
+});
+
+test('drone needs soldering 3 and the claw + Euna Air first', () => {
+  const none = computeSkills(portfolio, { scanned: [], built: [] });
+  const check = checkBuild(portfolio, 'drone', none, []);
+  assert.equal(check.ok, false);
+  assert.ok(check.missingSkills.some((m) => m.skill === 'soldering' && m.level === 3));
+  assert.deepEqual(
+    check.missingProjects.map((m) => m.id).sort(),
+    ['air-quality-sensor', 'robot-claw'],
+  );
+});
+
+test('skills are capped at their max', () => {
+  const full = computeSkills(portfolio, null);
+  for (const s of portfolio.site.skills) assert.ok(full[s.id] <= s.max, s.id);
+  assert.equal(full.python, 5);
 });

@@ -1,0 +1,68 @@
+---
+title: Euna Air
+slug: air-quality-sensor
+order: 4
+year: 2026
+status: complete
+summary: An environmental monitoring and sensor-fusion device that I brought up and deployed at customer premises during my hardware internship at Ecovolt.
+technologies: [Embedded firmware, Sensor fusion, IoT, Field testing]
+accent: '#a78bfa'
+compare:
+  before:
+    label: CAD / render
+  after:
+    label: Real build
+parts:
+  - id: lid
+    label: Enclosure lid
+    shape: box
+    size: [1.2, 0.12, 0.9]
+    position: [0, 0.42, 0]
+    explode: [0, 0.9, 0]
+    material: lilac
+    summary: Top shell of the enclosure.
+  - id: sensor
+    label: Sensor array
+    shape: box
+    size: [0.42, 0.22, 0.42]
+    position: [-0.25, 0.22, 0]
+    explode: [-0.35, 0.55, 0]
+    material: violet
+    summary: The environmental sensors whose readings are fused into one picture of the room.
+    learned: Identified discrepancies between laboratory simulations and real-world operating conditions.
+  - id: mcu
+    label: Microcontroller & firmware
+    shape: box
+    size: [0.32, 0.06, 0.24]
+    position: [0.3, 0.12, 0]
+    explode: [0.45, 0.35, 0]
+    material: chrome
+    summary: Runs the embedded firmware that reads, fuses and reports sensor data.
+    did: Developed embedded firmware and field-testing procedures for Euna Air.
+  - id: pcb
+    label: PCB
+    shape: box
+    size: [1.05, 0.04, 0.78]
+    position: [0, 0.06, 0]
+    explode: [0, 0.1, 0]
+    material: glow
+    summary: Carries power and signals between the components.
+    did: Owned the hardware bring-up of Euna Air.
+  - id: base
+    label: Enclosure base
+    shape: box
+    size: [1.2, 0.36, 0.9]
+    position: [0, -0.16, 0]
+    explode: [0, -0.5, 0]
+    material: graphite
+    summary: Bottom shell with vents so air can reach the sensors.
+    did: Completed rigorous on-site validation at customer premises within one week.
+---
+## Overview
+
+Euna Air is Ecovolt Technologies' environmental monitoring and sensor-fusion solution. During my hardware engineering internship I owned its bring-up and customer deployment.
+
+## What I did
+
+- Owned the hardware bring-up and customer deployment of Euna Air, completing rigorous on-site validation at customer premises within one week.
+- Developed embedded firmware and field-testing procedures, identifying discrepancies between laboratory simulations and real-world operating conditions to support reliable deployment.

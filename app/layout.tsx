@@ -1,44 +1,44 @@
-import type { Metadata } from 'next';
-import '@fontsource/space-grotesk/400.css';
-import '@fontsource/space-grotesk/500.css';
-import '@fontsource/space-grotesk/600.css';
-import '@fontsource/space-grotesk/700.css';
-import '@fontsource/ibm-plex-mono/400.css';
-import '@fontsource/ibm-plex-mono/500.css';
+import type { Metadata, Viewport } from 'next';
+import '@fontsource/space-grotesk/latin-400.css';
+import '@fontsource/space-grotesk/latin-500.css';
+import '@fontsource/space-grotesk/latin-700.css';
+import '@fontsource/ibm-plex-mono/latin-400.css';
+import '@fontsource/ibm-plex-mono/latin-500.css';
+import '@fontsource/pixelify-sans/latin-400.css';
+import '@fontsource/pixelify-sans/latin-600.css';
 import './globals.css';
-import { getSite } from '@/lib/content';
-import { siteUrl } from '@/lib/urls';
-const site = getSite();
-const url = siteUrl();
+import './pro.css';
+import { loadPortfolio } from '@/lib/load';
+
+const site = loadPortfolio().site;
+const url = process.env.NEXT_PUBLIC_SITE_URL || undefined;
+
 export const metadata: Metadata = {
-  metadataBase: url || new URL('http://localhost:3000'),
-  title: { default: site.title, template: `%s — ${site.displayName}` },
+  metadataBase: url ? new URL(url) : undefined,
+  title: site.title,
   description: site.description,
-  ...(url ? { alternates: { canonical: url.href } } : {}),
-  openGraph: {
-    title: site.title,
-    description: site.description,
-    type: 'website',
-    ...(url ? { url: url.href } : {}),
-    images: [
-      {
-        url: 'images/og.png',
-        width: 1200,
-        height: 630,
-        alt: 'Dayna Gan — D-01 Engineering Station',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: site.title,
-    description: site.description,
-    images: ['images/og.png'],
-  },
+  openGraph: { title: site.title, description: site.description, type: 'website' },
+  twitter: { card: 'summary_large_image', title: site.title, description: site.description },
 };
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#faf8fc' },
+    { media: '(prefers-color-scheme: dark)', color: '#130e1d' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+};
+
+// Runs before first paint: applies the saved theme so there's no light/dark flash.
+const themeScript = `try{var t=localStorage.getItem('dg-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

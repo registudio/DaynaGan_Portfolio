@@ -1,51 +1,98 @@
-# Dayna Gan / Death Star portfolio tour
+# Dayna Gan — portfolio v2
 
-A scroll-controlled ghost tour through a sectional Death Star, built with Next.js, TypeScript, React Three Fiber, Three.js and Markdown/MDX. Supplied GLBs, resume and source brief are preserved.
+Two ways to explore the same content:
 
-## Run
+- **Professional mode**: a single-page, résumé-style site in purple, with animated gradients, light and dark themes, a floating pill nav (bottom sheet on phones), scroll progress and a section rail, a once-per-session name intro, a 3D hero carousel of every project, a pinned projects showcase (drag, zoom, exploded view, hotspots, filters), scroll-drawn timelines with impact metrics, skill bars that light up where each skill was used, flip-card awards, a compact live GitHub panel, a hobby bento, a goals trajectory, a print stylesheet and a contact form.
+- **Game mode**: an isometric voxel action-RPG in the style of Minecraft Dungeons. You play as Dayna with Xiao Hu the cat, deploying from an orbital station to eight mission biomes, each with trial rooms (locked dungeons with small tasks and hazard gauntlets), a mini-boss and bot fabricators. The prize at the end is the Comms Core contact form.
+- **Planet Aurora**: a combat-free open world (nine biomes: meadow, supertree garden, crystal ruins, sky islands, volcano, lighthouse coast, canyon, glowroot jungle, tundra) where every portfolio section — including Hobbies and Future Goals — is a landmark, some behind nature puzzles.
+- **Quick tour**: Xiao Hu walks you through everything hands-free (full, or by interest: robotics, embedded systems, AI).
 
-Requires Node 22.18+ or Node 24.
+LinkedIn, GitHub, email and the résumé are one click away in both modes.
+
+The full design (every decision, level and idea) is in **[`docs/v2-design.md`](docs/v2-design.md)**. The previous site is preserved in [`archive/v1/`](archive/v1/).
+
+## Editing content: one file
+
+Everything visitors see comes from **[`content/portfolio.md`](content/portfolio.md)**:
+
+```md
+# Level         ← a section / mission (About, Education, …)
+id: projects
+biome: circuit-caverns
+light: #22d3ee
+
+## Room         ← a content item (a role, a school, a project)
+period: 2026
+tags: IoT, Firmware
+grants: esp32 +1        ← skill XP earned in-game
+requires: soldering 3   ← skill gate (projects)
+
+Prose in Markdown.
+
+### Part        ← sub-content (a bullet, a project component)
+did: What I did
+learned: What I learnt
+```
+
+- Lines of `key: value` directly under a heading are metadata; everything after the first blank line is Markdown.
+- Paragraphs starting with `TODO` never reach visitors.
+- The skill tree (skills, levels, and where each level is earned) is defined in the file's frontmatter and its `grants:` lines. Edit those lines to change proficiencies.
+- New rooms and parts appear in both modes automatically. The game builds its levels from the headings.
+- `npm test` validates the file: unknown skills, broken links, duplicate ids, and projects that could never be built all fail the tests.
+
+Project 3D models come from the part descriptions in `game/models/geometry.ts`, keyed by part id: voxel builds in the game, wireframe blueprints in Professional mode. To show a real CAD model in Professional mode, drop `public/models/<project-id>.glb` (or `.gltf`, `.stl`, `.obj`) — see `public/models/README.md`. Name objects after part ids to get the exploded view and hotspots.
+
+Extra keys used by Professional mode: `metrics: 80+ | volunteers led; 3 | robots built` (count-up impact numbers on a role), `repo:` / `demo:` (project links) and `filters:` on the Projects level (the filter chips).
+
+## Develop
+
+Requires Node 22.18+.
 
 ```sh
 npm ci
-npm run dev
+npm run dev        # http://localhost:3000  (#play = game, #tour = quick tour, #planet = open world)
 npm run typecheck
 npm test
 npm run build
-npm start
 ```
 
-With the development server running, `npm run test:routes` verifies rendered Markdown routes, content refresh, draft exclusion, assets and GitHub API caching. Temporary content fixtures are removed in a finally block.
+## Deploy (Vercel)
 
-## Tour
+1. Import the repository in Vercel. The framework is detected as Next.js and needs no build settings.
+2. Add the environment variables below under **Project → Settings → Environment Variables**.
+3. Deploy. The GitHub panel refreshes hourly (`revalidate = 3600`).
 
-The blue construction sheet and rotating outline blend into deep space and the solid uploaded station. Visit the reactor, academy, hangars, superlaser, defensive systems, Overbridge, archives and comlink array. Hover, focus or tap model markers to open attached records. Select a hangar to explore its fighter reports. Eight scroll-controlled project beams converge at one focus. The X-wing sequence uses green near-misses and red return fire, revealing skills and awards as targets are cleared.
+| Variable | Required | Purpose |
+|---|---|---|
+| `RESEND_API_KEY` | for the contact form | API key from [resend.com](https://resend.com). Without it, the form offers an email link instead. |
+| `CONTACT_FROM_EMAIL` | recommended | A sender on a domain verified in Resend, e.g. `Portfolio <hello@your-domain.com>`. Resend's default `onboarding@resend.dev` only delivers to the Resend account owner's own address — so if the Resend account is created with daynagsr@gmail.com, the default sender works with no domain. |
+| `CONTACT_TO_EMAIL` | optional | Inbox for messages — `daynagsr@gmail.com`. Defaults to the email in `portfolio.md` (the same address). |
+| `GITHUB_TOKEN` | optional | Read-only token from Dayna's account; enables the full contribution calendar. |
+| `NEXT_PUBLIC_SITE_URL` | optional | Canonical URL for metadata. |
 
-The small section rail shows progress. Content appears in model-attached pop-ups. Mobile uses larger targets, portrait camera framing and constrained pop-ups. A reading view, keyboard controls, reduced motion and WebGL fallback keep the content accessible.
+## Code map
 
-## Content
+| Path | What |
+|---|---|
+| `content/portfolio.md` | All content |
+| `lib/portfolio.ts`, `lib/load.ts` | Parser, validation, Markdown rendering |
+| `lib/skills.ts` | Skill levels, sources and build checks (shared by both modes) |
+| `lib/github.ts` | GitHub feed with offline fallback |
+| `app/api/contact/route.ts` | Contact form → Resend (honeypot + rate limit) |
+| `components/pro/*` | Professional mode (`ProSite` layout, `HeroCarousel`, `ProjectShowcase` + `ProjectViewer`, `RevealRoot` motion, `ProHeader` nav) |
+| `components/pro/three/*` | Professional-mode 3D: wireframe blueprints, CAD loader, render stage |
+| `app/pro.css` | Professional-mode Round 6 styles |
+| `components/game/*` | Game UI: HUD, panels, star map, pause menu, touch controls |
+| `game/engine/Game.ts` | Game loop, scenes, combat, interactions, HUD state |
+| `game/engine/layout.ts`, `trials.ts` | Mission level generator (rooms, corridors, trial rooms, hazards, fabricators) |
+| `game/engine/planet.ts`, `nature.ts` | Planet Aurora open world and its nature art/puzzles |
+| `game/engine/world.ts`, `terrain.ts` | Terrain meshing (exposed faces, chunks, baked shading) and collision/step rules |
+| `game/engine/exploration.ts` | Blueprint tracking, tour topics, engineering-lab maths |
+| `game/engine/lore.ts`, `panels.ts` | Text for cards, area titles, fragments and panels (derived from `portfolio.md`) |
+| `game/engine/*` (rest) | Characters, props, biomes, textures, set pieces, star map, audio, missions, input, store |
+| `game/models/*` | Voxel project models (used by both modes) |
+| `tests/*` | Content, level generation, trials, planet, lore, missions and exploration tests (`npm test`) |
 
-- `content/site.md`: identity, links and navigation.
-- `content/tour.md`: education, skills, awards and tour copy. SST shows Elective: Computing+; unspecified dates remain blank.
-- `content/sections/*.md`: eight portfolio sections.
-- `content/experience/*.mdx`: resume-sourced work records.
-- `content/projects/*.mdx` and `content/blog/*.mdx`: case studies and logs.
-- `public/resume/DaynaGan_Resume.pdf`: resume download.
+## Assets
 
-Zod validates frontmatter. Draft templates are excluded from indexes, sitemap and public routes. The eight project generators keep marked placeholders until real case studies are supplied. Set `draft: false` only after adding real content. Development reads changes on refresh; production content changes require a rebuild. MDX is trusted repository content.
-
-## Models
-
-```sh
-npm run models:prepare
-```
-
-The script prepares compressed runtime copies from the three uploaded GLBs, retaining named sectors and producing desktop/mobile assets. The desktop model preserves more geometry and larger textures. Blueprint: approximately 60 KB; desktop station: 8.35 MB; mobile station: 5.40 MB; cockpit: 0.35 MB. Source GLBs remain unchanged. Supplemental interiors use batched geometry, paneling, conduits and illuminated displays. See `docs/model-contract.md`.
-
-## Hosting and GitHub
-
-Vercel is the selected target to retain server fetching and hourly revalidation. Import this repository with the Next.js defaults. Set `NEXT_PUBLIC_SITE_URL` to the public URL; Vercel's production URL is detected automatically. Optional `GITHUB_TOKEN` stays server-only and raises API limits. Never prefix credentials with `NEXT_PUBLIC_`.
-
-The homepage and `/api/github` revalidate after one hour. Only public DaynaG3 repositories and events are used. Activity is recent public event activity, not a fabricated contribution history. Fetch failures and rate limits show an offline state and a GitHub profile link. Local testing may show this fallback when network access is unavailable.
-
-This is not a static GitHub Pages export. Nothing has been deployed. Fonts are bundled locally.
+Every visual asset is generated in code: pixel textures, voxel characters, props and project models. Audio is synthesised with WebAudio. To use a real meow, drop a recording at `public/audio/meow.mp3`.
