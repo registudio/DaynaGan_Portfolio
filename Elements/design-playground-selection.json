@@ -1,0 +1,10 @@
+{
+  "schema": "design-playground-selection/v1",
+  "selections": [
+    {
+      "id": "react-bits:CountUp",
+      "installCommand": "npx shadcn@latest add @react-bits/CountUp-TS-TW",
+      "intendedUse": ""
+    }
+  ]
+}

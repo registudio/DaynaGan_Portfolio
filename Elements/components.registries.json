@@ -1,0 +1,9 @@
+{
+  "registries": {
+    "@bklit": "https://bklit.com/r/{name}.json",
+    "@componentry": "https://componentry.dev/r/{name}.json",
+    "@kokonutui": "https://kokonutui.com/r/{name}.json",
+    "@react-bits": "https://reactbits.dev/r/{name}.json",
+    "@soralabs": "https://ui.soralabs.io.vn/r/{name}.json"
+  }
+}
