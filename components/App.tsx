@@ -51,6 +51,9 @@ export default function App({
     else if (hash && hash !== 'splash') setModeState('pro');
     else if (stored === 'pro') setModeState('pro');
     if (stored === 'pro' || stored === 'game') setRemembered(stored);
+    // Not heading into Professional mode after all: drop the pre-paint cover.
+    const html = document.documentElement;
+    if (!html.classList.contains('boot-pro') || hash === 'play' || hash === 'tour' || hash === 'planet') html.classList.add('booted');
   }, []);
 
   const setMode = useCallback((m: Mode, anchor?: string) => {

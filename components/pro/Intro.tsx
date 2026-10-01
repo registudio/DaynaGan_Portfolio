@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useMode } from '../App';
 
 /**
@@ -17,7 +17,10 @@ export default function Intro({ name }: { name: string }) {
     try {
       skip = !!sessionStorage.getItem('dg-intro-skip'); // automated checks only
     } catch {}
-    if (skip || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (skip || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('booted');
+      return;
+    }
     setPhase('draw');
     const t1 = setTimeout(() => setPhase('out'), 1300);
     const t2 = setTimeout(() => setPhase('off'), 1900);
@@ -27,6 +30,11 @@ export default function Intro({ name }: { name: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  // The intro overlay is on screen: lift the pre-paint cover (see the boot script in layout).
+  useLayoutEffect(() => {
+    if (phase !== 'off') document.documentElement.classList.add('booted');
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== 'draw') return;
